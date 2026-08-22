@@ -1,0 +1,143 @@
+/* =========================
+   Base y paleta JJ GYM
+   ========================= */
+:root {
+  --green: #b56cff;
+  --green-dark: #8441c6;
+  --green-soft: #321d47;
+  --lime: #d7adff;
+  --ink: #f2f4ef;
+  --muted: #a9afa7;
+  --line: #30332f;
+  --surface: #1c1e1b;
+  --background: #242424;
+  --danger: #ff7979;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--background); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+/* =========================
+   Landing page
+   ========================= */
+.gym-home { min-height: 100vh; overflow: hidden; background: radial-gradient(circle at 82% 7%, rgba(181, 108, 255, .12), transparent 24rem), radial-gradient(circle at 12% 65%, rgba(255, 159, 67, .07), transparent 28rem), #242424; }
+.gym-nav, .gym-hero, .gym-benefits { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+.gym-nav { min-height: 82px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.gym-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-size: 17px; font-weight: 800; letter-spacing: 1px; text-decoration: none; }
+.gym-logo > span:last-child span { color: var(--green); }
+.gym-logo-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--green); color: #fff; font-size: 10px; letter-spacing: -1px; }
+.gym-nav-links { display: flex; gap: 32px; }
+.gym-nav-links a, .gym-secondary-link { color: var(--muted); font-size: 13px; text-decoration: none; transition: color 160ms ease; }
+.gym-nav-links a:hover, .gym-secondary-link:hover { color: var(--green); }
+
+.gym-hero { min-height: 585px; display: grid; grid-template-columns: 1fr .9fr; align-items: center; gap: 56px; }
+.gym-kicker { margin: 0 0 20px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: 2.7px; }
+.gym-hero h1 { max-width: 620px; margin: 0; color: var(--ink); font-size: clamp(52px, 7vw, 88px); font-weight: 800; letter-spacing: -5px; line-height: .94; }
+.gym-hero h1 em { color: var(--green); font-family: Georgia, serif; font-weight: 400; }
+.gym-description { max-width: 490px; margin: 28px 0 30px; color: var(--muted); font-size: 16px; line-height: 1.65; }
+.gym-actions { display: flex; align-items: center; gap: 26px; }.gym-actions .gym-secondary-link { padding-bottom: 4px; border-bottom: 1px solid currentColor; font-weight: 700; }
+
+.gym-benefits { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+.gym-benefits article { min-height: 180px; padding: 29px 28px 25px 0; border-right: 1px solid var(--line); }.gym-benefits article + article { padding-left: 28px; }.gym-benefits article:last-child { border: 0; }
+.gym-benefits span { color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: 1px; }.gym-benefits h2 { margin: 22px 0 8px; font-size: 17px; }.gym-benefits p { max-width: 245px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+/* Selector de inquilino: cada tarjeta representa un gimnasio independiente. */
+.tenant-section { width: min(1160px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 64px; border-top: 1px solid var(--line); }
+.tenant-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 26px; }.tenant-section-heading .gym-kicker { margin-bottom: 10px; }.tenant-section-heading h2 { margin: 0; font-size: clamp(27px, 3vw, 38px); letter-spacing: -1.8px; }.tenant-section-heading > p { max-width: 350px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.tenant-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }.tenant-card { position: relative; min-height: 270px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 22px; border: 1px solid #494949; border-radius: 18px; background: linear-gradient(145deg, #353535, #202020 72%); box-shadow: 0 12px 28px rgba(0, 0, 0, .35); transform-origin: center; transition: transform 220ms cubic-bezier(.2, .8, .2, 1), box-shadow 220ms ease, border-color 220ms ease; }.tenant-card::before { content: ""; position: absolute; top: 0; right: 0; left: 0; height: 5px; background: var(--green); }.tenant-card:hover, .tenant-card:focus-within { transform: translateY(-8px) scale(1.035); border-color: var(--green); box-shadow: 0 26px 42px rgba(0, 0, 0, .55); z-index: 1; }.tenant-card > * { position: relative; z-index: 1; }
+.tenant-card-top { display: flex; align-items: center; justify-content: space-between; }.tenant-badge { display: grid; width: 48px; height: 48px; place-items: center; border: 1px solid rgba(185, 255, 44, .35); border-radius: 14px; background: var(--green-soft); color: var(--green); font-size: 13px; font-weight: 800; letter-spacing: -.5px; box-shadow: inset 0 0 16px rgba(185, 255, 44, .08); }.tenant-status { color: var(--green); font-size: 11px; font-weight: 800; }.tenant-status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 9px currentColor; }
+.tenant-location { margin: 0 0 8px; color: var(--muted); font-size: 12px; }.tenant-card h3 { margin: 0; font-size: 21px; letter-spacing: -.8px; }.tenant-plan { margin: 7px 0 0; color: var(--muted); font-size: 13px; }.tenant-access { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 800; text-decoration: none; }.tenant-access span { color: var(--green); font-size: 20px; transition: transform 160ms ease; }.tenant-access:hover span, .tenant-access:focus-visible span { transform: translateX(4px); }.tenant-access:focus-visible { outline: 3px solid rgba(23, 134, 75, .32); outline-offset: 5px; border-radius: 4px; }
+.tenant-card-orange::before { background: #ff9f43; }.tenant-card-orange .tenant-badge { border-color: rgba(255, 159, 67, .35); background: #3a281b; color: #ffb66f; }.tenant-card-orange .tenant-status { color: #ffb66f; }.tenant-card-orange:hover { border-color: #ff9f43; }.tenant-card-violet::before { background: #b99af5; }.tenant-card-violet .tenant-badge { border-color: rgba(185, 154, 245, .35); background: #29223a; color: #d2bbff; }.tenant-card-violet .tenant-status { color: #d2bbff; }.tenant-card-violet:hover { border-color: #b99af5; }
+
+/* =========================
+   Tarjeta de IMC
+   IMC = kg / m². Las categorías son una orientación general.
+   ========================= */
+.bmi-card { width: 100%; max-width: 425px; justify-self: end; padding: 32px; border: 1px solid #383c35; border-radius: 18px; background: #1c1e1b; box-shadow: 0 22px 45px rgba(0, 0, 0, .4); }
+.bmi-card-heading p { margin: 0 0 9px; color: var(--green); font-size: 10px; font-weight: 800; letter-spacing: 2px; }.bmi-card-heading h2 { margin: 0; font-size: 29px; letter-spacing: -1px; }.bmi-card-heading span { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.bmi-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 27px 0 22px; }.bmi-fields label { color: #c0c7bd; font-size: 12px; font-weight: 700; }.bmi-input { display: flex; align-items: center; margin-top: 8px; border-bottom: 1px solid #4b504a; transition: border-color 160ms ease; }.bmi-input:focus-within { border-color: var(--green); }.bmi-input input { width: 100%; min-width: 0; padding: 9px 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-family: inherit; font-size: 22px; font-weight: 750; }.bmi-input input::-webkit-inner-spin-button, .bmi-input input::-webkit-outer-spin-button { appearance: none; margin: 0; }.bmi-input span { color: var(--green); font-size: 12px; font-weight: 800; }
+.bmi-result { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 15px; padding: 18px; border-left: 4px solid var(--green); border-radius: 3px; background: var(--green-soft); }.bmi-result span { display: block; color: #b7c5ae; font-size: 11px; }.bmi-result b { display: block; margin-top: 5px; color: var(--lime); font-size: 16px; }.bmi-result small { display: block; margin-top: 2px; color: #9ba995; font-size: 11px; }.bmi-result strong { color: var(--lime); font-size: 40px; line-height: 1; }
+.bmi-result.bmi-low { border-color: #4caed3; background: #172c34; }.bmi-result.bmi-low b, .bmi-result.bmi-low strong { color: #79cbeb; }.bmi-result.bmi-high { border-color: #dc914f; background: #362417; }.bmi-result.bmi-high b, .bmi-result.bmi-high strong { color: #f2b276; }
+.bmi-scale { display: grid; grid-template-columns: 18.5fr 6.5fr 10fr 10fr; gap: 3px; margin-top: 18px; }.bmi-scale i { height: 5px; border-radius: 9px; background: #2580a6; }.bmi-scale i:nth-child(2) { background: var(--lime); }.bmi-scale i:nth-child(3), .bmi-scale i:nth-child(4) { background: #d17935; }.bmi-note { margin: 15px 0 0; color: #758178; font-size: 10px; line-height: 1.5; }
+
+/* =========================
+   Vistas de autenticación
+   ========================= */
+.auth-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: radial-gradient(circle at 8% 12%, rgba(156, 219, 59, .14), transparent 25rem), linear-gradient(135deg, #10110f, #181a17 52%, #111310); }
+.auth-card { width: 100%; max-width: 390px; padding: 38px 34px 32px; border: 1px solid #383c35; border-radius: 18px; background: rgba(28, 30, 27, .95); box-shadow: 0 22px 54px rgba(0, 0, 0, .42); }
+.auth-title { margin: 0 0 7px; color: var(--ink); font-size: 27px; font-weight: 750; letter-spacing: -.7px; }.auth-subtitle { margin: 0 0 28px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.field { margin-bottom: 16px; }.field label { display: block; margin-bottom: 8px; color: #c0c7bd; font-size: 13px; font-weight: 650; }.field input { width: 100%; padding: 12px 13px; border: 1px solid #41463f; border-radius: 10px; outline: 0; background: #151714; color: var(--ink); font-size: 14px; transition: border-color 160ms ease, box-shadow 160ms ease; }.field input::placeholder { color: #80877e; }.field input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(156, 219, 59, .13); }
+.btn-primary { width: 100%; margin-top: 6px; padding: 12px; border: 0; border-radius: 10px; background: var(--green); color: #10110f; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(156, 219, 59, .15); transition: background 160ms ease, transform 160ms ease; }.btn-primary:hover { background: var(--lime); transform: translateY(-1px); }.btn-primary:disabled, .btn-google:disabled { opacity: .6; cursor: not-allowed; }
+.auth-divider { display: flex; align-items: center; gap: 10px; margin: 22px 0; color: var(--muted); font-size: 12px; }.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }.btn-google { width: 100%; padding: 12px; border: 1px solid #41463f; border-radius: 10px; background: #151714; color: var(--ink); font-size: 14px; font-weight: 700; cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }.btn-google:hover { border-color: var(--green); background: var(--green-soft); }
+.error-box { margin-bottom: 16px; padding: 10px 12px; border: 1px solid rgba(255, 121, 121, .32); border-radius: 8px; background: #351b1b; color: var(--danger); font-size: 13px; }.success-box { margin-bottom: 16px; padding: 10px 12px; border: 1px solid rgba(156, 219, 59, .32); border-radius: 8px; background: #1e2a16; color: var(--green); font-size: 13px; line-height: 1.5; }.auth-footer { margin-top: 20px; color: var(--muted); font-size: 13px; text-align: center; }.auth-footer a { color: var(--green); font-weight: 700; text-decoration: none; }.auth-footer a:hover { text-decoration: underline; }.auth-link-inline { display: inline-block; margin-top: 8px; color: var(--green); font-size: 12.5px; font-weight: 650; text-decoration: none; }.auth-link-inline:hover { text-decoration: underline; }
+
+/* Inicio privado para cada sede. */
+.member-home { min-height: 100vh; padding: 0 24px 72px; background: #171817; }.member-header, .member-welcome, .member-sections { width: min(1060px, 100%); margin: 0 auto; }.member-header { min-height: 82px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }.member-logout { padding: 9px 0; border: 0; border-bottom: 1px solid #6f756b; background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }.member-logout:hover { border-color: var(--green); color: var(--ink); }
+.member-welcome { padding: 78px 0 42px; }.member-welcome .gym-kicker { margin-bottom: 13px; }.member-welcome h1 { margin: 0; font-size: clamp(36px, 6vw, 62px); letter-spacing: -2px; line-height: 1; }.member-welcome > p:not(.gym-kicker) { max-width: 450px; margin: 18px 0 0; color: var(--muted); font-size: 16px; line-height: 1.55; }.member-status { display: inline-block; margin-top: 22px; padding: 7px 10px; border: 1px solid; border-radius: 4px; font-size: 12px; font-weight: 700; }.member-status.is-active { border-color: rgba(91, 212, 143, .45); color: #75dfa2; background: rgba(38, 112, 69, .18); }.member-status.is-expired { border-color: rgba(255, 121, 121, .42); color: #ff9898; background: rgba(120, 42, 42, .18); }
+.member-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }.member-section { position: relative; min-height: 330px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 28px; border: 1px solid #41433f; border-radius: 8px; background: #212320; }.member-section::after { content: ""; position: absolute; top: 0; right: 0; width: 150px; height: 150px; border-radius: 0 0 0 150px; opacity: .82; }.gym-section-exercises::after { background: #b56cff; }.gym-section-nutrition::after { background: #ea9e48; }.member-section > * { position: relative; z-index: 1; }.member-section-number { color: #c8cbc5; font-size: 12px; font-weight: 800; letter-spacing: 1px; }.member-section-eyebrow { margin: 0 0 10px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; }.gym-section-nutrition .member-section-eyebrow { color: #ffc177; }.member-section h2 { margin: 0; font-size: 32px; letter-spacing: -1px; }.member-section div > p:last-child { max-width: 360px; margin: 12px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }.member-section-action { align-self: flex-start; display: inline-flex; gap: 18px; align-items: center; padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }.member-section-action span { color: var(--green); font-size: 20px; transition: transform 160ms ease; }.gym-section-nutrition .member-section-action span { color: #ffc177; }.member-section-action:hover span { transform: translateX(5px); }
+
+.exercise-home { padding-bottom: 80px; }.exercise-heading, .muscle-grid, .exercise-list { width: min(1060px, 100%); margin: 0 auto; }.exercise-heading { padding: 50px 0 30px; }.back-link { display: inline-block; margin-bottom: 32px; color: var(--muted); font-size: 13px; font-weight: 700; text-decoration: none; }.back-link:hover { color: var(--green); }.exercise-heading .gym-kicker { margin-bottom: 12px; }.exercise-heading h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -1.8px; line-height: 1.05; }.exercise-heading > p:last-child { max-width: 510px; margin: 15px 0 0; color: var(--muted); font-size: 15px; line-height: 1.6; }.muscle-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }.muscle-card { position: relative; min-height: 175px; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px; overflow: hidden; border: 1px solid #41433f; border-radius: 8px; background: #212320; color: var(--ink); text-decoration: none; transition: border-color 160ms ease, transform 160ms ease, background 160ms ease; }.muscle-card::before { content: ""; position: absolute; top: 0; right: 0; width: 56px; height: 56px; border-left: 1px solid #5a5d56; border-bottom: 1px solid #5a5d56; background: #292c28; }.muscle-card:hover { border-color: var(--green); background: #292b28; transform: translateY(-3px); }.muscle-card > * { position: relative; z-index: 1; }.muscle-card > span { position: absolute; top: 19px; left: 20px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: 1px; }.muscle-card h2 { margin: 0; font-size: 23px; letter-spacing: -.5px; }.muscle-card p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }.muscle-card b { position: absolute; right: 18px; bottom: 18px; color: var(--green); font-size: 20px; }.exercise-list { display: grid; gap: 10px; }.exercise-item { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 16px; min-height: 94px; padding: 18px 20px; border: 1px solid #41433f; border-radius: 8px; background: #212320; }.exercise-item span { color: var(--green); font-size: 12px; font-weight: 800; }.exercise-item h2 { margin: 0; font-size: 18px; }.exercise-item p { margin: 0; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 720px) { .gym-nav, .gym-hero, .gym-benefits, .tenant-section { width: min(100% - 36px, 520px); }.gym-nav { min-height: 72px; }.gym-nav-links { display: none; }.gym-hero { min-height: auto; padding: 74px 0 52px; grid-template-columns: 1fr; gap: 48px; }.gym-hero h1 { letter-spacing: -3px; }.bmi-card { max-width: none; justify-self: stretch; }.tenant-section-heading { display: block; }.tenant-section-heading > p { margin-top: 13px; }.tenant-grid { grid-template-columns: 1fr; }.gym-benefits { grid-template-columns: 1fr; }.gym-benefits article, .gym-benefits article + article { padding: 25px 0; border-right: 0; border-bottom: 1px solid var(--line); }.gym-benefits article:last-child { border-bottom: 0; } }
+@media (max-width: 720px) { .member-home { padding-right: 18px; padding-left: 18px; }.member-header { min-height: 72px; }.member-header .gym-logo { max-width: calc(100% - 105px); font-size: 14px; }.member-welcome { padding: 58px 0 32px; }.member-sections { grid-template-columns: 1fr; }.member-section { min-height: 280px; } }
+/* Tarjetas de ejercicio (con hover) y modal de detalle */
+.exercise-card-grid { width: min(1060px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.exercise-card { position: relative; min-height: 150px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 20px; border: 1px solid #41433f; border-radius: 8px; background: #212320; color: var(--ink); text-align: left; font: inherit; cursor: pointer; transition: border-color 160ms ease, transform 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+.exercise-card:hover, .exercise-card:focus-visible { border-color: var(--accent, var(--green)); background: #292b28; transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0, 0, 0, .35), 0 0 0 1px var(--accent, var(--green)) inset; outline: none; }
+.exercise-card-number { color: var(--accent, var(--green)); font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+.exercise-card h2 { margin: 2px 0 0; font-size: 18px; letter-spacing: -.3px; }
+.exercise-card-primary { margin: 0; color: var(--muted); font-size: 12.5px; }
+.exercise-card-cta { margin-top: auto; padding-top: 10px; display: inline-flex; align-items: center; gap: 8px; color: var(--accent, var(--green)); font-size: 12.5px; font-weight: 800; }
+.exercise-card-cta b { transition: transform 160ms ease; }
+.exercise-card:hover .exercise-card-cta b { transform: translateX(4px); }
+
+.exercise-modal-overlay { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(8, 9, 7, .72); backdrop-filter: blur(2px); animation: exercise-fade-in 160ms ease; }
+.exercise-modal { position: relative; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; padding: 30px 28px; border: 1px solid #41433f; border-radius: 16px; background: #1c1e1b; box-shadow: 0 26px 60px rgba(0, 0, 0, .5); animation: exercise-pop-in 180ms ease; }
+.exercise-modal-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border: 1px solid #41433f; border-radius: 50%; background: #262822; color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; transition: border-color 160ms ease, color 160ms ease; }
+.exercise-modal-close:hover { border-color: var(--green); color: var(--green); }
+.exercise-modal-figure { display: block; width: 100%; max-width: 150px; height: auto; margin: 0 auto 18px; }
+.exercise-modal-body h2 { margin: 4px 0 14px; font-size: 25px; letter-spacing: -.6px; }
+.exercise-modal-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 0 16px; padding: 14px; border-radius: 10px; background: #151714; }
+.exercise-modal-meta dt { margin: 0 0 3px; color: var(--muted); font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.exercise-modal-meta dd { margin: 0; color: var(--ink); font-size: 13px; font-weight: 650; }
+.exercise-modal-description { margin: 0 0 14px; color: #c7ccc2; font-size: 14px; line-height: 1.6; }
+.exercise-modal-tip { margin: 0; padding: 12px 14px; border-left: 3px solid var(--green); border-radius: 4px; background: var(--green-soft); color: #ddd7f5; font-size: 13px; line-height: 1.55; }
+@keyframes exercise-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes exercise-pop-in { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* Nutricion: calculadora de proteina y selector de alimentos */
+.nutrition-layout { width: min(1060px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1fr 1.25fr; align-items: start; gap: 18px; padding-bottom: 40px; }
+.nutrition-card { padding: 26px; border: 1px solid #41433f; border-radius: 12px; background: #212320; }
+.nutrition-card-title { margin: 0 0 18px; font-size: 20px; letter-spacing: -.4px; }
+.nutrition-card-subtitle { margin: -10px 0 18px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.nutrition-label { margin: 0 0 10px; color: #c0c7bd; font-size: 12px; font-weight: 700; }
+.nutrition-goal-group { display: grid; gap: 8px; margin-bottom: 22px; }
+.nutrition-goal-btn { padding: 11px 14px; border: 1px solid #41463f; border-radius: 10px; background: #151714; color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 650; text-align: left; cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
+.nutrition-goal-btn:hover { border-color: var(--green); }
+.nutrition-goal-btn.is-active { border-color: var(--green); background: var(--green-soft); color: var(--lime); }
+.protein-target-box { margin-top: 16px; padding: 16px 18px; border-left: 4px solid #ffb84d; border-radius: 3px; background: #2c2416; }
+.protein-target-box span { display: block; color: #e3c793; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+.protein-target-box strong { display: block; margin-top: 4px; color: #ffc177; font-size: 30px; }
+.protein-target-box p { margin: 8px 0 0; color: #cbb98d; font-size: 12.5px; line-height: 1.5; }
+.protein-progress { margin-bottom: 18px; }
+.protein-progress-bar { height: 10px; border-radius: 6px; background: #151714; overflow: hidden; }
+.protein-progress-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--green-dark), var(--lime)); transition: width 220ms ease; }
+.protein-progress-label { display: flex; justify-content: space-between; margin-top: 8px; color: var(--muted); font-size: 12.5px; font-weight: 650; }
+.food-list { display: grid; gap: 8px; max-height: 480px; overflow-y: auto; padding-right: 4px; }
+.food-item { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #41463f; border-radius: 10px; background: #151714; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
+.food-item:hover { border-color: var(--green); }
+.food-item.is-selected { border-color: var(--green); background: var(--green-soft); }
+.food-item-check { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #5a5f56; border-radius: 6px; color: var(--lime); font-size: 13px; font-weight: 800; }
+.food-item.is-selected .food-item-check { border-color: var(--green); background: var(--green); color: #10110f; }
+.food-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.food-item-name { font-size: 13.5px; font-weight: 650; }
+.food-item-serving { color: var(--muted); font-size: 11.5px; }
+.food-item-protein { color: var(--lime); font-size: 13px; font-weight: 800; white-space: nowrap; }
+
+@media (max-width: 720px) { .nutrition-layout { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .exercise-heading { padding-top: 34px; }.muscle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.muscle-card { min-height: 155px; padding: 17px; }.muscle-card > span { top: 16px; left: 17px; }.exercise-item { grid-template-columns: 32px 1fr; gap: 10px; }.exercise-item p { grid-column: 2; }.exercise-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.exercise-modal { padding: 26px 22px; } }
+@media (max-width: 420px) { .exercise-card-grid { grid-template-columns: 1fr; } }
+@media (max-width: 420px) { .muscle-grid { grid-template-columns: 1fr; }.exercise-item { padding: 16px; } }
+@media (max-width: 480px) { .auth-wrapper { padding: 18px; }.auth-card { padding: 32px 24px 28px; }.bmi-card { padding: 25px; }.gym-actions { gap: 18px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto; transition-duration: .01ms !important; } }
