@@ -1,98 +1,246 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 const gyms = [
-  { slug: "jj-poblado", initials: "JP", name: "JJ GYM El Poblado", location: "El Poblado · Medellín, Antioquia", plan: "Entrenamiento integral", accent: "emerald" },
-  { slug: "power-laureles", initials: "PL", name: "Power Laureles", location: "Laureles · Medellín, Antioquia", plan: "Fuerza y rendimiento", accent: "orange" },
-  { slug: "fit-belén", initials: "FB", name: "Fit Lab Belén", location: "Belén · Medellín, Antioquia", plan: "Movimiento y bienestar", accent: "violet" },
+  {
+    slug: "jj-poblado",
+    initials: "JP",
+    name: "JJ GYM El Poblado",
+    location: "El Poblado · Medellín",
+    plan: "Sede Principal · VIP & Crossfit",
+    accent: "emerald",
+    activeUsers: 48,
+    image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1000&auto=format&fit=crop",
+  },
+  {
+    slug: "power-laureles",
+    initials: "PL",
+    name: "Power Laureles",
+    location: "Laureles · Medellín",
+    plan: "Zona Powerlifting & Calistenia",
+    accent: "orange",
+    activeUsers: 32,
+    image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1000&auto=format&fit=crop",
+  },
+  {
+    slug: "fit-belén",
+    initials: "FB",
+    name: "Fit Lab Belén",
+    location: "Belén · Medellín",
+    plan: "Cardio HIIT & Nutrición",
+    accent: "violet",
+    activeUsers: 27,
+    image: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1000&auto=format&fit=crop",
+  },
 ];
 
-// Devuelve la clasificación general de la OMS según el índice de masa corporal.
 function getBmiStatus(bmi) {
-  if (bmi < 18.5) return { label: "Bajo peso", detail: "Posible desnutrición", tone: "low" };
-  if (bmi < 25) return { label: "Peso normal", detail: "Rango saludable", tone: "normal" };
+  if (bmi < 18.5) return { label: "Bajo peso", detail: "Rango a reforzar", tone: "low" };
+  if (bmi < 25) return { label: "Peso óptimo", detail: "Estado saludable", tone: "normal" };
   if (bmi < 30) return { label: "Sobrepeso", detail: "Rango a vigilar", tone: "high" };
-  if (bmi < 35) return { label: "Obesidad grado I", detail: "Consulta a un profesional", tone: "high" };
-  if (bmi < 40) return { label: "Obesidad grado II", detail: "Consulta a un profesional", tone: "high" };
-  return { label: "Obesidad grado III", detail: "Consulta a un profesional", tone: "high" };
+  return { label: "Obesidad", detail: "Requiere seguimiento", tone: "high" };
 }
 
-// Página pública: presenta JJ GYM y ofrece una herramienta útil sin iniciar sesión.
 export default function Home() {
   const [weight, setWeight] = useState(70);
   const [height, setHeight] = useState(170);
+  const [activeSlide, setActiveSlide] = useState(0);
 
-  // IMC = peso en kg / (estatura en metros)².
+  // Carrusel automático para las imágenes de instalaciones
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % gyms.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
   const bmi = useMemo(() => {
-    const weightValue = Number(weight);
-    const heightInMeters = Number(height) / 100;
-
-    if (!weightValue || !heightInMeters || weightValue <= 0 || heightInMeters <= 0) {
-      return null;
-    }
-
-    return weightValue / heightInMeters ** 2;
+    const w = Number(weight);
+    const h = Number(height) / 100;
+    return w && h ? w / (h * h) : null;
   }, [weight, height]);
 
-  // Separamos el estado para reutilizar su texto y su color dentro de la tarjeta.
   const bmiStatus = bmi ? getBmiStatus(bmi) : null;
 
   return (
     <main className="gym-home">
-      <nav className="gym-nav" aria-label="Navegación principal">
-        <Link className="gym-logo" href="/" aria-label="JJ GYM, inicio">
-          <span className="gym-logo-mark">JJ</span>
-          <span>JJ <span>GYM</span></span>
+      {/* CAPA 1: Video de Fondo Deportivo con Filtro Gradiente */}
+      <div className="hero-video-wrapper">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="hero-video"
+          poster="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1200"
+        >
+          <source
+            src="https://assets.mixkit.co/videos/preview/mixkit-man-holding-a-weight-in-a-gym-42796-large.mp4"
+            type="video/mp4"
+          />
+        </video>
+        <div className="hero-video-overlay" />
+      </div>
+
+      {/* Navegación */}
+      <nav className="gym-nav">
+        <Link className="gym-logo" href="/">
+          <span className="gym-logo-mark">🏋️‍♂️</span>
+          <span>
+            JJ <span>GYM SYSTEM</span>
+          </span>
         </Link>
-        <div className="gym-nav-links"><a href="#beneficios">Beneficios</a><a href="#comunidad">Comunidad</a></div>
+        <div className="gym-nav-links">
+          <a href="#instalaciones">Instalaciones</a>
+          <a href="#sedes">Sedes</a>
+          <a href="#imc">Diagnóstico IMC</a>
+        </div>
+        <div className="gym-actions">
+          <Link href="/login" className="gym-secondary-link">Ingresar</Link>
+          <Link href="/register" className="btn-primary-small">Unirme Ahora</Link>
+        </div>
       </nav>
 
+      {/* Hero Principal */}
       <section className="gym-hero">
         <div className="gym-hero-copy">
-          <p className="gym-kicker">ENTRENA SIN LÍMITES</p>
-          <h1>Construye tu mejor <em>versión.</em></h1>
-          <p className="gym-description">Un espacio diseñado para superar tus metas, cuidar tu bienestar y transformar la disciplina en resultados.</p>
-          <div className="gym-actions"><a className="gym-secondary-link" href="#gimnasios">Conoce nuestros gimnasios</a></div>
+          <div className="live-badge">
+            <span className="pulse-dot" /> SISTEMA DE GESTIÓN DEPORTIVA
+          </div>
+          <h1>
+            POTENCIA TU <em>ENTRENAMIENTO.</em>
+          </h1>
+          <p className="gym-description">
+            Acceso unificado a salas de fuerza, seguimiento de nutrientes y control
+            de membresías en tiempo real.
+          </p>
+
+          <div className="gym-actions">
+            <Link href="/register" className="btn-primary-small" style={{ padding: "14px 28px" }}>
+              Comenzar Entrenamiento
+            </Link>
+            <a className="gym-secondary-link" href="#sedes">
+              Ver Sedes Disponibles ↓
+            </a>
+          </div>
+
+          <div className="hero-stats-bar">
+            <div className="hero-stat-item">
+              <strong>+130</strong>
+              <span>EJERCICIOS GUIADOS</span>
+            </div>
+            <div className="hero-stat-divider" />
+            <div className="hero-stat-item">
+              <strong>13</strong>
+              <span>GRUPOS MUSCULARES</span>
+            </div>
+            <div className="hero-stat-divider" />
+            <div className="hero-stat-item">
+              <strong>3</strong>
+              <span>SEDES ACTIVAS</span>
+            </div>
+          </div>
         </div>
 
-        {/* Los datos de esta tarjeta se procesan localmente y no se almacenan. */}
-        <aside className="bmi-card" aria-labelledby="bmi-title">
-          <div className="bmi-card-heading"><p>HERRAMIENTA JJ GYM</p><h2 id="bmi-title">Calcula tu IMC</h2><span>Conoce un punto de partida para tu entrenamiento.</span></div>
-          <div className="bmi-fields">
-            <label htmlFor="weight">Peso<div className="bmi-input"><input id="weight" type="number" min="1" max="500" value={weight} onChange={(event) => setWeight(event.target.value)} /><span>kg</span></div></label>
-            <label htmlFor="height">Estatura<div className="bmi-input"><input id="height" type="number" min="1" max="300" value={height} onChange={(event) => setHeight(event.target.value)} /><span>cm</span></div></label>
+        {/* Tarjeta de Calculadora de IMC */}
+        <aside className="bmi-card" id="imc">
+          <div className="bmi-card-heading">
+            <p>EVALUACIÓN FÍSICA</p>
+            <h2>Calculadora IMC</h2>
+            <span>Punto de partida para tu plan.</span>
           </div>
-          <div className={`bmi-result ${bmiStatus ? `bmi-${bmiStatus.tone}` : ""}`} aria-live="polite">
-            <div><span>Tu índice de masa corporal</span><b>{bmiStatus ? bmiStatus.label : "Ingresa valores válidos"}</b><small>{bmiStatus?.detail}</small></div>
+
+          <div className="bmi-fields">
+            <label htmlFor="weight">
+              Peso (kg)
+              <div className="bmi-input">
+                <input id="weight" type="number" value={weight} onChange={(e) => setWeight(e.target.value)} />
+                <span>KG</span>
+              </div>
+            </label>
+
+            <label htmlFor="height">
+              Estatura (cm)
+              <div className="bmi-input">
+                <input id="height" type="number" value={height} onChange={(e) => setHeight(e.target.value)} />
+                <span>CM</span>
+              </div>
+            </label>
+          </div>
+
+          <div className={`bmi-result ${bmiStatus ? `bmi-${bmiStatus.tone}` : ""}`}>
+            <div>
+              <span>DIAGNÓSTICO ESTIMADO</span>
+              <b>{bmiStatus ? bmiStatus.label : "Ingresa datos"}</b>
+              <small>{bmiStatus?.detail}</small>
+            </div>
             <strong>{bmi ? bmi.toFixed(1) : "—"}</strong>
           </div>
-          <div className="bmi-scale" aria-hidden="true"><i /><i /><i /><i /></div>
-          <p className="bmi-note">El IMC es una referencia general y no sustituye la valoración de un profesional de la salud.</p>
         </aside>
       </section>
 
-      <section className="tenant-section" id="gimnasios" aria-labelledby="gyms-title">
+      {/* Carrusel Visual de Instalaciones */}
+      <section className="tenant-section" id="instalaciones">
         <div className="tenant-section-heading">
-          <div><p className="gym-kicker">ELIGE TU SEDE</p><h2 id="gyms-title">Ingresa a tu gimnasio</h2></div>
-          <p>Selecciona el gimnasio al que perteneces para iniciar sesión en su espacio privado.</p>
+          <div>
+            <p className="gym-kicker">EQUIPAMIENTO & ZONAS</p>
+            <h2>Explora las Instalaciones</h2>
+          </div>
         </div>
-        <div className="tenant-grid">
-          {gyms.map((gym) => (
-            <article className={`tenant-card tenant-card-${gym.accent}`} key={gym.slug}>
-              <div className="tenant-card-top"><span className="tenant-badge">{gym.initials}</span><span className="tenant-status">Disponible</span></div>
-              <div><p className="tenant-location">{gym.location}</p><h3>{gym.name}</h3><p className="tenant-plan">{gym.plan}</p></div>
-              <Link className="tenant-access" href={`/login?gym=${gym.slug}`} aria-label={`Iniciar sesión en ${gym.name}`}>Acceder <span>→</span></Link>
-            </article>
-          ))}
+
+        <div className="facility-carousel">
+          <div
+            className="carousel-image-box"
+            style={{ backgroundImage: `url(${gyms[activeSlide].image})` }}
+          >
+            <div className="carousel-caption">
+              <h3>{gyms[activeSlide].name}</h3>
+              <p>{gyms[activeSlide].plan}</p>
+            </div>
+          </div>
+          <div className="carousel-dots">
+            {gyms.map((_, idx) => (
+              <button
+                key={idx}
+                className={`dot ${idx === activeSlide ? "active" : ""}`}
+                onClick={() => setActiveSlide(idx)}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="gym-benefits" id="beneficios">
-        <article><span>01</span><h2>Entrena a tu ritmo</h2><p>Planes y herramientas que se adaptan a tu objetivo.</p></article>
-        <article><span>02</span><h2>Supera tus marcas</h2><p>Haz seguimiento de cada avance y mantente enfocado.</p></article>
-        <article id="comunidad"><span>03</span><h2>Una comunidad real</h2><p>Comparte el esfuerzo con personas que te impulsan.</p></article>
+      {/* Tarjetas de Sedes con contador de usuarios en vivo */}
+      <section className="tenant-section" id="sedes">
+        <div className="tenant-section-heading">
+          <div>
+            <p className="gym-kicker">SEDES ASOCIADAS</p>
+            <h2>Selecciona tu Gimnasio</h2>
+          </div>
+        </div>
+
+        <div className="tenant-grid">
+          {gyms.map((gym) => (
+            <article className={`tenant-card tenant-card-${gym.accent}`} key={gym.slug}>
+              <div className="tenant-card-top">
+                <span className="tenant-badge">{gym.initials}</span>
+                <span className="tenant-status active-now">
+                  🟢 {gym.activeUsers} entrenando ahora
+                </span>
+              </div>
+              <div>
+                <p className="tenant-location">{gym.location}</p>
+                <h3>{gym.name}</h3>
+                <p className="tenant-plan">{gym.plan}</p>
+              </div>
+              <Link className="tenant-access" href={`/login?gym=${gym.slug}`}>
+                Acceder a esta sede <span>→</span>
+              </Link>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );
