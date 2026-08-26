@@ -4,9 +4,10 @@ import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { calculateBmi, getBmiStatus, getProteinTarget, goals, getFoodsByGoal } from "../lib/nutrition";
+import { NutritionSkeleton } from "@/components/ui/Skeleton";
 
 function NutritionCalculator({ gym }) {
-  const { user, loading, logout } = useAuth();
+  const { loading, logout } = useAuth();
 
   const [weight, setWeight] = useState(70);
   const [height, setHeight] = useState(170);
@@ -35,7 +36,7 @@ function NutritionCalculator({ gym }) {
     });
   }
 
-  if (loading || !user) return <div className="auth-wrapper"><p className="auth-subtitle">Cargando...</p></div>;
+  if (loading) return <NutritionSkeleton />;
 
   return (
     <main className="member-home exercise-home">
@@ -118,7 +119,7 @@ function NutritionCalculator({ gym }) {
 
 export default function NutritionPage({ gym = "jj-poblado" }) {
   return (
-    <Suspense fallback={<div className="auth-wrapper"><p className="auth-subtitle">Cargando...</p></div>}>
+    <Suspense fallback={<NutritionSkeleton />}>
       <NutritionCalculator gym={gym} />
     </Suspense>
   );

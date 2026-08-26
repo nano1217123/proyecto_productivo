@@ -17,7 +17,7 @@ export default function DashboardRoute() {
     );
   }
 
-  const esAdmin = true;
-
+  const esAdmin = profile?.tipo_usuario === "admin_gimnasio" || profile?.tipo_usuario === "desarrollador";
+  
   return esAdmin ? <AdminDashboardPage /> : <DashboardPage />;
 }

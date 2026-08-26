@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { getSubscriptionStatus } from "../lib/subscription";
+import { MemberDashboardSkeleton } from "@/components/ui/Skeleton";
 
 const gyms = {
   "jj-poblado": { name: "JJ GYM El Poblado", location: "El Poblado, Medellin" },
@@ -20,15 +21,16 @@ const sections = [
 ];
 
 function MemberDashboard() {
-  const { user, profile, loading, logout } = useAuth();
-  const router = useRouter();
+  const { profile, loading, logout } = useAuth();
   const searchParams = useSearchParams();
   const gymSlug = searchParams.get("gym") || "jj-poblado";
   const gym = gyms[gymSlug] || gyms["jj-poblado"];
   const subscription = getSubscriptionStatus(profile);
 
-  useEffect(() => { if (!loading && !user) router.replace("/login"); }, [loading, user, router]);
-  if (loading || !user) return <div className="auth-wrapper"><p className="auth-subtitle">Cargando...</p></div>;
+  // La protección real de esta ruta la hace el Middleware (server-side).
+  // Este componente solo muestra un estado de carga mientras AuthContext
+  // termina de poblar el perfil.
+  if (loading) return <MemberDashboardSkeleton />;
 
   return <main className="member-home">
     <header className="member-header"><Link className="gym-logo" href="/" aria-label="Volver al inicio"><span className="gym-logo-mark">GYM</span><span>{gym.name}</span></Link><button className="member-logout" type="button" onClick={logout}>Cerrar sesion</button></header>
@@ -43,5 +45,5 @@ function MemberDashboard() {
 }
 
 export default function DashboardPage() {
-  return <Suspense fallback={<div className="auth-wrapper"><p className="auth-subtitle">Cargando...</p></div>}><MemberDashboard /></Suspense>;
+  return <Suspense fallback={<MemberDashboardSkeleton />}><MemberDashboard /></Suspense>;
 }

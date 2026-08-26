@@ -1,16 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { muscleGroups } from "../lib/muscleGroups";
+import { ExerciseListSkeleton } from "@/components/ui/Skeleton";
 
 export default function ExercisesPage({ gym = "jj-poblado" }) {
-  const { user, loading, logout } = useAuth();
-  const router = useRouter();
-  useEffect(() => { if (!loading && !user) router.replace("/login"); }, [loading, user, router]);
-  if (loading || !user) return <div className="auth-wrapper"><p className="auth-subtitle">Cargando...</p></div>;
+  const { loading, logout } = useAuth();
+
+  if (loading) return <ExerciseListSkeleton />;
 
   return <main className="member-home exercise-home">
     <header className="member-header"><Link className="gym-logo" href={`/dashboard?gym=${encodeURIComponent(gym)}`}><span className="gym-logo-mark">GYM</span><span>Ejercicios</span></Link><button className="member-logout" type="button" onClick={logout}>Cerrar sesion</button></header>
