@@ -1,3 +1,14 @@
+# Dependencias
 node_modules/
+
+# Archivos de entorno y secretos
 .env
-*.logfrontend/.next/
+.env.local
+.env*.local
+
+# Logs y archivos temporales
+*.log
+
+# Carpetas de compilación (Next.js)
+.next/
+frontend/.next/
