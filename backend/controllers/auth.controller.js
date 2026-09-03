@@ -89,8 +89,6 @@ export async function register(req, res) {
 
     if (resendError) {
       // El usuario ya se creó, pero el correo de verificación falló.
-      // Se lo dejamos saber al cliente para que pueda reintentar el envío
-      // en vez de que quede una cuenta "atascada" sin poder verificarse.
       return res.status(201).json({
         message:
           "Cuenta creada, pero hubo un problema enviando el código de verificación. Intenta reenviarlo desde la pantalla de verificación.",
@@ -103,8 +101,14 @@ export async function register(req, res) {
       message: "Cuenta creada. Revisa tu correo para el código de verificación.",
       userId: created.user.id,
     });
+
   } catch (err) {
-    console.error("Error inesperado en /api/auth/register:", err);
-    return res.status(500).json({ message: "Error interno del servidor." });
+    // Aquí atrapamos cualquier error inesperado y lo dejamos registrado en consola
+    console.error("Error detallado en servidor:", err.message); 
+    
+    // Y devolvemos un mensaje seguro y controlado al cliente
+    return res.status(500).json({ 
+      message: "Ocurrió un error al procesar tu solicitud. Por favor intenta de nuevo." 
+    });
   }
 }

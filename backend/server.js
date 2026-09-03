@@ -1,11 +1,17 @@
 import "dotenv/config";
-import express from "express";
-import cors from "cors";
+import express from 'express';
+import cors from 'cors';
 import perfilRoutes from "./routes/perfil.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const clientOrigin = process.env.CLIENT_ORIGIN;
+
+if (process.env.NODE_ENV === 'production' && !clientOrigin) {
+  console.error("ERROR CRÍTICO: La variable de entorno CLIENT_ORIGIN no está definida para producción.");
+  process.exit(1); 
+}
 
 app.use(
   cors({
@@ -13,6 +19,7 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
