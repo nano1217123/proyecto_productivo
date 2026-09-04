@@ -79,15 +79,15 @@ export default function AdminDashboardPage() {
   const proximosAVencer = miembros.filter((m) => m.estado === "por_vencer");
 
   return (
-    <div className="admin-layout">
+    <div className="w-full max-w-[1060px] mx-auto px-6 pt-10 pb-20">
       {/* Encabezado */}
-      <header className="admin-header">
+      <header className="flex flex-wrap items-center justify-between gap-5 mb-8">
         <div>
-          <span className="gym-kicker">PANEL DE ADMINISTRACIÓN</span>
-          <h1 className="admin-title">Gestión de Sede</h1>
+          <span className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">PANEL DE ADMINISTRACIÓN</span>
+          <h1 className="m-1 text-[clamp(28px,4vw,42px)] tracking-[-1.2px]">Gestión de Sede</h1>
         </div>
 
-        <div className="gym-selector-box">
+        <div className="flex items-center gap-2.5 p-2 px-3.5 border border-[#41433f] rounded-[10px] bg-[#212320] [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#a9afa7] [&_select]:border-0 [&_select]:outline-0 [&_select]:bg-transparent [&_select]:text-[#d7adff] [&_select]:font-bold [&_select]:text-sm">
           <label htmlFor="select-gym">Sede actual:</label>
           <select
             id="select-gym"
@@ -104,51 +104,24 @@ export default function AdminDashboardPage() {
       </header>
 
       {/* Navegación por Pestañas */}
-      <nav className="admin-tabs-bar" style={{ display: "flex", gap: "10px", marginBottom: "24px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
+      <nav className="flex gap-2.5 mb-6 border-b border-[#30332f] pb-3">
         <button
-          className={`btn-tab ${tabActiva === "miembros" ? "is-active" : ""}`}
+          className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "miembros" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
           onClick={() => setTabActiva("miembros")}
-          style={{
-            padding: "10px 18px",
-            borderRadius: "8px",
-            border: "1px solid " + (tabActiva === "miembros" ? "var(--green)" : "#41463f"),
-            background: tabActiva === "miembros" ? "var(--green-soft)" : "#151714",
-            color: tabActiva === "miembros" ? "var(--lime)" : "var(--muted)",
-            fontWeight: "700",
-            cursor: "pointer",
-          }}
         >
           👥 Miembros & Suscripciones
         </button>
 
         <button
-          className={`btn-tab ${tabActiva === "comunicacion" ? "is-active" : ""}`}
+          className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "comunicacion" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
           onClick={() => setTabActiva("comunicacion")}
-          style={{
-            padding: "10px 18px",
-            borderRadius: "8px",
-            border: "1px solid " + (tabActiva === "comunicacion" ? "var(--green)" : "#41463f"),
-            background: tabActiva === "comunicacion" ? "var(--green-soft)" : "#151714",
-            color: tabActiva === "comunicacion" ? "var(--lime)" : "var(--muted)",
-            fontWeight: "700",
-            cursor: "pointer",
-          }}
         >
           📢 Anuncios (Correo)
         </button>
 
         <button
-          className={`btn-tab ${tabActiva === "configuracion" ? "is-active" : ""}`}
+          className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "configuracion" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
           onClick={() => setTabActiva("configuracion")}
-          style={{
-            padding: "10px 18px",
-            borderRadius: "8px",
-            border: "1px solid " + (tabActiva === "configuracion" ? "var(--green)" : "#41463f"),
-            background: tabActiva === "configuracion" ? "var(--green-soft)" : "#151714",
-            color: tabActiva === "configuracion" ? "var(--lime)" : "var(--muted)",
-            fontWeight: "700",
-            cursor: "pointer",
-          }}
         >
           ⚙️ Perfil de Sede
         </button>
@@ -158,37 +131,37 @@ export default function AdminDashboardPage() {
       {tabActiva === "miembros" && (
         <>
           {/* Tarjetas de Métricas */}
-          <section className="admin-stats-grid">
-            <div className="stat-card">
+          <section className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[14px] mb-8">
+            <div className="p-5 bg-[#212320] border border-[#41433f] rounded-xl [&>span]:block [&>span]:mb-1.5 [&>span]:text-xs [&>span]:font-bold [&>span]:text-[#a9afa7] [&>strong]:text-[32px] [&>strong]:leading-none">
               <span>Total Registrados</span>
               <strong>{miembros.length}</strong>
             </div>
-            <div className="stat-card stat-active">
+            <div className="p-5 bg-[#212320] border border-[#41433f] rounded-xl [&>span]:block [&>span]:mb-1.5 [&>span]:text-xs [&>span]:font-bold [&>span]:text-[#a9afa7] [&>strong]:text-[32px] [&>strong]:leading-none [&>strong]:text-[#d7adff]">
               <span>Activos</span>
               <strong>{miembros.filter((m) => m.estado === "activo").length}</strong>
             </div>
-            <div className="stat-card stat-warning">
+            <div className="p-5 bg-[#212320] border border-[#41433f] rounded-xl [&>span]:block [&>span]:mb-1.5 [&>span]:text-xs [&>span]:font-bold [&>span]:text-[#a9afa7] [&>strong]:text-[32px] [&>strong]:leading-none [&>strong]:text-[#ffc177]">
               <span>Por Vencer (7 días)</span>
               <strong>{proximosAVencer.length}</strong>
             </div>
-            <div className="stat-card stat-expired">
+            <div className="p-5 bg-[#212320] border border-[#41433f] rounded-xl [&>span]:block [&>span]:mb-1.5 [&>span]:text-xs [&>span]:font-bold [&>span]:text-[#a9afa7] [&>strong]:text-[32px] [&>strong]:leading-none [&>strong]:text-[#ff7979]">
               <span>Vencidos / Inactivos</span>
               <strong>{miembros.filter((m) => m.estado === "vencido" || m.estado === "suspendido").length}</strong>
             </div>
           </section>
 
           {/* Tabla de Control de Miembros */}
-          <section className="admin-table-container">
-            <div className="table-actions-bar">
+          <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
               <input
                 type="text"
-                className="table-search-input"
+                className="flex-1 min-w-[240px] p-[10px_14px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-[13.5px] outline-none focus:border-[#b56cff]"
                 placeholder="Buscar cliente por nombre o correo..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
 
-              <div className="table-filters">
+              <div className="flex items-center gap-2.5 [&_select]:p-[10px_12px] [&_select]:bg-[#151714] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-lg [&_select]:text-[#f2f4ef] [&_select]:text-[13.5px]">
                 <select
                   value={filtroEstado}
                   onChange={(e) => setFiltroEstado(e.target.value)}
@@ -202,8 +175,8 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="table-responsive">
-              <table className="admin-table">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left [&_th]:p-[12px_16px] [&_th]:border-b [&_th]:border-[#383c35] [&_th]:text-xs [&_th]:font-bold [&_th]:uppercase [&_th]:text-[#a9afa7] [&_td]:p-4 [&_td]:border-b [&_td]:border-[#2d302a] [&_td]:text-[13.5px]">
                 <thead>
                   <tr>
                     <th>Cliente</th>
@@ -218,7 +191,7 @@ export default function AdminDashboardPage() {
                     miembrosFiltrados.map((m) => (
                       <tr key={m.id}>
                         <td>
-                          <div className="user-cell">
+                          <div className="[&_strong]:block [&_strong]:text-[#f2f4ef] [&_small]:text-xs [&_small]:text-[#a9afa7]">
                             <strong>{m.nombres}</strong>
                             <small>{m.correo}</small>
                           </div>
@@ -226,7 +199,7 @@ export default function AdminDashboardPage() {
                         <td>{m.plan}</td>
                         <td>{m.vencimiento}</td>
                         <td>
-                          <span className={`status-badge status-${m.estado}`}>
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-[11.5px] font-bold ${m.estado === "activo" ? "bg-[rgba(181,108,255,.15)] text-[#d7adff] border border-[rgba(181,108,255,.3)]" : m.estado === "por_vencer" ? "bg-[rgba(255,193,119,.15)] text-[#ffc177] border border-[rgba(255,193,119,.3)]" : "bg-[rgba(255,121,121,.15)] text-[#ff7979] border border-[rgba(255,121,121,.3)]"}`}>
                             {m.estado === "activo" && "Activo"}
                             {m.estado === "por_vencer" && "Por Vencer"}
                             {m.estado === "vencido" && "Vencido"}
@@ -234,9 +207,9 @@ export default function AdminDashboardPage() {
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: "flex", gap: "8px" }}>
+                          <div className="flex gap-2">
                             <button
-                              className="btn-action-renew"
+                              className="px-3 py-1.5 bg-transparent border border-[#41463f] rounded-md text-[#f2f4ef] text-xs font-semibold cursor-pointer transition hover:border-[#b56cff] hover:text-[#d7adff] hover:bg-[#321d47]"
                               onClick={() => renovarSuscripcion(m.id)}
                               title="Pagar en efectivo o posnet y sumar 30 días"
                             >
@@ -244,16 +217,14 @@ export default function AdminDashboardPage() {
                             </button>
                             {m.estado !== "suspendido" ? (
                               <button
-                                className="btn-action-renew"
-                                style={{ borderColor: "rgba(255,121,121,0.4)", color: "var(--danger)" }}
+                                className="px-3 py-1.5 bg-transparent border border-[rgba(255,121,121,.4)] rounded-md text-[#ff7979] text-xs font-semibold cursor-pointer transition hover:bg-[#351b1b]"
                                 onClick={() => cambiarEstadoMiembro(m.id, "suspendido")}
                               >
                                 Suspender
                               </button>
                             ) : (
                               <button
-                                className="btn-action-renew"
-                                style={{ borderColor: "rgba(181,108,255,0.4)", color: "var(--lime)" }}
+                                className="px-3 py-1.5 bg-transparent border border-[rgba(181,108,255,.4)] rounded-md text-[#d7adff] text-xs font-semibold cursor-pointer transition hover:bg-[#321d47]"
                                 onClick={() => cambiarEstadoMiembro(m.id, "activo")}
                               >
                                 Reactivar
@@ -265,7 +236,7 @@ export default function AdminDashboardPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="5" className="table-empty">
+                      <td colSpan="5" className="p-8 text-center text-[#a9afa7]">
                         No hay clientes que coincidan con la búsqueda.
                       </td>
                     </tr>
@@ -279,14 +250,14 @@ export default function AdminDashboardPage() {
 
       {/* PESTAÑA 2: COMUNICACIÓN (RESEND) */}
       {tabActiva === "comunicacion" && (
-        <section className="admin-table-container">
-          <h2 style={{ fontSize: "20px", marginTop: 0, marginBottom: "8px" }}>Comunicación con Miembros</h2>
-          <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "24px" }}>
+        <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+          <h2 className="text-xl mt-0 mb-2">Comunicación con Miembros</h2>
+          <p className="text-sm text-[#a9afa7] mb-6">
             Envía anuncios por correo electrónico utilizando la integración con Resend.
           </p>
 
-          <form onSubmit={enviarAnuncio} style={{ maxWidth: "600px" }}>
-            <div className="field">
+          <form onSubmit={enviarAnuncio} className="max-w-[600px]">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label>Audiencia destino</label>
               <select value={correoTarget} onChange={(e) => setCorreoTarget(e.target.value)}>
                 <option value="por_vencer">Próximos a Vencer (Recordatorio de pago)</option>
@@ -295,7 +266,7 @@ export default function AdminDashboardPage() {
               </select>
             </div>
 
-            <div className="field">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label>Asunto del correo</label>
               <input
                 type="text"
@@ -306,28 +277,20 @@ export default function AdminDashboardPage() {
               />
             </div>
 
-            <div className="field">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label>Mensaje</label>
               <textarea
                 rows={5}
-                className="field-textarea"
+                className="w-full p-3 rounded-[10px] bg-[#151714] border border-[#41463f] text-[#f2f4ef] outline-none focus:border-[#b56cff]"
                 placeholder="Escribe aquí el cuerpo del correo..."
                 value={mensajeCorreo}
                 onChange={(e) => setMensajeCorreo(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  background: "#151714",
-                  border: "1px solid #41463f",
-                  color: "var(--ink)",
-                  fontFamily: "inherit",
-                }}
+                
                 required
               />
             </div>
 
-            <button className="btn-primary" type="submit" disabled={enviandoCorreo} style={{ width: "auto", padding: "12px 24px" }}>
+            <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={enviandoCorreo}>
               {enviandoCorreo ? "Enviando con Resend..." : "Enviar Anuncio"}
             </button>
           </form>
@@ -336,14 +299,14 @@ export default function AdminDashboardPage() {
 
       {/* PESTAÑA 3: CONFIGURACIÓN DE SEDE */}
       {tabActiva === "configuracion" && (
-        <section className="admin-table-container">
-          <h2 style={{ fontSize: "20px", marginTop: 0, marginBottom: "8px" }}>Configuración de Sucursal</h2>
-          <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "24px" }}>
+        <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+          <h2 className="text-xl mt-0 mb-2">Configuración de Sucursal</h2>
+          <p className="text-sm text-[#a9afa7] mb-6">
             Actualiza la información pública visible para los clientes de esta sede.
           </p>
 
-          <form onSubmit={guardarConfiguracion} style={{ maxWidth: "600px" }}>
-            <div className="field">
+          <form onSubmit={guardarConfiguracion} className="max-w-[600px]">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label>Nombre de la Sede</label>
               <input
                 type="text"
@@ -353,7 +316,7 @@ export default function AdminDashboardPage() {
               />
             </div>
 
-            <div className="field">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label>Dirección Física</label>
               <input
                 type="text"
@@ -363,7 +326,7 @@ export default function AdminDashboardPage() {
               />
             </div>
 
-            <div className="field">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label>Teléfono de contacto</label>
               <input
                 type="text"
@@ -373,7 +336,7 @@ export default function AdminDashboardPage() {
               />
             </div>
 
-            <div className="field">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label>Horarios de Atención</label>
               <input
                 type="text"
@@ -383,7 +346,7 @@ export default function AdminDashboardPage() {
               />
             </div>
 
-            <button className="btn-primary" type="submit" style={{ width: "auto", padding: "12px 24px" }}>
+            <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit">
               Guardar Cambios
             </button>
           </form>

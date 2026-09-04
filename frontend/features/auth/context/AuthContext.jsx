@@ -6,11 +6,6 @@ import { supabase } from "../api/supabaseClient";
 
 const AuthContext = createContext(null);
 
-function handleAuthError(error, fallbackMessage) {
-  console.error("Error de autenticación:", error);
-  throw new Error(fallbackMessage);
-}
-
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -53,8 +48,11 @@ export function AuthProvider({ children }) {
       password,
       options: { data: { nombres, apellidos } },
     });
-    if (error) handleAuthError(error, "No se pudo crear la cuenta. Verifica tus datos.");
+    if (error) throw new Error(error.message);
 
+    // Supabase no lanza error si el correo ya existe y está confirmado
+    // (para no revelar qué correos están registrados): en ese caso devuelve
+    // un usuario "fantasma" sin identidades nuevas. Lo detectamos así.
     if (data?.user && data.user.identities && data.user.identities.length === 0) {
       throw new Error("Este correo ya está registrado. Intenta iniciar sesión.");
     }
@@ -64,36 +62,18 @@ export function AuthProvider({ children }) {
 
   async function verifyOtp(email, token) {
     const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });
-    if (error) handleAuthError(error, "El código ingresado no es válido o expiró.");
+    if (error) throw new Error(error.message);
     return data;
   }
 
   async function resendOtp(email) {
     const { error } = await supabase.auth.resend({ type: "signup", email });
-    if (error) handleAuthError(error, "No se pudo reenviar el código. Intenta de nuevo.");
+    if (error) throw new Error(error.message);
   }
 
   async function login(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error("Error de autenticación:", error);
-      if (error.message.toLowerCase().includes("confirm")) {
-        throw new Error(error.message);
-      }
-      throw new Error("No se pudo completar la autenticación. Verifica tus datos.");
-    }
-
-    // Actualizamos el estado local de inmediato, sin esperar al evento
-    // asíncrono onAuthStateChange (que supabase-js dispara con un tick de
-    // retraso). Esto evita que un componente que se monte justo después
-    // del login (por ej. al navegar a /dashboard) lea un `user` obsoleto.
-    setSession(data.session);
-    if (data.session) {
-      await fetchProfile(data.session.user.id);
-    } else {
-      setLoading(false);
-    }
-
+    if (error) throw new Error(error.message);
     return data;
   }
 
@@ -102,16 +82,11 @@ export function AuthProvider({ children }) {
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-    if (error) handleAuthError(error, "No se pudo iniciar sesión con Google. Intenta de nuevo.");
+    if (error) throw new Error(error.message);
   }
 
   async function logout() {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Error de autenticación:", error);
-    }
-    setSession(null);
-    setProfile(null);
+    await supabase.auth.signOut();
     router.push("/login");
   }
 
@@ -119,34 +94,15 @@ export function AuthProvider({ children }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (error) handleAuthError(error, "No se pudo enviar el enlace de recuperación. Intenta de nuevo.");
+    if (error) throw new Error(error.message);
   }
 
   async function updatePassword(newPassword) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) handleAuthError(error, "No se pudo actualizar la contraseña. Intenta de nuevo.");
+    if (error) throw new Error(error.message);
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        session,
-        user: session?.user ?? null,
-        profile,
-        loading,
-        signUp,
-        verifyOtp,
-        resendOtp,
-        login,
-        loginWithGoogle,
-        logout,
-        resetPasswordForEmail,
-        updatePassword,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, loading, signUp, verifyOtp, resendOtp, login, loginWithGoogle, logout, resetPasswordForEmail, updatePassword }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

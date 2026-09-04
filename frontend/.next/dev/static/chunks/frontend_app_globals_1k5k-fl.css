@@ -1,0 +1,39 @@
+@import "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
+/* [project]/frontend/app/globals.css [app-client] (css) */
+:root {
+  --green: #b56cff;
+  --green-dark: #8441c6;
+  --green-soft: #321d47;
+  --lime: #d7adff;
+  --ink: #f2f4ef;
+  --muted: #a9afa7;
+  --line: #30332f;
+  --surface: #1c1e1b;
+  --background: #242424;
+  --danger: #ff7979;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--ink);
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
+}
+
+@keyframes pulse-animation {
+  0%, 100% {
+    transform: scale(.95);
+    box-shadow: 0 0 #5bd48fb3;
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px #5bd48f00;
+  }
+}
+
+/*# sourceMappingURL=frontend_app_globals_1k5k-fl.css.map*/
