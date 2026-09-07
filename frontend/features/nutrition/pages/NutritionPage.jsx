@@ -6,7 +6,7 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { calculateBmi, getBmiStatus, getProteinTarget, goals, getFoodsByGoal } from "../lib/nutrition";
 
 function NutritionCalculator({ gym }) {
-  const { user, loading, logout } = useAuth();
+  const { loading, logout } = useAuth();
 
   const [weight, setWeight] = useState(70);
   const [height, setHeight] = useState(170);
@@ -35,8 +35,7 @@ function NutritionCalculator({ gym }) {
     });
   }
 
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]"><p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Cargando...</p></div>;
-
+  if (loading) return <NutritionSkeleton />;
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817] pb-20">
       <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">

@@ -20,15 +20,13 @@ const sections = [
 ];
 
 function MemberDashboard() {
-  const { user, profile, loading, logout } = useAuth();
-  const router = useRouter();
+  const { profile, loading, logout } = useAuth();
   const searchParams = useSearchParams();
   const gymSlug = searchParams.get("gym") || "jj-poblado";
   const gym = gyms[gymSlug] || gyms["jj-poblado"];
   const subscription = getSubscriptionStatus(profile);
 
-  useEffect(() => { if (!loading && !user) router.replace("/login"); }, [loading, user, router]);
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]"><p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Cargando...</p></div>;
+if (loading) return <MemberDashboardSkeleton />;
 
   return <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
     <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]"><Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href="/" aria-label="Volver al inicio"><span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span><span>{gym.name}</span></Link><button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>Cerrar sesion</button></header>

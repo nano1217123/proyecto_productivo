@@ -39,20 +39,20 @@ export default function RegisterPage() {
 
     try {
       if (form.tipoUsuario === "admin_gimnasio") {
-        // Petición al backend Express para administradores
-        const response = await fetch("http://localhost:4000/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            nombres: form.nombres,
-            apellidos: form.apellidos,
-            correo: form.email,
-            password: form.password,
-            tipoUsuario: form.tipoUsuario,
-            gimnasio: form.gimnasio,
-            adminSecretKey: form.claveAdmin,
-          }),
-        });
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const response = await fetch(`${apiUrl}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+    nombres: form.nombres,
+    apellidos: form.apellidos,
+    email: form.email,
+    password: form.password,
+    tipoUsuario: form.tipoUsuario,
+    gimnasio: form.gimnasio,
+    claveAdmin: form.claveAdmin,
+  }),
+});
 
         const data = await response.json();
         if (!response.ok) {

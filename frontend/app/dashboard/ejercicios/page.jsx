@@ -1,5 +1,7 @@
+// app/dashboard/ejercicios/page.jsx
 import ExercisesPage from "@/features/exercises/pages/ExercisesPage";
 
-export default function Page({ searchParams }) {
-  return <ExercisesPage gym={searchParams.gym} />;
+export default async function Page({ searchParams }) {
+  const { gym } = await searchParams;
+  return <ExercisesPage gym={gym} />;
 }

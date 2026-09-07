@@ -7,10 +7,8 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { muscleGroups } from "../lib/muscleGroups";
 
 export default function ExercisesPage({ gym = "jj-poblado" }) {
-  const { user, loading, logout } = useAuth();
-  const router = useRouter();
-  useEffect(() => { if (!loading && !user) router.replace("/login"); }, [loading, user, router]);
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]"><p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Cargando...</p></div>;
+ const { loading, logout } = useAuth();
+if (loading) return <ExerciseListSkeleton />;
 
   return <main className="min-h-screen px-6 pb-[72px] bg-[#171817] pb-20">
     <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]"><Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard?gym=${encodeURIComponent(gym)}`}><span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span><span>Ejercicios</span></Link><button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>Cerrar sesion</button></header>
