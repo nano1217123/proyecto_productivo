@@ -84,7 +84,7 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit}>
             <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label htmlFor="password">Nueva contraseña</label>
-              <input
+           <input
                 id="password"
                 type="password"
                 value={password}
@@ -92,12 +92,13 @@ export default function ResetPasswordPage() {
                 placeholder="Mínimo 8 caracteres"
                 required
                 minLength={8}
+                maxLength={30}
                 autoComplete="new-password"
               />
             </div>
             <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
               <label htmlFor="confirmPassword">Confirmar contraseña</label>
-              <input
+                <input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
@@ -105,6 +106,7 @@ export default function ResetPasswordPage() {
                 placeholder="Repite la contraseña"
                 required
                 minLength={8}
+                maxLength={30}
                 autoComplete="new-password"
               />
             </div>

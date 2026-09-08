@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 const GIMNASIOS = [
   { id: "jj-poblado", nombre: "JJ GYM El Poblado" },
@@ -16,6 +17,8 @@ const MIEMBROS_MOCK = [
 ];
 
 export default function AdminDashboardPage() {
+  const { logout, profile, session } = useAuth();
+  const esSuperAdmin = profile?.tipo_usuario === "super_admin" || profile?.tipo_usuario === "desarrollador";
   const [tabActiva, setTabActiva] = useState("miembros"); // 'miembros' | 'comunicacion' | 'configuracion'
   const [gymSeleccionado, setGymSeleccionado] = useState("jj-poblado");
   const [busqueda, setBusqueda] = useState("");
@@ -35,6 +38,12 @@ export default function AdminDashboardPage() {
     telefono: "+57 300 123 4567",
     horario: "Lunes a Viernes: 5:00 AM - 10:00 PM | Sábados: 7:00 AM - 6:00 PM",
   });
+  const [guardandoSede, setGuardandoSede] = useState(false);
+
+  const [nuevoAdmin, setNuevoAdmin] = useState({ nombres: "", apellidos: "", email: "", password: "" });
+const [creandoAdmin, setCreandoAdmin] = useState(false);
+const [errorCrearAdmin, setErrorCrearAdmin] = useState("");
+const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
 
   // Acciones sobre Miembros
   const renovarSuscripcion = (id) => {
@@ -62,10 +71,67 @@ export default function AdminDashboardPage() {
     }, 1000);
   };
 
-  const guardarConfiguracion = (e) => {
+   const guardarConfiguracion = (e) => {
     e.preventDefault();
-    alert("Datos de la sede actualizados con éxito.");
+    setGuardandoSede(true);
+    setTimeout(() => {
+      alert("Datos de la sede actualizados con éxito.");
+      setGuardandoSede(false);
+    }, 1000);
   };
+
+  const crearAdministrador = async (e) => {
+  e.preventDefault();
+  setErrorCrearAdmin("");
+  setExitoCrearAdmin("");
+  setCreandoAdmin(true);
+
+  const nombres = nuevoAdmin.nombres.trim();
+  const apellidos = nuevoAdmin.apellidos.trim();
+  const email = nuevoAdmin.email.trim();
+
+  if (!nombres || !apellidos) {
+    setErrorCrearAdmin("Nombres y apellidos no pueden estar vacíos ni contener solo espacios.");
+    setCreandoAdmin(false);
+    return;
+  }
+
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    let response;
+    try {
+      response = await fetch(`${apiUrl}/api/auth/create-admin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          nombres,
+          apellidos,
+          email,
+          password: nuevoAdmin.password,
+          tipoUsuario: "admin_gimnasio",
+        }),
+      });
+    } catch {
+      throw new Error("No pudimos conectar con el servidor. Verifica tu conexión e intenta de nuevo.");
+    }
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "No se pudo crear el administrador.");
+    }
+
+    setExitoCrearAdmin(`Administrador creado. Debe verificar su correo (${email}) con el código que le llegará.`);
+    setNuevoAdmin({ nombres: "", apellidos: "", email: "", password: "" });
+  } catch (err) {
+    setErrorCrearAdmin(err.message);
+  } finally {
+    setCreandoAdmin(false);
+  }
+};
 
   // Filtrado de la lista de miembros
   const miembrosFiltrados = miembros.filter((m) => {
@@ -94,13 +160,21 @@ export default function AdminDashboardPage() {
             value={gymSeleccionado}
             onChange={(e) => setGymSeleccionado(e.target.value)}
           >
-            {GIMNASIOS.map((g) => (
+          {GIMNASIOS.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.nombre}
               </option>
             ))}
           </select>
         </div>
+
+        <button
+          type="button"
+          onClick={logout}
+          className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]"
+        >
+          Cerrar sesión
+        </button>
       </header>
 
       {/* Navegación por Pestañas */}
@@ -125,6 +199,16 @@ export default function AdminDashboardPage() {
         >
           ⚙️ Perfil de Sede
         </button>
+
+                {esSuperAdmin && (
+          <button
+            className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "crear-admin" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
+            onClick={() => setTabActiva("crear-admin")}
+          >
+            🛡️ Crear Administrador
+          </button>
+        )}
+
       </nav>
 
       {/* PESTAÑA 1: MIEMBROS & SUSCRIPCIONES */}
@@ -345,9 +429,74 @@ export default function AdminDashboardPage() {
                 required
               />
             </div>
+            <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={guardandoSede}>
+              {guardandoSede ? "Guardando..." : "Guardar Cambios"}
+            </button>
+          </form>
+        </section>
+      )}
 
-            <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit">
-              Guardar Cambios
+            {tabActiva === "crear-admin" && esSuperAdmin && (
+        <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+          <h2 className="text-xl mt-0 mb-2">Crear Administrador de Gimnasio</h2>
+          <p className="text-sm text-[#a9afa7] mb-6">
+            Solo tú puedes crear cuentas de administrador. La persona recibirá un correo para verificar su cuenta.
+          </p>
+
+          {errorCrearAdmin && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{errorCrearAdmin}</div>}
+          {exitoCrearAdmin && <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px]">{exitoCrearAdmin}</div>}
+
+          <form onSubmit={crearAdministrador} className="max-w-[600px]">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
+              <label>Nombres</label>
+              <input
+                type="text"
+                value={nuevoAdmin.nombres}
+                onChange={(e) => setNuevoAdmin({ ...nuevoAdmin, nombres: e.target.value })}
+                maxLength={60}
+                required
+              />
+            </div>
+
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
+              <label>Apellidos</label>
+              <input
+                type="text"
+                value={nuevoAdmin.apellidos}
+                onChange={(e) => setNuevoAdmin({ ...nuevoAdmin, apellidos: e.target.value })}
+                maxLength={60}
+                required
+              />
+            </div>
+
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
+              <label>Correo</label>
+              <input
+                type="email"
+                value={nuevoAdmin.email}
+                onChange={(e) => setNuevoAdmin({ ...nuevoAdmin, email: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
+              <label>Contraseña temporal</label>
+              <input
+                type="password"
+                value={nuevoAdmin.password}
+                onChange={(e) => setNuevoAdmin({ ...nuevoAdmin, password: e.target.value })}
+                minLength={8}
+                maxLength={30}
+                required
+              />
+            </div>
+
+            <button
+              className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
+              type="submit"
+              disabled={creandoAdmin}
+            >
+              {creandoAdmin ? "Creando..." : "Crear Administrador"}
             </button>
           </form>
         </section>

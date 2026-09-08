@@ -1,6 +1,8 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { register } from '../controllers/auth.controller.js';
+import { createAdmin } from '../controllers/auth.controller.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireRole } from '../middleware/requireRole.js';
 
 const router = express.Router();
 
@@ -14,9 +16,17 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// El login de clientes/administradores va directo contra Supabase Auth
-// desde el frontend (AuthContext.jsx); este backend solo expone el
-// registro con clave de administrador.
-router.post('/register', authLimiter, register);
+// El login y el registro de clientes van directo contra Supabase Auth
+// desde el frontend (AuthContext.jsx). Este backend solo expone la
+// creación de administradores de gimnasio, y únicamente para un
+// super_admin o desarrollador ya autenticado (no hay registro público
+// de administradores).
+router.post(
+  '/create-admin',
+  authLimiter,
+  requireAuth,
+  requireRole("super_admin", "desarrollador"),
+  createAdmin
+);
 
 export default router;

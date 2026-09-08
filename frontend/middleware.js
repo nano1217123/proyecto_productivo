@@ -26,10 +26,21 @@ export async function middleware(request) {
     }
   );
 
-  // Obtiene la sesión actual y actualiza cookies si el token expiró
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Obtiene la sesión actual y actualiza cookies si el token expiró.
+  // Si Supabase no responde (caída, timeout de red), evitamos que el
+  // middleware truene para TODAS las rutas: registramos el error y
+  // tratamos la sesión como "no autenticada" (fail-safe: es más seguro
+  // pedir login de nuevo que dejar pasar sin poder verificar quién es
+  // realmente el usuario).
+  let user = null;
+  try {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch (error) {
+    console.error("middleware: error verificando la sesión con Supabase", error);
+  }
 
   const url = request.nextUrl.clone();
 

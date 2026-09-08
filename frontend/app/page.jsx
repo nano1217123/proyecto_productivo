@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
+import { calculateBmi, getBmiStatus } from "@/features/nutrition/lib/nutrition";
 
 const gyms = [
   {
@@ -36,12 +37,6 @@ const gyms = [
   },
 ];
 
-function getBmiStatus(bmi) {
-  if (bmi < 18.5) return { label: "Bajo peso", detail: "Rango a reforzar", tone: "low" };
-  if (bmi < 25) return { label: "Peso óptimo", detail: "Estado saludable", tone: "normal" };
-  if (bmi < 30) return { label: "Sobrepeso", detail: "Rango a vigilar", tone: "high" };
-  return { label: "Obesidad", detail: "Requiere seguimiento", tone: "high" };
-}
 
 export default function Home() {
   const [weight, setWeight] = useState(70);
@@ -55,11 +50,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  const bmi = useMemo(() => {
-    const w = Number(weight);
-    const h = Number(height) / 100;
-    return w && h ? w / (h * h) : null;
-  }, [weight, height]);
+  const bmi = useMemo(() => calculateBmi(weight, height), [weight, height]);
 
   const bmiStatus = bmi ? getBmiStatus(bmi) : null;
 
@@ -162,12 +153,14 @@ export default function Home() {
                 Peso (kg)
                 <div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff]">
                   <input 
-                    id="weight" 
-                    type="number" 
-                    value={weight} 
-                    onChange={(e) => setWeight(e.target.value)} 
-                    className="w-full py-2 border-0 outline-0 bg-transparent text-[#f2f4ef] text-[22px] font-bold"
-                  />
+                  id="weight" 
+                  type="number" 
+                  min="1"
+                  max="300"
+                  value={weight} 
+                  onChange={(e) => setWeight(e.target.value.replace(/[^0-9.]/g, ""))}
+                  className="w-full py-2 border-0 outline-0 bg-transparent text-[#f2f4ef] text-[22px] font-bold"
+                />
                   <span className="text-[#b56cff] text-xs font-extrabold">KG</span>
                 </div>
               </label>
@@ -175,13 +168,15 @@ export default function Home() {
               <label className="text-xs font-bold text-[#c0c7bd]">
                 Estatura (cm)
                 <div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff]">
-                  <input 
-                    id="height" 
-                    type="number" 
-                    value={height} 
-                    onChange={(e) => setHeight(e.target.value)} 
-                    className="w-full py-2 border-0 outline-0 bg-transparent text-[#f2f4ef] text-[22px] font-bold"
-                  />
+                <input 
+                  id="height" 
+                  type="number" 
+                  min="50"
+                  max="250"
+                  value={height} 
+                 onChange={(e) => setHeight(e.target.value.replace(/[^0-9.]/g, ""))}
+                  className="w-full py-2 border-0 outline-0 bg-transparent text-[#f2f4ef] text-[22px] font-bold"
+                />
                   <span className="text-[#b56cff] text-xs font-extrabold">CM</span>
                 </div>
               </label>
