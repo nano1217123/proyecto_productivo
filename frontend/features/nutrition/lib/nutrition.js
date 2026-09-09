@@ -6,7 +6,9 @@ export { getBmiStatus };
 export function calculateBmi(weightKg, heightCm) {
   const weight = Number(weightKg);
   const heightInMeters = Number(heightCm) / 100;
-  if (!weight || !heightInMeters || weight <= 0 || heightInMeters <= 0) return null;
+  const isValidWeight = Number.isFinite(weight) && weight >= 1 && weight <= 300;
+  const isValidHeight = Number.isFinite(heightInMeters) && heightInMeters >= 0.5 && heightInMeters <= 2.5;
+  if (!isValidWeight || !isValidHeight) return null;
   return weight / heightInMeters ** 2;
 }
 
