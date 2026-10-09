@@ -28,9 +28,9 @@ export default function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const setField = (field) => (event) =>
-    setForm({ ...form, [field]: event.target.value });
+    setForm((prev) => ({ ...prev, [field]: event.target.value }));
 
-    async function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     setError("");
     setSubmitting(true);
@@ -46,31 +46,15 @@ export default function RegisterPage() {
     }
 
     try {
-      await signUp(nombres, apellidos, email, form.password);
+      // Pasa form.gimnasio si tu AuthContext lo soporta como metadata
+      await signUp(nombres, apellidos, email, form.password, form.gimnasio);
       router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Ocurrió un error en el registro");
     } finally {
       setSubmitting(false);
     }
   }
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "Error al registrar el administrador");
-        }
-
-        router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
-      } else {
-        // Registro estándar de cliente con AuthContext / Supabase
-        await signUp(nombres, apellidos, email, form.password);
-        router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  
 
   async function handleGoogleSignup() {
     setError("");
@@ -78,7 +62,7 @@ export default function RegisterPage() {
     try {
       await loginWithGoogle();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Error con autenticación de Google");
       setGoogleLoading(false);
     }
   }
@@ -89,7 +73,11 @@ export default function RegisterPage() {
         <h1 className="m-0 mb-2 text-[27px] font-bold tracking-[-0.7px]">Crear cuenta</h1>
         <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Regístrate para empezar</p>
 
-        {error && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
+        {error && (
+          <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
@@ -133,7 +121,7 @@ export default function RegisterPage() {
 
           <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)] [&_select]:w-full [&_select]:p-[12px_13px] [&_select]:border [&_select]:border-[#41463f] [&_select]:rounded-[10px] [&_select]:outline-0 [&_select]:bg-[#151714] [&_select]:text-[#f2f4ef] [&_select]:text-sm [&_select]:focus:border-[#b56cff] [&_select]:focus:ring-4 [&_select]:focus:ring-[rgba(181,108,255,.18)]">
             <label htmlFor="password">Contraseña</label>
-             <input
+            <input
               id="password"
               type="password"
               value={form.password}
@@ -159,15 +147,20 @@ export default function RegisterPage() {
                 </option>
               ))}
             </select>
-          </div>         
+          </div>
 
-
-          <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={submitting}>
+          <button
+            className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
+            type="submit"
+            disabled={submitting}
+          >
             {submitting ? "Creando cuenta..." : "Crear cuenta"}
           </button>
         </form>
 
-        <div className="flex items-center gap-2.5 my-[22px] text-xs text-[#a9afa7] before:content-[''] before:flex-1 before:h-px before:bg-[#30332f] after:content-[''] after:flex-1 after:h-px after:bg-[#30332f]">o</div>
+        <div className="flex items-center gap-2.5 my-[22px] text-xs text-[#a9afa7] before:content-[''] before:flex-1 before:h-px before:bg-[#30332f] after:content-[''] after:flex-1 after:h-px after:bg-[#30332f]">
+          o
+        </div>
 
         <button
           type="button"
