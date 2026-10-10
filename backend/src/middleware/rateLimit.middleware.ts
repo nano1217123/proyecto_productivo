@@ -26,3 +26,15 @@ export const perfilLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? ""),
 });
+
+// Limita la creación de cuentas: 5 registros por IP cada hora.
+export const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  message: {
+    message:
+      "Demasiados registros desde esta IP. Intenta de nuevo en una hora.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

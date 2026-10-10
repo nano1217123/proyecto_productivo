@@ -11,6 +11,7 @@ const app = express();
 // cuando el backend corre detrás de un proxy inverso (Render, Railway,
 // Nginx, etc.). El valor viene de TRUST_PROXY (ver config/env.ts).
 app.set("trust proxy", env.trustProxy);
+import helmet from "helmet";
 
 app.use(
   cors({

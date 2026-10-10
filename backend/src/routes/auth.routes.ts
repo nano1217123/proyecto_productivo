@@ -1,10 +1,10 @@
 import { Router } from "express";
 
-import { createAdmin } from "../controller/auth.controller.js";
-import { requireAuth } from "../middleware/auth.middleware.js";
-import { authLimiter } from "../middleware/rateLimit.middleware.js";
+import { createAdmin, register } from "../controller/auth.controller.js";
+import { authLimiter, registerLimiter } from "../middleware/rateLimit.middleware.js";
+import { validateCreateAdmin, validateRegister } from "../validator/auth.validator.js";import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
-import { validateCreateAdmin } from "../validator/auth.validator.js";
+
 
 const router = Router();
 
@@ -25,4 +25,7 @@ router.post(
   createAdmin
 );
 
+// Registro público de clientes (Neon + Prisma, sin Supabase Auth).
+// Orden: límite por IP → validación/sanitización → controlador.
+router.post("/register", registerLimiter, validateRegister, register);
 export default router;
