@@ -1,0 +1,14 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/src/generated/prisma
+
+# Artefactos de prisma init (skills de IA, no son del proyecto)
+.claude/
+.agents/
+.windsurf/
+skills-lock.json
+
+# CSV de migración (no versionar)
+scripts/data/

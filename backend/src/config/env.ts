@@ -33,6 +33,11 @@ export const env = {
   port: Number(process.env.PORT) || 4000,
   clientOrigin: clientOrigin || "http://localhost:3000",
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY ?? "1"),
+  databaseUrl: required("DATABASE_URL"),    
+  directUrl: required("DIRECT_URL"),
   supabaseUrl: required("SUPABASE_URL"),
   supabaseSecretKey: required("SUPABASE_SECRET_KEY"),
+  jwtSecret: required("JWT_SECRET"),
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "15m",
+  refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN ?? "7d",
 } as const;

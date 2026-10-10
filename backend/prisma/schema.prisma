@@ -1,0 +1,177 @@
+// ============================================================
+// Prisma Schema — Proyecto Productivo
+// Prisma 7 + Neon + Auth propio
+// ============================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// USUARIOS
+// Reemplaza a auth.users + public.usuarios de Supabase.
+// Ahora es una única tabla con auth propio.
+// ============================================================
+
+model Usuario {
+  idusuario                 String   @id @db.Uuid
+  nombres                   String   @db.VarChar
+  apellidos                 String   @db.VarChar
+  correo                    String   @unique @db.VarChar
+  passwordHash              String?  @map("password_hash") @db.VarChar
+  tipoUsuario               String   @default("cliente") @map("tipo_usuario") @db.VarChar
+  emailVerified             Boolean  @default(false) @map("email_verified")
+  provider                  String   @default("email") @db.VarChar
+  providerId                String?  @map("provider_id") @db.VarChar
+  tiempoRegistrado          DateTime @default(now()) @map("tiempo_registrado") @db.Timestamptz
+  tiempoDuracionInscripcion String   @default("30 days") @map("tiempo_duracion_inscripcion") @db.VarChar
+
+  // Relaciones
+  entrenamientos      Entrenamiento[]
+  rutinas             Rutina[]
+  seriesEntrenamiento SerieEntrenamiento[]
+  verificationCodes   VerificationCode[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("usuarios")
+}
+
+// ============================================================
+// EJERCICIOS — Catálogo estático (130 filas)
+// ============================================================
+
+model Ejercicio {
+  id               BigInt   @id @default(autoincrement())
+  grupoSlug        String   @map("grupo_slug") @db.Text
+  grupoNombre      String   @map("grupo_nombre") @db.Text
+  nombre           String   @db.Text
+  slug             String   @db.Text
+  equipo           String?  @db.Text
+  musculoPrincipal String?  @map("musculo_principal") @db.Text
+  descripcion      String?  @db.Text
+  consejo          String?  @db.Text
+  creadoEn         DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  rutinaEjercicios    RutinaEjercicio[]
+  seriesEntrenamiento SerieEntrenamiento[]
+
+  @@unique([grupoSlug, slug])
+  @@map("ejercicios")
+}
+
+// ============================================================
+// ENTRENAMIENTOS — Sesiones de entrenamiento del usuario
+// ============================================================
+
+model Entrenamiento {
+  id        String   @id @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  fecha     DateTime @default(now()) @db.Date
+  notas     String?  @db.Text
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  usuario             Usuario              @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  seriesEntrenamiento SerieEntrenamiento[]
+
+  @@map("entrenamientos")
+}
+
+// ============================================================
+// RUTINAS — Rutinas personalizadas del usuario
+// ============================================================
+
+model Rutina {
+  id          String   @id @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  nombre      String   @db.Text
+  diaEtiqueta String?  @map("dia_etiqueta") @db.Text
+  creadoEn    DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  usuario          Usuario           @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  rutinaEjercicios RutinaEjercicio[]
+
+  @@map("rutinas")
+}
+
+// ============================================================
+// RUTINA_EJERCICIOS — Relación N:M entre rutinas y ejercicios
+// ============================================================
+
+model RutinaEjercicio {
+  id          BigInt   @id @default(autoincrement())
+  rutinaId    String   @map("rutina_id") @db.Uuid
+  ejercicioId BigInt   @map("ejercicio_id")
+  orden       Int
+  creadoEn    DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  rutina    Rutina    @relation(fields: [rutinaId], references: [id], onDelete: Cascade)
+  ejercicio Ejercicio @relation(fields: [ejercicioId], references: [id])
+
+  @@unique([rutinaId, orden])
+  @@map("rutina_ejercicios")
+}
+
+// ============================================================
+// SERIES_ENTRENAMIENTO — Series individuales por entrenamiento
+// ============================================================
+
+model SerieEntrenamiento {
+  id              String   @id @db.Uuid
+  entrenamientoId String   @map("entrenamiento_id") @db.Uuid
+  ejercicioId     BigInt   @map("ejercicio_id")
+  usuarioId       String   @map("usuario_id") @db.Uuid
+  numeroSerie     Int      @map("numero_serie")
+  repeticiones    Int
+  pesoKg          Decimal? @map("peso_kg") @db.Decimal
+  creadoEn        DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  entrenamiento Entrenamiento @relation(fields: [entrenamientoId], references: [id], onDelete: Cascade)
+  ejercicio     Ejercicio     @relation(fields: [ejercicioId], references: [id])
+  usuario       Usuario       @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@map("series_entrenamiento")
+}
+
+// ============================================================
+// VERIFICATION_CODES — Códigos OTP de 6 dígitos (email verify)
+// Los códigos se guardan hasheados con bcrypt.
+// ============================================================
+
+model VerificationCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  codeHash  String   @map("code_hash") @db.VarChar
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  used      Boolean  @default(false)
+  intentos  Int      @default(0)
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("verification_codes")
+}
+
+// ============================================================
+// PASSWORD_RESET_TOKENS — Tokens de recuperación de contraseña
+// Los tokens se guardan hasheados.
+// ============================================================
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  tokenHash String   @map("token_hash") @db.VarChar
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  used      Boolean  @default(false)
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("password_reset_tokens")
+}
