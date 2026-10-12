@@ -25,6 +25,24 @@ export function createUsuariosAuthRepository(db: typeof prisma = prisma) {
       });
       return user !== null;
     },
+        // Datos mínimos para el flujo de verificación, o null.
+    async findAuthByEmail(email: string): Promise<{
+      idusuario: string;
+      nombres: string;
+      emailVerified: boolean;
+    } | null> {
+      return db.usuario.findUnique({
+        where: { correo: email },
+        select: { idusuario: true, nombres: true, emailVerified: true },
+      });
+    },
+
+    async markEmailVerified(idUsuario: string): Promise<void> {
+      await db.usuario.update({
+        where: { idusuario: idUsuario },
+        data: { emailVerified: true },
+      });
+    },
 
     // Crea un cliente con email_verified = false.
     // Devuelve solo el id (nunca el hash).

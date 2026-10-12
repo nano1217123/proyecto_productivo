@@ -38,3 +38,26 @@ export const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Verificación de OTP: 10 intentos por IP cada 15 min.
+// Además, cada código admite máximo 5 intentos (se controla en el servicio).
+export const verifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  message: {
+    message: "Demasiados intentos de verificación. Intenta en 15 minutos.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Reenvío de OTP: 3 por IP cada 15 min (además del cooldown de 60 s).
+export const resendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  message: {
+    message: "Demasiados reenvíos. Intenta de nuevo en 15 minutos.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

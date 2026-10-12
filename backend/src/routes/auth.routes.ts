@@ -1,8 +1,24 @@
 import { Router } from "express";
 
-import { createAdmin, register } from "../controller/auth.controller.js";
-import { authLimiter, registerLimiter } from "../middleware/rateLimit.middleware.js";
-import { validateCreateAdmin, validateRegister } from "../validator/auth.validator.js";import { requireAuth } from "../middleware/auth.middleware.js";
+import {
+  createAdmin,
+  register,
+  resendCode,
+  verifyEmail,
+} from "../controller/auth.controller.js";
+import {
+  authLimiter,
+  registerLimiter,
+  resendLimiter,
+  verifyLimiter,
+} from "../middleware/rateLimit.middleware.js";
+import {
+  validateCreateAdmin,
+  validateRegister,
+  validateResendCode,
+  validateVerifyEmail,
+} from "../validator/auth.validator.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 
 
@@ -28,4 +44,10 @@ router.post(
 // Registro público de clientes (Neon + Prisma, sin Supabase Auth).
 // Orden: límite por IP → validación/sanitización → controlador.
 router.post("/register", registerLimiter, validateRegister, register);
+
+// Verificación del correo con el código de 6 dígitos.
+router.post("/verify-email", verifyLimiter, validateVerifyEmail, verifyEmail);
+
+// Reenvío del código (respuesta siempre genérica).
+router.post("/resend-code", resendLimiter, validateResendCode, resendCode);
 export default router;

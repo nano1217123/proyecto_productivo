@@ -2,8 +2,22 @@ import type { RequestHandler } from "express";
 import { authService } from "../service/auth.service.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
 //import type { CreateAdminInput } from "../types/auth.types.js";
-import type { CreateAdminInput, RegisterInput } from "../types/auth.types.js";
+import type {
+  CreateAdminInput,
+  RegisterInput,
+  ResendCodeInput,
+  VerifyEmailInput,
+} from "../types/auth.types.js";
 
+export const verifyEmail: RequestHandler = asyncHandler(async (req, res) => {
+  const result = await authService.verifyEmail(req.body as VerifyEmailInput);
+  return res.status(200).json(result);
+});
+
+export const resendCode: RequestHandler = asyncHandler(async (req, res) => {
+  const result = await authService.resendCode(req.body as ResendCodeInput);
+  return res.status(200).json(result);
+});
 
 export const createAdmin: RequestHandler = asyncHandler(async (req, res) => {
   // req.body ya pasó por validateCreateAdmin en la ruta.

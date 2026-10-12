@@ -33,8 +33,21 @@ export interface RegisterInput {
   password: string;
 }
 
-// Resultado que devuelve el servicio al registrar.
 export interface RegisterResult {
   message: string;
   userId: string;
+  emailSendError?: boolean;
+}
+
+export interface VerifyEmailInput {
+  email: string;
+  code: string;
+}
+
+export interface ResendCodeInput {
+  email: string;
+}
+
+export interface MessageResult {
+  message: string;
 }

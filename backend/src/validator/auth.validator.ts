@@ -8,7 +8,11 @@ import {
 import { sanitizeString, sanitizeEmail, sanitizeName, containsSuspiciousPatterns } from "../lib/sanitize.js";
 import { validatePassword } from "../lib/passwordPolicy.js";
 import { validateEmail } from "../lib/emailPolicy.js";
-import type { RegisterInput } from "../types/auth.types.js";
+import type {
+  RegisterInput,
+  VerifyEmailInput,
+  ResendCodeInput,
+} from "../types/auth.types.js";
 const LIMITES = {
   nombreMax: 60,
   emailMax: 254,
@@ -236,5 +240,67 @@ export function parseRegisterBody(body: unknown): RegisterInput {
 // Middleware de Express: reemplaza req.body por los datos ya validados.
 export const validateRegister: RequestHandler = (req, _res, next) => {
   req.body = parseRegisterBody(req.body);
+  next();
+};
+
+// ============================================================
+// VERIFICACIÓN DE CORREO (OTP) Y REENVÍO
+// ============================================================
+
+// Valida el body de POST /api/auth/verify-email: { email, code }.
+export function parseVerifyEmailBody(body: unknown): VerifyEmailInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, "Faltan campos requeridos: email, code.");
+  }
+
+  const { email, code } = body as Record<string, unknown>;
+
+  if (typeof email !== "string" || typeof code !== "string") {
+    throw new AppError(400, "Faltan campos requeridos: email, code.");
+  }
+
+  const emailLimpio = sanitizeEmail(email);
+  const emailCheck = validateEmail(emailLimpio);
+  if (!emailCheck.valid) {
+    throw new AppError(400, emailCheck.message ?? "El correo no es válido.");
+  }
+
+  // El código son exactamente 6 dígitos.
+  const codeLimpio = code.trim();
+  if (!/^\d{6}$/.test(codeLimpio)) {
+    throw new AppError(400, "El código debe tener 6 dígitos.");
+  }
+
+  return { email: emailLimpio, code: codeLimpio };
+}
+
+// Valida el body de POST /api/auth/resend-code: { email }.
+export function parseResendCodeBody(body: unknown): ResendCodeInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, "Falta el campo requerido: email.");
+  }
+
+  const { email } = body as Record<string, unknown>;
+
+  if (typeof email !== "string") {
+    throw new AppError(400, "Falta el campo requerido: email.");
+  }
+
+  const emailLimpio = sanitizeEmail(email);
+  const emailCheck = validateEmail(emailLimpio);
+  if (!emailCheck.valid) {
+    throw new AppError(400, emailCheck.message ?? "El correo no es válido.");
+  }
+
+  return { email: emailLimpio };
+}
+
+export const validateVerifyEmail: RequestHandler = (req, _res, next) => {
+  req.body = parseVerifyEmailBody(req.body);
+  next();
+};
+
+export const validateResendCode: RequestHandler = (req, _res, next) => {
+  req.body = parseResendCodeBody(req.body);
   next();
 };
