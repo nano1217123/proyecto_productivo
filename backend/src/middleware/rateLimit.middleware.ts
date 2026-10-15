@@ -61,3 +61,29 @@ export const resendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Login: 5 fallos por IP+correo cada 15 min. Los logins exitosos no cuentan.
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const email =
+      typeof req.body?.email === "string"
+        ? req.body.email.toLowerCase().slice(0, 254)
+        : "";
+    return `${ipKeyGenerator(req.ip ?? "")}|${email}`;
+  },
+  message: { message: "Demasiados intentos. Intenta de nuevo en 15 minutos." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Renovación y cierre de sesión: 30 por IP cada 15 min.
+export const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  message: { message: "Demasiadas solicitudes. Intenta más tarde." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

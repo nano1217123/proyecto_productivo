@@ -74,6 +74,63 @@ export function createUsuariosAuthRepository(db: typeof prisma = prisma) {
         throw error;
       }
     },
+
+        // Datos necesarios para validar el login, o null.
+    async findForLogin(email: string) {
+      return db.usuario.findUnique({
+        where: { correo: email },
+        select: {
+          idusuario: true,
+          nombres: true,
+          apellidos: true,
+          correo: true,
+          passwordHash: true,
+          tipoUsuario: true,
+          emailVerified: true,
+          bloqueadoHasta: true,
+        },
+      });
+    },
+
+    // Suma un fallo; al llegar al máximo bloquea la cuenta y reinicia el contador.
+    async registerFailedLogin(
+      idUsuario: string,
+      maxAttempts: number,
+      lockMs: number
+    ): Promise<void> {
+      const user = await db.usuario.update({
+        where: { idusuario: idUsuario },
+        data: { intentosFallidos: { increment: 1 } },
+        select: { intentosFallidos: true },
+      });
+
+      if (user.intentosFallidos >= maxAttempts) {
+        await db.usuario.update({
+          where: { idusuario: idUsuario },
+          data: {
+            intentosFallidos: 0,
+            bloqueadoHasta: new Date(Date.now() + lockMs),
+          },
+        });
+      }
+    },
+
+    async resetFailedLogins(idUsuario: string): Promise<void> {
+      await db.usuario.update({
+        where: { idusuario: idUsuario },
+        data: { intentosFallidos: 0, bloqueadoHasta: null },
+      });
+    },
+
+    // Datos para renovar sesión, o null.
+    async findSessionById(
+      idUsuario: string
+    ): Promise<{ idusuario: string; correo: string; emailVerified: boolean } | null> {
+      return db.usuario.findUnique({
+        where: { idusuario: idUsuario },
+        select: { idusuario: true, correo: true, emailVerified: true },
+      });
+    },
   };
 }
 

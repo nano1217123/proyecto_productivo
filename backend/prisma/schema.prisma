@@ -19,17 +19,19 @@ datasource db {
 // ============================================================
 
 model Usuario {
-  idusuario                 String   @id @db.Uuid
-  nombres                   String   @db.VarChar
-  apellidos                 String   @db.VarChar
-  correo                    String   @unique @db.VarChar
-  passwordHash              String?  @map("password_hash") @db.VarChar
-  tipoUsuario               String   @default("cliente") @map("tipo_usuario") @db.VarChar
-  emailVerified             Boolean  @default(false) @map("email_verified")
-  provider                  String   @default("email") @db.VarChar
-  providerId                String?  @map("provider_id") @db.VarChar
-  tiempoRegistrado          DateTime @default(now()) @map("tiempo_registrado") @db.Timestamptz
-  tiempoDuracionInscripcion String   @default("30 days") @map("tiempo_duracion_inscripcion") @db.VarChar
+  idusuario                 String    @id @db.Uuid
+  nombres                   String    @db.VarChar
+  apellidos                 String    @db.VarChar
+  correo                    String    @unique @db.VarChar
+  passwordHash              String?   @map("password_hash") @db.VarChar
+  tipoUsuario               String    @default("cliente") @map("tipo_usuario") @db.VarChar
+  emailVerified             Boolean   @default(false) @map("email_verified")
+  provider                  String    @default("email") @db.VarChar
+  providerId                String?   @map("provider_id") @db.VarChar
+  tiempoRegistrado          DateTime  @default(now()) @map("tiempo_registrado") @db.Timestamptz
+  tiempoDuracionInscripcion String    @default("30 days") @map("tiempo_duracion_inscripcion") @db.VarChar
+  intentosFallidos          Int       @default(0) @map("intentos_fallidos")
+  bloqueadoHasta            DateTime? @map("bloqueado_hasta") @db.Timestamptz
 
   // Relaciones
   entrenamientos      Entrenamiento[]
@@ -37,6 +39,7 @@ model Usuario {
   seriesEntrenamiento SerieEntrenamiento[]
   verificationCodes   VerificationCode[]
   passwordResetTokens PasswordResetToken[]
+  refreshTokens       RefreshToken[]
 
   @@map("usuarios")
 }
@@ -174,4 +177,23 @@ model PasswordResetToken {
 
   @@index([usuarioId])
   @@map("password_reset_tokens")
+}
+
+// ============================================================
+// REFRESH_TOKENS — Sesiones renovables
+// Se guarda el SHA-256 del token, nunca el token.
+// ============================================================
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash") @db.VarChar
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  revoked   Boolean  @default(false)
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz
+
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("refresh_tokens")
 }

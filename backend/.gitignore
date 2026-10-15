@@ -12,3 +12,7 @@ skills-lock.json
 
 # CSV de migración (no versionar)
 scripts/data/
+
+# Archivos de cookies de pruebas con curl
+jar.txt
+old.txt

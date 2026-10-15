@@ -51,3 +51,26 @@ export interface ResendCodeInput {
 export interface MessageResult {
   message: string;
 }
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+// Datos del usuario que se devuelven al frontend (nunca el hash).
+export interface SessionUser {
+  idusuario: string;
+  nombres: string;
+  apellidos: string;
+  tipoUsuario: string;
+}
+
+// Tokens que el controller convierte en cookies httpOnly.
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface LoginResult extends AuthTokens {
+  user: SessionUser;
+}

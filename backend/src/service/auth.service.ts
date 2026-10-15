@@ -1,8 +1,28 @@
 import { AppError } from "../errors/AppError.js";
+import { sendVerificationEmail } from "../lib/email.js";
+import { comparePassword, hashPassword } from "../lib/hash.js";
+import {
+  generateOtp,
+  hashOtp,
+  otpExpiresAt,
+  verifyOtp,
+  OTP_MAX_ATTEMPTS,
+  OTP_RESEND_COOLDOWN_SECONDS,
+} from "../lib/otp.js";
+import {
+  generateRefreshToken,
+  hashRefreshToken,
+  refreshExpiresAt,
+  signAccessToken,
+} from "../lib/tokens.js";
 import {
   authUsersRepository,
   type AuthUsersRepository,
 } from "../repositories/authUsers.repository.js";
+import {
+  refreshTokensRepository,
+  type RefreshTokensRepository,
+} from "../repositories/refreshTokens.repository.js";
 import {
   usuariosAuthRepository,
   type UsuariosAuthRepository,
@@ -12,23 +32,16 @@ import {
   type VerificationCodesRepository,
 } from "../repositories/verificationCodes.repository.js";
 import type {
+  AuthTokens,
   CreateAdminInput,
+  LoginInput,
+  LoginResult,
   MessageResult,
   RegisterInput,
   RegisterResult,
   ResendCodeInput,
   VerifyEmailInput,
 } from "../types/auth.types.js";
-import { sendVerificationEmail } from "../lib/email.js";
-import { hashPassword } from "../lib/hash.js";
-import {
-  generateOtp,
-  hashOtp,
-  otpExpiresAt,
-  verifyOtp,
-  OTP_MAX_ATTEMPTS,
-  OTP_RESEND_COOLDOWN_SECONDS,
-} from "../lib/otp.js";
 
 export interface CreateAdminResult {
   message: string;
@@ -43,6 +56,19 @@ const CODIGO_INVALIDO = "Código inválido o expirado.";
 const REENVIO_GENERICO =
   "Si el correo está registrado y pendiente de verificar, recibirás un nuevo código.";
 
+const CREDENCIALES_INVALIDAS = "Credenciales inválidas.";
+const SESION_INVALIDA = "Sesión inválida o expirada.";
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
+
+// Hash falso para que el login de un correo inexistente tarde lo mismo
+// que uno real (evita enumerar usuarios midiendo tiempos).
+let dummyHash: Promise<string> | null = null;
+function getDummyHash(): Promise<string> {
+  dummyHash ??= hashPassword("contraseña-de-relleno-1A");
+  return dummyHash;
+}
+
 /**
  * Construye el servicio de autenticación.
  *
@@ -52,7 +78,8 @@ const REENVIO_GENERICO =
 export function createAuthService(
   repository: AuthUsersRepository = authUsersRepository,
   usuariosRepo: UsuariosAuthRepository = usuariosAuthRepository,
-  codes: VerificationCodesRepository = verificationCodesRepository
+  codes: VerificationCodesRepository = verificationCodesRepository,
+  sessions: RefreshTokensRepository = refreshTokensRepository
 ) {
   // Genera un código nuevo (invalida los anteriores) y lo envía por correo.
   async function emitirCodigo(
@@ -63,6 +90,23 @@ export function createAuthService(
     const code = generateOtp();
     await codes.replaceForUser(userId, await hashOtp(code), otpExpiresAt());
     return sendVerificationEmail(email, nombres, code);
+  }
+
+  // Crea un refresh token nuevo (guarda su hash) y firma el access token.
+  async function abrirSesion(
+    userId: string,
+    email: string
+  ): Promise<AuthTokens> {
+    const refreshToken = generateRefreshToken();
+    await sessions.create(
+      userId,
+      hashRefreshToken(refreshToken),
+      refreshExpiresAt()
+    );
+    return {
+      accessToken: signAccessToken({ sub: userId, email }),
+      refreshToken,
+    };
   }
 
   // Los errores esperados pasan tal cual; el resto se registra y se oculta.
@@ -206,6 +250,111 @@ export function createAuthService(
         }
 
         return { message: REENVIO_GENERICO };
+      } catch (error: unknown) {
+        return toAppError(error);
+      }
+    },
+
+    // Login: bloqueo por intentos, mensaje único, correo verificado obligatorio.
+    async login(input: LoginInput): Promise<LoginResult> {
+      try {
+        const user = await usuariosRepo.findForLogin(input.email);
+
+        if (user?.bloqueadoHasta && user.bloqueadoHasta.getTime() > Date.now()) {
+          throw new AppError(
+            429,
+            "Cuenta bloqueada temporalmente por demasiados intentos. Intenta más tarde."
+          );
+        }
+
+        // Siempre se compara un hash, exista o no el usuario.
+        const hash = user?.passwordHash ?? (await getDummyHash());
+        const passwordOk = await comparePassword(input.password, hash);
+
+        if (!user || !user.passwordHash || !passwordOk) {
+          if (user) {
+            await usuariosRepo.registerFailedLogin(
+              user.idusuario,
+              LOGIN_MAX_ATTEMPTS,
+              LOGIN_LOCK_MS
+            );
+          }
+          throw new AppError(401, CREDENCIALES_INVALIDAS);
+        }
+
+        if (!user.emailVerified) {
+          throw new AppError(
+            403,
+            "Debes verificar tu correo antes de iniciar sesión."
+          );
+        }
+
+        await usuariosRepo.resetFailedLogins(user.idusuario);
+        const tokens = await abrirSesion(user.idusuario, user.correo);
+
+        return {
+          ...tokens,
+          user: {
+            idusuario: user.idusuario,
+            nombres: user.nombres,
+            apellidos: user.apellidos,
+            tipoUsuario: user.tipoUsuario,
+          },
+        };
+      } catch (error: unknown) {
+        return toAppError(error);
+      }
+    },
+
+    // Renueva la sesión rotando el refresh token.
+    async refresh(token: string | undefined): Promise<AuthTokens> {
+      try {
+        if (!token) throw new AppError(401, SESION_INVALIDA);
+
+        const stored = await sessions.findByHash(hashRefreshToken(token));
+        if (!stored) throw new AppError(401, SESION_INVALIDA);
+
+        // Token ya usado: posible robo, se cierran todas las sesiones.
+        if (stored.revoked) {
+          await sessions.revokeAllForUser(stored.usuarioId);
+          throw new AppError(401, SESION_INVALIDA);
+        }
+
+        if (stored.expiresAt.getTime() < Date.now()) {
+          throw new AppError(401, SESION_INVALIDA);
+        }
+
+        const user = await usuariosRepo.findSessionById(stored.usuarioId);
+        if (!user || !user.emailVerified) {
+          throw new AppError(401, SESION_INVALIDA);
+        }
+
+        const refreshToken = generateRefreshToken();
+        await sessions.rotate(
+          stored.id,
+          user.idusuario,
+          hashRefreshToken(refreshToken),
+          refreshExpiresAt()
+        );
+
+        return {
+          accessToken: signAccessToken({
+            sub: user.idusuario,
+            email: user.correo,
+          }),
+          refreshToken,
+        };
+      } catch (error: unknown) {
+        return toAppError(error);
+      }
+    },
+
+    // Revoca el refresh token si existe. No falla si no hay sesión.
+    async logout(token: string | undefined): Promise<void> {
+      try {
+        if (!token) return;
+        const stored = await sessions.findByHash(hashRefreshToken(token));
+        if (stored && !stored.revoked) await sessions.revoke(stored.id);
       } catch (error: unknown) {
         return toAppError(error);
       }

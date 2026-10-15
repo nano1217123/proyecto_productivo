@@ -12,6 +12,7 @@ import type {
   RegisterInput,
   VerifyEmailInput,
   ResendCodeInput,
+  LoginInput
 } from "../types/auth.types.js";
 const LIMITES = {
   nombreMax: 60,
@@ -302,5 +303,47 @@ export const validateVerifyEmail: RequestHandler = (req, _res, next) => {
 
 export const validateResendCode: RequestHandler = (req, _res, next) => {
   req.body = parseResendCodeBody(req.body);
+  next();
+};
+
+// ============================================================
+// LOGIN
+// No se aplica la política de contraseñas: solo se comprueba que
+// lleguen datos razonables (el hash decide si son correctos).
+// ============================================================
+
+export function parseLoginBody(body: unknown): LoginInput {
+  const mensaje = "Faltan campos requeridos: email, password.";
+
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, mensaje);
+  }
+
+  const { email, password } = body as Record<string, unknown>;
+
+  if (
+    typeof email !== "string" ||
+    typeof password !== "string" ||
+    !email ||
+    !password
+  ) {
+    throw new AppError(400, mensaje);
+  }
+
+  // Límite alto para evitar que contraseñas enormes saturen bcrypt.
+  if (password.length > 128) {
+    throw new AppError(400, "Credenciales inválidas.");
+  }
+
+  const emailLimpio = sanitizeEmail(email);
+  if (emailLimpio.length < 6 || emailLimpio.length > 254) {
+    throw new AppError(400, "Credenciales inválidas.");
+  }
+
+  return { email: emailLimpio, password };
+}
+
+export const validateLogin: RequestHandler = (req, _res, next) => {
+  req.body = parseLoginBody(req.body);
   next();
 };
