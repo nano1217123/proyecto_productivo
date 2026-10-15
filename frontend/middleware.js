@@ -1,67 +1,39 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || ""
+);
+
+const ACCESS_COOKIE = "access_token";
+
+async function verifyToken(token) {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    });
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export async function middleware(request) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+  const response = NextResponse.next();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
-  );
-
-  // Obtiene la sesión actual y actualiza cookies si el token expiró.
-  // Si Supabase no responde (caída, timeout de red), evitamos que el
-  // middleware truene para TODAS las rutas: registramos el error y
-  // tratamos la sesión como "no autenticada" (fail-safe: es más seguro
-  // pedir login de nuevo que dejar pasar sin poder verificar quién es
-  // realmente el usuario).
-  let user = null;
-  try {
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    user = authUser;
-  } catch (error) {
-    console.error("middleware: error verificando la sesión con Supabase", error);
-  }
+  const token = request.cookies.get(ACCESS_COOKIE)?.value;
+  const user = token ? await verifyToken(token) : null;
 
   const url = request.nextUrl.clone();
 
-  // Si no hay usuario y quiere entrar a una ruta protegida
   if (!user && url.pathname.startsWith("/dashboard")) {
     url.pathname = "/login";
-    const redirectResponse = NextResponse.redirect(url);
-    response.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value);
-    });
-    return redirectResponse;
+    return NextResponse.redirect(url);
   }
 
-  // Si ya está logueado y va al login o registro
   if (user && (url.pathname === "/login" || url.pathname === "/register")) {
     url.pathname = "/dashboard";
-    const redirectResponse = NextResponse.redirect(url);
-    response.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value);
-    });
-    return redirectResponse;
+    return NextResponse.redirect(url);
   }
 
   return response;

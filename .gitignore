@@ -15,3 +15,6 @@ frontend/.next/
 
 # Carpeta de compilación (backend)
 backend/dist/
+
+.env.local
+.env*.local
