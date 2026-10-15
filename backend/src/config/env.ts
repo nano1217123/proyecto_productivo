@@ -40,4 +40,5 @@ export const env = {
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN ?? "7d",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
+  frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:3000",
 } as const;

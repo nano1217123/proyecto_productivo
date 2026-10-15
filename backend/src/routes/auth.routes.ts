@@ -2,16 +2,19 @@ import { Router } from "express";
 
 import {
   createAdmin,
+  forgotPassword,     
   login,
   logout,
   refresh,
   register,
   resendCode,
+  resetPassword,      
   verifyEmail,
 } from "../controller/auth.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import {
   authLimiter,
+  forgotPasswordLimiter,
   loginLimiter,
   refreshLimiter,
   registerLimiter,
@@ -21,9 +24,11 @@ import {
 import { requireRole } from "../middleware/requireRole.middleware.js";
 import {
   validateCreateAdmin,
+  validateForgotPassword,  
   validateLogin,
   validateRegister,
   validateResendCode,
+  validateResetPassword,   
   validateVerifyEmail,
 } from "../validator/auth.validator.js";
 
@@ -60,5 +65,14 @@ router.post("/resend-code", resendLimiter, validateResendCode, resendCode);
 router.post("/login", loginLimiter, validateLogin, login);
 router.post("/refresh", refreshLimiter, refresh);
 router.post("/logout", refreshLimiter, logout);
+
+// Recuperación de contraseña (respuesta siempre genérica).
+router.post(
+  "/forgot-password",
+  forgotPasswordLimiter,
+  validateForgotPassword,
+  forgotPassword
+);
+router.post("/reset-password", validateResetPassword, resetPassword);
 
 export default router;

@@ -87,3 +87,15 @@ export const refreshLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Recuperación de contraseña: 3 solicitudes por IP cada hora.
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  message: {
+    message:
+      "Demasiadas solicitudes de recuperación. Intenta de nuevo en una hora.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

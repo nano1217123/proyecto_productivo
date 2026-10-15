@@ -2,6 +2,11 @@ import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from "../lib/cookies
 import type { RequestHandler } from "express";
 import { authService } from "../service/auth.service.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
+import type {
+  ForgotPasswordInput,
+  ResetPasswordInput,
+  // ... los que ya estaban
+} from "../types/auth.types.js";
 //import type { CreateAdminInput } from "../types/auth.types.js";
 import type {
   CreateAdminInput,
@@ -58,4 +63,18 @@ export const logout: RequestHandler = asyncHandler(async (req, res) => {
 
   clearAuthCookies(res);
   return res.status(200).json({ message: "Sesión cerrada." });
+});
+
+export const forgotPassword: RequestHandler = asyncHandler(async (req, res) => {
+  const result = await authService.forgotPassword(
+    req.body as ForgotPasswordInput
+  );
+  return res.status(200).json(result);
+});
+
+export const resetPassword: RequestHandler = asyncHandler(async (req, res) => {
+  const result = await authService.resetPassword(
+    req.body as ResetPasswordInput
+  );
+  return res.status(200).json(result);
 });

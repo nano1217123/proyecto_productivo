@@ -1,5 +1,7 @@
 import { AppError } from "../errors/AppError.js";
-import { sendVerificationEmail } from "../lib/email.js";
+import { env } from "../config/env.js";
+import { prisma } from "../lib/prisma.js";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email.js";
 import { comparePassword, hashPassword } from "../lib/hash.js";
 import {
   generateOtp,
@@ -10,12 +12,21 @@ import {
   OTP_RESEND_COOLDOWN_SECONDS,
 } from "../lib/otp.js";
 import {
+  generateResetToken,
+  hashResetToken,
+  resetTokenExpiresAt,
+  RESET_TOKEN_TTL_MINUTES,
+} from "../lib/resetToken.js";
+import {
   generateRefreshToken,
   hashRefreshToken,
   refreshExpiresAt,
   signAccessToken,
 } from "../lib/tokens.js";
-
+import {
+  passwordResetRepository,
+  type PasswordResetRepository,
+} from "../repositories/passwordReset.repository.js";
 import {
   refreshTokensRepository,
   type RefreshTokensRepository,
@@ -31,17 +42,17 @@ import {
 import type {
   AuthTokens,
   CreateAdminInput,
-  CreateAdminResult,   // <-- NUEVO
+  CreateAdminResult,
+  ForgotPasswordInput,
   LoginInput,
   LoginResult,
   MessageResult,
   RegisterInput,
   RegisterResult,
   ResendCodeInput,
+  ResetPasswordInput,
   VerifyEmailInput,
 } from "../types/auth.types.js";
-
-
 
 // Mensaje único para todo fallo de verificación (no revela el motivo).
 const CODIGO_INVALIDO = "Código inválido o expirado.";
@@ -72,7 +83,8 @@ function getDummyHash(): Promise<string> {
 export function createAuthService(
   usuariosRepo: UsuariosAuthRepository = usuariosAuthRepository,
   codes: VerificationCodesRepository = verificationCodesRepository,
-  sessions: RefreshTokensRepository = refreshTokensRepository
+  sessions: RefreshTokensRepository = refreshTokensRepository,
+  resets: PasswordResetRepository = passwordResetRepository
 ) {
   // Genera un código nuevo (invalida los anteriores) y lo envía por correo.
   async function emitirCodigo(
@@ -114,19 +126,19 @@ export function createAuthService(
   }
 
   return {
-        // Crea un admin_gimnasio o super_admin desde el panel de super_admin.
-    // Requiere verificar el correo con OTP antes de poder iniciar sesión.
+    // ============================================================
+    // ADMIN
+    // ============================================================
+
+    // Crea un admin_gimnasio o super_admin desde el panel de super_admin.
     async createAdmin(input: CreateAdminInput): Promise<CreateAdminResult> {
       try {
-        // 1. Correo duplicado (el UNIQUE de la BD cubre la carrera).
         if (await usuariosRepo.existsByEmail(input.email)) {
           throw new AppError(409, "Ese correo ya está registrado.");
         }
 
-        // 2. Hash de la contraseña.
         const passwordHash = await hashPassword(input.password);
 
-        // 3. Crear el usuario con el tipo solicitado.
         const userId = await usuariosRepo.createAdmin({
           nombres: input.nombres,
           apellidos: input.apellidos,
@@ -135,7 +147,6 @@ export function createAuthService(
           tipoUsuario: input.tipoUsuario,
         });
 
-        // 4. Código OTP por correo (el admin debe verificarlo antes de loguearse).
         const sent = await emitirCodigo(userId, input.email, input.nombres);
 
         if (!sent) {
@@ -157,18 +168,18 @@ export function createAuthService(
       }
     },
 
-    // Registro público: crea un cliente en Neon y envía el código OTP.
+    // ============================================================
+    // REGISTRO Y VERIFICACIÓN
+    // ============================================================
+
     async register(input: RegisterInput): Promise<RegisterResult> {
       try {
-        // 1. Correo duplicado (el UNIQUE de la BD cubre la carrera).
         if (await usuariosRepo.existsByEmail(input.email)) {
           throw new AppError(409, "Ese correo ya está registrado.");
         }
 
-        // 2. Hash de la contraseña (nunca se guarda en texto plano).
         const passwordHash = await hashPassword(input.password);
 
-        // 3. Crear usuario con email_verified = false.
         const userId = await usuariosRepo.createCliente({
           nombres: input.nombres,
           apellidos: input.apellidos,
@@ -176,7 +187,6 @@ export function createAuthService(
           passwordHash,
         });
 
-        // 4. Código OTP por correo. Si falla, la cuenta existe y puede reenviarse.
         const sent = await emitirCodigo(userId, input.email, input.nombres);
 
         if (!sent) {
@@ -197,12 +207,10 @@ export function createAuthService(
       }
     },
 
-    // Verifica el código de 6 dígitos y marca el correo como verificado.
     async verifyEmail(input: VerifyEmailInput): Promise<MessageResult> {
       try {
         const user = await usuariosRepo.findAuthByEmail(input.email);
 
-        // Usuario inexistente o ya verificado: mismo error genérico.
         if (!user || user.emailVerified) {
           throw new AppError(400, CODIGO_INVALIDO);
         }
@@ -213,7 +221,6 @@ export function createAuthService(
           throw new AppError(400, CODIGO_INVALIDO);
         }
 
-        // Código agotado: se invalida y hay que pedir uno nuevo.
         if (active.intentos >= OTP_MAX_ATTEMPTS) {
           await codes.markUsed(active.id);
           throw new AppError(
@@ -236,7 +243,6 @@ export function createAuthService(
       }
     },
 
-    // Reenvía el código respetando el cooldown. Respuesta siempre genérica.
     async resendCode(input: ResendCodeInput): Promise<MessageResult> {
       try {
         const user = await usuariosRepo.findAuthByEmail(input.email);
@@ -258,7 +264,10 @@ export function createAuthService(
       }
     },
 
-    // Login: bloqueo por intentos, mensaje único, correo verificado obligatorio.
+    // ============================================================
+    // SESIÓN
+    // ============================================================
+
     async login(input: LoginInput): Promise<LoginResult> {
       try {
         const user = await usuariosRepo.findForLogin(input.email);
@@ -270,7 +279,6 @@ export function createAuthService(
           );
         }
 
-        // Siempre se compara un hash, exista o no el usuario.
         const hash = user?.passwordHash ?? (await getDummyHash());
         const passwordOk = await comparePassword(input.password, hash);
 
@@ -309,7 +317,6 @@ export function createAuthService(
       }
     },
 
-    // Renueva la sesión rotando el refresh token.
     async refresh(token: string | undefined): Promise<AuthTokens> {
       try {
         if (!token) throw new AppError(401, SESION_INVALIDA);
@@ -317,7 +324,6 @@ export function createAuthService(
         const stored = await sessions.findByHash(hashRefreshToken(token));
         if (!stored) throw new AppError(401, SESION_INVALIDA);
 
-        // Token ya usado: posible robo, se cierran todas las sesiones.
         if (stored.revoked) {
           await sessions.revokeAllForUser(stored.usuarioId);
           throw new AppError(401, SESION_INVALIDA);
@@ -352,12 +358,72 @@ export function createAuthService(
       }
     },
 
-    // Revoca el refresh token si existe. No falla si no hay sesión.
     async logout(token: string | undefined): Promise<void> {
       try {
         if (!token) return;
         const stored = await sessions.findByHash(hashRefreshToken(token));
         if (stored && !stored.revoked) await sessions.revoke(stored.id);
+      } catch (error: unknown) {
+        return toAppError(error);
+      }
+    },
+
+    // ============================================================
+    // RECUPERACIÓN DE CONTRASEÑA
+    // ============================================================
+
+    async forgotPassword(input: ForgotPasswordInput): Promise<MessageResult> {
+      try {
+        const user = await usuariosRepo.findAuthByEmail(input.email);
+
+        if (user && user.emailVerified) {
+          const token = generateResetToken();
+          await resets.replaceForUser(
+            user.idusuario,
+            hashResetToken(token),
+            resetTokenExpiresAt()
+          );
+
+          const resetUrl = `${env.frontendUrl}/reset-password?token=${token}`;
+          await sendPasswordResetEmail(
+            input.email,
+            user.nombres,
+            resetUrl,
+            RESET_TOKEN_TTL_MINUTES
+          );
+        }
+
+        // Respuesta genérica: no revela si el correo existe.
+        return {
+          message:
+            "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.",
+        };
+      } catch (error: unknown) {
+        return toAppError(error);
+      }
+    },
+
+    async resetPassword(input: ResetPasswordInput): Promise<MessageResult> {
+      try {
+        const tokenHash = hashResetToken(input.token);
+        const stored = await resets.findActive(tokenHash);
+
+        if (!stored) {
+          throw new AppError(400, "Token inválido o expirado.");
+        }
+
+        const passwordHash = await hashPassword(input.password);
+
+        await prisma.usuario.update({
+          where: { idusuario: stored.usuarioId },
+          data: { passwordHash },
+        });
+
+        await resets.markUsed(stored.id);
+        // Revoca todas las sesiones activas por seguridad.
+        await sessions.revokeAllForUser(stored.usuarioId);
+
+        return { message: "Contraseña actualizada. Inicia sesión de nuevo." };
       } catch (error: unknown) {
         return toAppError(error);
       }
