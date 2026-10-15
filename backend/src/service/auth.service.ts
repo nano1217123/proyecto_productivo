@@ -15,10 +15,7 @@ import {
   refreshExpiresAt,
   signAccessToken,
 } from "../lib/tokens.js";
-import {
-  authUsersRepository,
-  type AuthUsersRepository,
-} from "../repositories/authUsers.repository.js";
+
 import {
   refreshTokensRepository,
   type RefreshTokensRepository,
@@ -34,6 +31,7 @@ import {
 import type {
   AuthTokens,
   CreateAdminInput,
+  CreateAdminResult,   // <-- NUEVO
   LoginInput,
   LoginResult,
   MessageResult,
@@ -43,11 +41,7 @@ import type {
   VerifyEmailInput,
 } from "../types/auth.types.js";
 
-export interface CreateAdminResult {
-  message: string;
-  userId: string;
-  emailSendError?: boolean;
-}
+
 
 // Mensaje único para todo fallo de verificación (no revela el motivo).
 const CODIGO_INVALIDO = "Código inválido o expirado.";
@@ -76,7 +70,6 @@ function getDummyHash(): Promise<string> {
  * Los datos de entrada ya llegan validados y limpios desde el validator.
  */
 export function createAuthService(
-  repository: AuthUsersRepository = authUsersRepository,
   usuariosRepo: UsuariosAuthRepository = usuariosAuthRepository,
   codes: VerificationCodesRepository = verificationCodesRepository,
   sessions: RefreshTokensRepository = refreshTokensRepository
@@ -121,33 +114,43 @@ export function createAuthService(
   }
 
   return {
+        // Crea un admin_gimnasio o super_admin desde el panel de super_admin.
+    // Requiere verificar el correo con OTP antes de poder iniciar sesión.
     async createAdmin(input: CreateAdminInput): Promise<CreateAdminResult> {
       try {
-        // 1. Crear la cuenta mediante el repositorio.
-        const created = await repository.create(input);
-
-        if (!created.ok) {
-          throw new AppError(created.status || 400, created.message);
+        // 1. Correo duplicado (el UNIQUE de la BD cubre la carrera).
+        if (await usuariosRepo.existsByEmail(input.email)) {
+          throw new AppError(409, "Ese correo ya está registrado.");
         }
 
-        // 2. Solicitar el correo de verificación.
-        const emailSent = await repository.resendSignupEmail(input.email);
+        // 2. Hash de la contraseña.
+        const passwordHash = await hashPassword(input.password);
 
-        // 3. La cuenta existe, pero el correo no salió.
-        if (!emailSent) {
+        // 3. Crear el usuario con el tipo solicitado.
+        const userId = await usuariosRepo.createAdmin({
+          nombres: input.nombres,
+          apellidos: input.apellidos,
+          email: input.email,
+          passwordHash,
+          tipoUsuario: input.tipoUsuario,
+        });
+
+        // 4. Código OTP por correo (el admin debe verificarlo antes de loguearse).
+        const sent = await emitirCodigo(userId, input.email, input.nombres);
+
+        if (!sent) {
           return {
             message:
-              "Administrador creado, pero hubo un problema enviando el código de verificación. Puede reenviarlo desde la pantalla de verificación.",
-            userId: created.userId,
+              "Administrador creado, pero no pudimos enviar el código. Solicita un reenvío.",
+            userId,
             emailSendError: true,
           };
         }
 
-        // 4. Todo salió bien.
         return {
           message:
             "Administrador creado. Debe verificar su correo con el código enviado.",
-          userId: created.userId,
+          userId,
         };
       } catch (error: unknown) {
         return toAppError(error);

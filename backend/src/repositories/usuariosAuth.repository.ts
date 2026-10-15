@@ -131,6 +131,36 @@ export function createUsuariosAuthRepository(db: typeof prisma = prisma) {
         select: { idusuario: true, correo: true, emailVerified: true },
       });
     },
+
+        // Crea un admin o super_admin con email_verified = false.
+    // Devuelve solo el id (nunca el hash).
+    async createAdmin(input: NuevoCliente & { tipoUsuario: "admin_gimnasio" | "super_admin" }): Promise<string> {
+      try {
+        const user = await db.usuario.create({
+          data: {
+            idusuario: generateId(),
+            nombres: input.nombres,
+            apellidos: input.apellidos,
+            correo: input.email,
+            passwordHash: input.passwordHash,
+            tipoUsuario: input.tipoUsuario,
+            emailVerified: false,
+            provider: "email",
+          },
+          select: { idusuario: true },
+        });
+        return user.idusuario;
+      } catch (error: unknown) {
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          (error as { code?: string }).code === UNIQUE_VIOLATION
+        ) {
+          throw new AppError(409, "Ese correo ya está registrado.");
+        }
+        throw error;
+      }
+    },
   };
 }
 

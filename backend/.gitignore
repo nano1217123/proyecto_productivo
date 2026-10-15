@@ -16,3 +16,4 @@ scripts/data/
 # Archivos de cookies de pruebas con curl
 jar.txt
 old.txt
+cookies.txt
