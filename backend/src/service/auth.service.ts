@@ -44,6 +44,7 @@ import type {
   CreateAdminInput,
   CreateAdminResult,
   ForgotPasswordInput,
+  SessionUser,
   LoginInput,
   LoginResult,
   MessageResult,
@@ -207,7 +208,9 @@ export function createAuthService(
       }
     },
 
-    async verifyEmail(input: VerifyEmailInput): Promise<MessageResult> {
+    async verifyEmail(
+      input: VerifyEmailInput
+    ): Promise<MessageResult & AuthTokens & { user: SessionUser }> {
       try {
         const user = await usuariosRepo.findAuthByEmail(input.email);
 
@@ -223,10 +226,7 @@ export function createAuthService(
 
         if (active.intentos >= OTP_MAX_ATTEMPTS) {
           await codes.markUsed(active.id);
-          throw new AppError(
-            429,
-            "Demasiados intentos. Solicita un nuevo código."
-          );
+          throw new AppError(429, "Demasiados intentos. Solicita un nuevo código.");
         }
 
         if (!(await verifyOtp(input.code, active.codeHash))) {
@@ -237,7 +237,24 @@ export function createAuthService(
         await codes.markUsed(active.id);
         await usuariosRepo.markEmailVerified(user.idusuario);
 
-        return { message: "Correo verificado correctamente." };
+        // NUEVO: crear sesión automáticamente
+        const userFull = await usuariosRepo.findForLogin(input.email);
+        if (!userFull) {
+          throw new AppError(500, "No se pudo cargar el usuario.");
+        }
+
+        const tokens = await abrirSesion(userFull.idusuario, userFull.correo);
+
+        return {
+          message: "Correo verificado correctamente.",
+          ...tokens,
+          user: {
+            idusuario: userFull.idusuario,
+            nombres: userFull.nombres,
+            apellidos: userFull.apellidos,
+            tipoUsuario: userFull.tipoUsuario,
+          },
+        };
       } catch (error: unknown) {
         return toAppError(error);
       }

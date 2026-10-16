@@ -17,8 +17,11 @@ import type {
 } from "../types/auth.types.js";
 
 export const verifyEmail: RequestHandler = asyncHandler(async (req, res) => {
-  const result = await authService.verifyEmail(req.body as VerifyEmailInput);
-  return res.status(200).json(result);
+  const { message, accessToken, refreshToken, user } =
+    await authService.verifyEmail(req.body as VerifyEmailInput);
+
+  setAuthCookies(res, accessToken, refreshToken);
+  return res.status(200).json({ message, user });
 });
 
 export const resendCode: RequestHandler = asyncHandler(async (req, res) => {

@@ -46,8 +46,12 @@ export function AuthProvider({ children }) {
   }
 
   async function verifyOtp(email, code) {
-    return apiClient.verifyEmail({ email, code });
-  }
+  const result = await apiClient.verifyEmail({ email, code });
+  // El backend ya seteó las cookies → cargamos el perfil
+  const { profile } = await apiClient.getProfile();
+  setUser(profile);
+  return result;
+}
 
   async function resendOtp(email) {
     return apiClient.resendCode({ email });
