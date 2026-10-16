@@ -15,10 +15,22 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     async function cargarSesion() {
+      // Si venimos del callback de OAuth, damos un pequeño margen para
+      // que el navegador termine de procesar las cookies httpOnly antes
+      // de pedir el perfil. Sin esto, a veces el primer getProfile falla.
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("oauth") === "ok") {
+          await new Promise((r) => setTimeout(r, 400));
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+      }
+
       try {
         const { profile } = await apiClient.getProfile();
         if (!cancelled) setUser(profile);
       } catch (err) {
+        // Si el access token expiró, intentamos refresh una vez.
         if (err.status === 401) {
           try {
             await apiClient.refresh();
@@ -46,12 +58,12 @@ export function AuthProvider({ children }) {
   }
 
   async function verifyOtp(email, code) {
-  const result = await apiClient.verifyEmail({ email, code });
-  // El backend ya seteó las cookies → cargamos el perfil
-  const { profile } = await apiClient.getProfile();
-  setUser(profile);
-  return result;
-}
+    const result = await apiClient.verifyEmail({ email, code });
+    // El backend ya seteó las cookies → cargamos el perfil.
+    const { profile } = await apiClient.getProfile();
+    setUser(profile);
+    return result;
+  }
 
   async function resendOtp(email) {
     return apiClient.resendCode({ email });
@@ -71,7 +83,13 @@ export function AuthProvider({ children }) {
       console.error("Error al cerrar sesión:", err);
     } finally {
       setUser(null);
-      router.push("/login");
+      // Esperamos un momento para que el navegador procese el clearCookie
+      // del backend, y forzamos una recarga completa de la página para
+      // evitar el flash de /dashboard antes de llegar a /login.
+      await new Promise((r) => setTimeout(r, 100));
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
   }
 
@@ -83,10 +101,10 @@ export function AuthProvider({ children }) {
     return apiClient.resetPassword({ token, password: newPassword });
   }
 
-  async function loginWithGoogle() {
-    throw new Error(
-      "Google OAuth aún no está implementado. Falta integrarlo en el backend propio."
-    );
+  function loginWithGoogle() {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    window.location.href = `${baseUrl}/api/auth/oauth/google`;
   }
 
   return (

@@ -1,5 +1,5 @@
 import { Router } from "express";
-
+import { googleStart, googleCallback } from "../controller/oauth.controller.js";
 import {
   createAdmin,
   forgotPassword,     
@@ -74,5 +74,9 @@ router.post(
   forgotPassword
 );
 router.post("/reset-password", validateResetPassword, resetPassword);
+
+// OAuth Google (Authorization Code + PKCE).
+router.get("/oauth/google", googleStart);
+router.get("/oauth/google/callback", googleCallback);
 
 export default router;

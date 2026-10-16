@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 
 function LoginForm() {
+  const [mostrarPassword, setMostrarPassword] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -17,6 +18,19 @@ function LoginForm() {
   const destination = gym
     ? `/dashboard?gym=${encodeURIComponent(gym)}`
     : "/dashboard";
+
+  // Maneja los errores que el backend agrega a la URL (?oauth=error)
+  // cuando vuelve del flujo de Google.
+  useEffect(() => {
+    const oauthError = searchParams.get("oauth");
+    if (oauthError === "cancelled") {
+      setError("Cancelaste el inicio de sesión con Google.");
+    } else if (oauthError === "invalid") {
+      setError("El enlace de Google no es válido.");
+    } else if (oauthError === "error") {
+      setError("No se pudo completar el inicio de sesión con Google.");
+    }
+  }, [searchParams]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -38,11 +52,21 @@ function LoginForm() {
     }
   }
 
+  function handleGoogleLogin() {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    window.location.href = `${baseUrl}/api/auth/oauth/google`;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]">
       <div className="w-full max-w-[410px] p-[38px_34px_32px] border border-[#383c35] rounded-[18px] bg-[rgba(28,30,27,0.95)] shadow-[0_22px_54px_rgba(0,0,0,0.42)]">
-        <h1 className="m-0 mb-2 text-[27px] font-bold tracking-[-0.7px]">Iniciar sesión</h1>
-        <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Ingresa tus credenciales para continuar</p>
+        <h1 className="m-0 mb-2 text-[27px] font-bold tracking-[-0.7px]">
+          Iniciar sesión
+        </h1>
+        <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">
+          Ingresa tus credenciales para continuar
+        </p>
 
         {error && (
           <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">
@@ -66,15 +90,39 @@ function LoginForm() {
 
           <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
             <label htmlFor="password">Contraseña</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={mostrarPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+                className="w-full pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a9afa7] hover:text-[#b56cff] cursor-pointer bg-transparent border-0 p-1 flex items-center"
+                tabIndex={-1}
+                aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {mostrarPassword ? (
+                  // Ojo abierto
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                ) : (
+                  // Ojo tachado
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                )}
+              </button>
+            </div>
             <Link
               href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
               className="inline-block mt-2 text-[12.5px] font-semibold text-[#b56cff] no-underline hover:underline"
@@ -98,11 +146,10 @@ function LoginForm() {
 
         <button
           type="button"
-          className="w-full p-3 border border-[#ff7979] rounded-[10px] bg-[#351b1b] text-[#ff7979] text-sm font-bold cursor-not-allowed opacity-80"
-          disabled
-          title="Google OAuth aún no está implementado"
+          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]"
+          onClick={handleGoogleLogin}
         >
-          Google OAuth — FALTA IMPLEMENTAR
+          Continuar con Google
         </button>
 
         <p className="mt-5 text-[13px] text-center text-[#a9afa7]">
@@ -118,7 +165,9 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]">
-          <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Cargando...</p>
+          <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">
+            Cargando...
+          </p>
         </div>
       }
     >

@@ -155,11 +155,12 @@ export default function RegisterPage() {
 
         <button
           type="button"
-          className="w-full p-3 border border-[#ff7979] rounded-[10px] bg-[#351b1b] text-[#ff7979] text-sm font-bold cursor-not-allowed opacity-80"
-          disabled
-          title="Google OAuth aún no está implementado"
+          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]"
+          onClick={() => {
+            window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/auth/oauth/google`;
+          }}
         >
-          Google OAuth — FALTA IMPLEMENTAR
+          Continuar con Google
         </button>
 
         <p className="mt-5 text-[13px] text-center text-[#a9afa7]">

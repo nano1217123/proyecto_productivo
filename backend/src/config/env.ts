@@ -41,4 +41,7 @@ export const env = {
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:3000",
+  googleClientId: required("GOOGLE_CLIENT_ID"),
+  googleClientSecret: required("GOOGLE_CLIENT_SECRET"),
+  googleRedirectUri: required("GOOGLE_REDIRECT_URI"),
 } as const;
