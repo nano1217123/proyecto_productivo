@@ -11,7 +11,7 @@ const REFRESH_PATH = "/api/auth";
 const base = {
   httpOnly: true,
   secure: env.isProduction,
-  sameSite: "strict" as const,
+  sameSite: "lax" as const,
 };
 
 export function setAuthCookies(
