@@ -1,111 +1,116 @@
-import { supabase } from "@/features/auth/api/supabaseClient";
+// Cliente HTTP hacia el backend propio.
+// Todas las peticiones van con credentials: 'include' para que las cookies
+// httpOnly viajen y el backend identifique al usuario.
 
-// Trae todas las rutinas del usuario, con la cantidad de ejercicios de
-// cada una (para mostrar "5 ejercicios" en la lista sin traer el detalle completo).
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+async function request(path, options = {}) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  let body = null;
+  try {
+    body = await response.json();
+  } catch {
+    // respuesta sin body
+  }
+
+  if (!response.ok) {
+    const message = body?.message || `Error ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  return body;
+}
+
+// Lista las rutinas del usuario autenticado.
 export async function getRoutines() {
-  const { data, error } = await supabase
-    .from("rutinas")
-    .select("id, nombre, dia_etiqueta, creado_en, rutina_ejercicios(id)")
-    .order("creado_en", { ascending: false });
-
-  if (error) throw new Error("No se pudieron cargar tus rutinas.");
-
-  return data.map((r) => ({
-    id: r.id,
-    nombre: r.nombre,
-    dia_etiqueta: r.dia_etiqueta,
-    total_ejercicios: r.rutina_ejercicios?.length || 0,
-  }));
+  try {
+    const { rutinas } = await request("/api/rutinas");
+    return rutinas;
+  } catch {
+    throw new Error("No se pudieron cargar tus rutinas.");
+  }
 }
 
-// Trae una rutina con sus ejercicios en orden, incluyendo nombre y grupo
-// muscular de cada uno (para mostrarlos legibles sin otra consulta).
+// Detalle de una rutina con sus ejercicios ordenados.
 export async function getRoutineDetail(rutinaId) {
-  const { data, error } = await supabase
-    .from("rutinas")
-    .select("id, nombre, dia_etiqueta, rutina_ejercicios(id, orden, ejercicio_id, ejercicios(nombre, grupo_nombre))")
-    .eq("id", rutinaId)
-    .single();
-
-  if (error) throw new Error("No se pudo cargar la rutina.");
-
-  return {
-    id: data.id,
-    nombre: data.nombre,
-    dia_etiqueta: data.dia_etiqueta,
-    ejercicios: (data.rutina_ejercicios || [])
-      .slice()
-      .sort((a, b) => a.orden - b.orden)
-      .map((re) => ({
-        ejercicio_id: re.ejercicio_id,
-        orden: re.orden,
-        nombre: re.ejercicios?.nombre,
-        grupo_nombre: re.ejercicios?.grupo_nombre,
-      })),
-  };
+  try {
+    const { rutina } = await request(`/api/rutinas/${rutinaId}`);
+    return rutina;
+  } catch (err) {
+    if (err.status === 404) {
+      throw new Error("No se pudo cargar la rutina.");
+    }
+    throw new Error("No se pudo cargar la rutina.");
+  }
 }
 
-// Crea una rutina nueva con sus ejercicios (en el orden del array recibido).
-// ejercicioIds: array de IDs de ejercicios, en el orden deseado.
-export async function createRoutine({ usuarioId, nombre, diaEtiqueta, ejercicioIds }) {
+// Crea una rutina nueva.
+// input: { nombre, diaEtiqueta, ejercicioIds }
+export async function createRoutine({ nombre, diaEtiqueta, ejercicioIds }) {
   if (!nombre?.trim()) throw new Error("La rutina necesita un nombre.");
   if (!ejercicioIds || ejercicioIds.length === 0) {
     throw new Error("Agrega al menos un ejercicio a la rutina.");
   }
 
-  const { data: rutina, error: rutinaError } = await supabase
-    .from("rutinas")
-    .insert({ usuario_id: usuarioId, nombre: nombre.trim(), dia_etiqueta: diaEtiqueta?.trim() || null })
-    .select()
-    .single();
-
-  if (rutinaError) throw new Error("No se pudo crear la rutina.");
-
-  const filas = ejercicioIds.map((ejercicioId, idx) => ({
-    rutina_id: rutina.id,
-    ejercicio_id: ejercicioId,
-    orden: idx + 1,
-  }));
-
-  const { error: ejerciciosError } = await supabase.from("rutina_ejercicios").insert(filas);
-
-  if (ejerciciosError) {
-    await supabase.from("rutinas").delete().eq("id", rutina.id);
-    throw new Error("No se pudieron guardar los ejercicios de la rutina.");
+  try {
+    const result = await request("/api/rutinas", {
+      method: "POST",
+      body: JSON.stringify({
+        nombre: nombre.trim(),
+        diaEtiqueta: diaEtiqueta?.trim() || null,
+        ejercicioIds,
+      }),
+    });
+    return result;
+  } catch (err) {
+    if (err.status === 400) throw err; // mensaje de validación del backend
+    throw new Error("No se pudo crear la rutina.");
   }
-
-  return rutina;
 }
 
-// Actualiza nombre/etiqueta y reemplaza por completo la lista de ejercicios
-// (borra las filas existentes y reinserta con el nuevo orden).
-export async function updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds }) {
+// Actualiza una rutina existente.
+export async function updateRoutine({
+  rutinaId,
+  nombre,
+  diaEtiqueta,
+  ejercicioIds,
+}) {
   if (!nombre?.trim()) throw new Error("La rutina necesita un nombre.");
   if (!ejercicioIds || ejercicioIds.length === 0) {
     throw new Error("La rutina debe tener al menos un ejercicio.");
   }
 
-  const { error: updateError } = await supabase
-    .from("rutinas")
-    .update({ nombre: nombre.trim(), dia_etiqueta: diaEtiqueta?.trim() || null })
-    .eq("id", rutinaId);
-
-  if (updateError) throw new Error("No se pudo actualizar la rutina.");
-
-  const { error: deleteError } = await supabase.from("rutina_ejercicios").delete().eq("rutina_id", rutinaId);
-  if (deleteError) throw new Error("No se pudieron actualizar los ejercicios de la rutina.");
-
-  const filas = ejercicioIds.map((ejercicioId, idx) => ({
-    rutina_id: rutinaId,
-    ejercicio_id: ejercicioId,
-    orden: idx + 1,
-  }));
-
-  const { error: insertError } = await supabase.from("rutina_ejercicios").insert(filas);
-  if (insertError) throw new Error("No se pudieron guardar los ejercicios de la rutina.");
+  try {
+    await request(`/api/rutinas/${rutinaId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        nombre: nombre.trim(),
+        diaEtiqueta: diaEtiqueta?.trim() || null,
+        ejercicioIds,
+      }),
+    });
+  } catch (err) {
+    if (err.status === 400 || err.status === 404) throw err;
+    throw new Error("No se pudo actualizar la rutina.");
+  }
 }
 
+// Elimina una rutina.
 export async function deleteRoutine(rutinaId) {
-  const { error } = await supabase.from("rutinas").delete().eq("id", rutinaId);
-  if (error) throw new Error("No se pudo eliminar la rutina.");
+  try {
+    await request(`/api/rutinas/${rutinaId}`, { method: "DELETE" });
+  } catch {
+    throw new Error("No se pudo eliminar la rutina.");
+  }
 }

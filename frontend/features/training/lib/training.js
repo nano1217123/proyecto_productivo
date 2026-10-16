@@ -1,99 +1,121 @@
-import { supabase } from "@/features/auth/api/supabaseClient";
+// Cliente HTTP hacia el backend propio.
+// Todas las peticiones van con credentials: 'include' para que las cookies
+// httpOnly viajen y el backend identifique al usuario.
 
-// Trae el catálogo de ejercicios agrupado por grupo muscular, tal como
-// lo necesita un selector "elige tu ejercicio". Es de lectura pública
-// (RLS lo permite para cualquiera), así que no requiere estar logueado.
-export async function getExerciseCatalog() {
-  const { data, error } = await supabase
-    .from("ejercicios")
-    .select("id, grupo_slug, grupo_nombre, nombre, slug")
-    .order("grupo_nombre", { ascending: true })
-    .order("nombre", { ascending: true });
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-  if (error) throw new Error("No se pudo cargar el catálogo de ejercicios.");
+async function request(path, options = {}) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
 
-  const grupos = new Map();
-  for (const ex of data) {
-    if (!grupos.has(ex.grupo_slug)) {
-      grupos.set(ex.grupo_slug, { slug: ex.grupo_slug, nombre: ex.grupo_nombre, ejercicios: [] });
-    }
-    grupos.get(ex.grupo_slug).ejercicios.push(ex);
+  let body = null;
+  try {
+    body = await response.json();
+  } catch {
+    // respuesta sin body
   }
-  return Array.from(grupos.values());
+
+  if (!response.ok) {
+    const message = body?.message || `Error ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  return body;
 }
 
-// Guarda una sesión de entrenamiento completa: crea la fila en
-// "entrenamientos" y luego todas sus series en "series_entrenamiento".
+// ============================================================
+// CATÁLOGO DE EJERCICIOS
+// ============================================================
+
+export async function getExerciseCatalog() {
+  try {
+    const { grupos } = await request("/api/ejercicios");
+    return grupos;
+  } catch {
+    throw new Error("No se pudo cargar el catálogo de ejercicios.");
+  }
+}
+
+// ============================================================
+// ENTRENAMIENTOS
+// ============================================================
+
+// Guarda una sesión completa: entrenamiento + series.
 // series: [{ ejercicio_id, numero_serie, repeticiones, peso_kg }]
-export async function saveTrainingSession({ usuarioId, fecha, notas, series }) {
+export async function saveTrainingSession({ fecha, notas, series }) {
   if (!series || series.length === 0) {
     throw new Error("Agrega al menos una serie antes de guardar.");
   }
 
-  const { data: sesion, error: sesionError } = await supabase
-    .from("entrenamientos")
-    .insert({ usuario_id: usuarioId, fecha, notas: notas || null })
-    .select()
-    .single();
-
-  if (sesionError) throw new Error("No se pudo crear la sesión de entrenamiento.");
-
-  const filas = series.map((s) => ({
-    entrenamiento_id: sesion.id,
-    ejercicio_id: s.ejercicio_id,
-    usuario_id: usuarioId,
-    numero_serie: s.numero_serie,
-    repeticiones: s.repeticiones,
-    peso_kg: s.peso_kg,
-  }));
-
-  const { error: seriesError } = await supabase.from("series_entrenamiento").insert(filas);
-
-  if (seriesError) {
-    // La sesión ya se creó pero las series fallaron: la borramos para no
-    // dejar una sesión vacía y confusa en el historial del usuario.
-    await supabase.from("entrenamientos").delete().eq("id", sesion.id);
-    throw new Error("No se pudieron guardar las series. Intenta de nuevo.");
+  try {
+    const result = await request("/api/entrenamientos", {
+      method: "POST",
+      body: JSON.stringify({
+        fecha,
+        notas: notas || null,
+        series,
+      }),
+    });
+    return result;
+  } catch (err) {
+    if (err.status === 400) throw err; // mensaje de validación del backend
+    throw new Error("No se pudo guardar el entrenamiento.");
   }
-
-  return sesion;
 }
 
-// Trae el historial de sesiones del usuario, con sus series y el nombre
-// del ejercicio de cada una (join a través de la relación en Supabase).
+// Trae el historial completo del usuario con sus series y nombre de ejercicio.
 export async function getTrainingHistory() {
-  const { data, error } = await supabase
-    .from("entrenamientos")
-    .select("id, fecha, notas, series_entrenamiento(id, ejercicio_id, numero_serie, repeticiones, peso_kg, ejercicios(nombre))")
-    .order("fecha", { ascending: false })
-    .order("id", { ascending: false });
+  try {
+    const { entrenamientos } = await request("/api/entrenamientos");
 
-  if (error) throw new Error("No se pudo cargar el historial de entrenamientos.");
-  return data;
+    // Adaptamos la estructura del backend al formato que espera la UI
+    // (que viene del shape que devolvía Supabase: series_entrenamiento, ejercicios.nombre).
+    return entrenamientos.map((e) => ({
+      id: e.id,
+      fecha: e.fecha,
+      notas: e.notas,
+      series_entrenamiento: e.series.map((s) => ({
+        id: s.id,
+        ejercicio_id: s.ejercicio_id,
+        numero_serie: s.numero_serie,
+        repeticiones: s.repeticiones,
+        peso_kg: s.peso_kg,
+        ejercicios: { nombre: s.ejercicio_nombre },
+      })),
+    }));
+  } catch {
+    throw new Error("No se pudo cargar el historial de entrenamientos.");
+  }
 }
 
-// Trae la evolución de un ejercicio específico a lo largo del tiempo,
-// para el gráfico de progreso: fecha + el peso máximo usado ese día.
+// Progreso de un ejercicio: { fecha, peso_max }[]
 export async function getExerciseHistory(ejercicioId) {
-  const { data, error } = await supabase
-    .from("series_entrenamiento")
-    .select("repeticiones, peso_kg, entrenamientos(fecha)")
-    .eq("ejercicio_id", ejercicioId)
-    .order("entrenamientos(fecha)", { ascending: true });
-
-  if (error) throw new Error("No se pudo cargar el historial de este ejercicio.");
-
-  // Agrupa por fecha y se queda con el peso máximo levantado ese día
-  // (una sesión puede tener varias series del mismo ejercicio).
-  const porFecha = new Map();
-  for (const serie of data) {
-    const fecha = serie.entrenamientos?.fecha;
-    if (!fecha) continue;
-    const pesoActual = porFecha.get(fecha) || 0;
-    if ((serie.peso_kg || 0) > pesoActual) porFecha.set(fecha, serie.peso_kg || 0);
+  try {
+    const { progreso } = await request(
+      `/api/entrenamientos/ejercicio/${ejercicioId}/progreso`
+    );
+    return progreso;
+  } catch {
+    throw new Error("No se pudo cargar el historial de este ejercicio.");
   }
+}
 
-  return Array.from(porFecha.entries())
-    .map(([fecha, peso_max]) => ({ fecha, peso_max }))
-    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+// Eliminar un entrenamiento (por si se usa en la UI más adelante).
+export async function deleteTrainingSession(entrenamientoId) {
+  try {
+    await request(`/api/entrenamientos/${entrenamientoId}`, {
+      method: "DELETE",
+    });
+  } catch {
+    throw new Error("No se pudo eliminar el entrenamiento.");
+  }
 }

@@ -15,7 +15,7 @@ function nuevaFila() {
   };
 }
 function TrainingPageContent({ gym = "jj-poblado" }) {
-  const { session, loading, logout } = useAuth();
+  const { loading, logout } = useAuth();
   const searchParams = useSearchParams();
 
   const [catalogo, setCatalogo] = useState([]);
@@ -92,7 +92,6 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
     setGuardando(true);
     try {
       await saveTrainingSession({
-        usuarioId: session.user.id,
         fecha,
         notas: notas.trim(),
         series,
