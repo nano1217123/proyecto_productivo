@@ -25,3 +25,7 @@ router.put("/:id", validateUpdateRutina, updateRutina);
 router.delete("/:id", deleteRutina);
 
 export default router;
+
+// rol controller
+// rate limit
+// 
