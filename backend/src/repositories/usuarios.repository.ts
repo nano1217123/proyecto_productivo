@@ -40,14 +40,10 @@ export function createUsuariosRepository() {
 
         if (!user) return null;
 
-        // Mapear de camelCase (Prisma) a snake_case (tipo PerfilUsuario)
-        // para no romper el contrato con el frontend.
         return {
           idusuario: user.idusuario,
           nombres: user.nombres,
           apellidos: user.apellidos,
-            // Prisma devuelve tipoUsuario como string (columna libre), pero la BD
-            // solo debería tener roles válidos. Casteamos al union literal.
           tipo_usuario: user.tipoUsuario as TipoUsuario,
           tiempo_registrado: user.tiempoRegistrado,
           tiempo_duracion_inscripcion: user.tiempoDuracionInscripcion,
@@ -55,6 +51,59 @@ export function createUsuariosRepository() {
       } catch (error) {
         console.error("Error al obtener el perfil:", error);
         throw new AppError(500, "Error al consultar la base de datos.");
+      }
+    },
+
+    // AÑADIDO: Buscar por email para ascender a admin
+    async findByEmail(correo: string) {
+      try {
+        return await prisma.usuario.findUnique({
+          where: { correo },
+        });
+      } catch (error) {
+        console.error("Error al buscar por email:", error);
+        throw new AppError(500, "Error al consultar la base de datos.");
+      }
+    },
+
+    // AÑADIDO: Actualizar el rol de un usuario
+    async updateRole(idusuario: string, tipoUsuario: string) {
+      try {
+        return await prisma.usuario.update({
+          where: { idusuario },
+          data: { tipoUsuario },
+        });
+      } catch (error) {
+        console.error("Error al actualizar el rol:", error);
+        throw new AppError(500, "Error al actualizar el rol en la base de datos.");
+      }
+    },
+
+    // AÑADIDO: Crear administrador directamente (si no existe)
+    async createAdmin(data: {
+      nombres: string;
+      apellidos: string;
+      email: string;
+      passwordHash: string;
+      tipoUsuario: string;
+    }) {
+      try {
+        const user = await prisma.usuario.create({
+          data: {
+            idusuario: crypto.randomUUID(),
+            nombres: data.nombres,
+            apellidos: data.apellidos,
+            correo: data.email,
+            passwordHash: data.passwordHash,
+            tipoUsuario: data.tipoUsuario,
+            emailVerified: false, // Se verifica luego con OTP
+          },
+          select: { idusuario: true }
+        });
+        return user.idusuario;
+      } catch (error) {
+        console.error("Error al crear admin:", error);
+        throw new AppError(500, "Error al crear el administrador en la base de datos.");
       }
     },
   };

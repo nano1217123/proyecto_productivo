@@ -134,7 +134,7 @@ export function createUsuariosAuthRepository(db: typeof prisma = prisma) {
 
         // Crea un admin o super_admin con email_verified = false.
     // Devuelve solo el id (nunca el hash).
-    async createAdmin(input: NuevoCliente & { tipoUsuario: "admin_gimnasio" | "super_admin" }): Promise<string> {
+    async createAdmin(input: NuevoCliente & { tipoUsuario: "admin" | "super_admin" }): Promise<string> {
       try {
         const user = await db.usuario.create({
           data: {

@@ -132,12 +132,32 @@ export function createAuthService(
     // ============================================================
 
     // Crea un admin_gimnasio o super_admin desde el panel de super_admin.
-    async createAdmin(input: CreateAdminInput): Promise<CreateAdminResult> {
+        async createAdmin(input: CreateAdminInput): Promise<CreateAdminResult> {
       try {
-        if (await usuariosRepo.existsByEmail(input.email)) {
-          throw new AppError(409, "Ese correo ya está registrado.");
+        // 1. Verificamos si el usuario ya existe
+        const existe = await usuariosRepo.existsByEmail(input.email);
+
+        if (existe) {
+          // Si existe, le cambiamos el rol directamente en Prisma
+          // para no tener que crear funciones nuevas en el repositorio
+          const usuario = await prisma.usuario.findUnique({ 
+            where: { correo: input.email } 
+          });
+          
+          if (usuario) {
+            await prisma.usuario.update({
+              where: { idusuario: usuario.idusuario },
+              data: { tipoUsuario: input.tipoUsuario as string }
+            });
+            
+            return {
+              message: "El usuario ya existía y fue ascendido a administrador exitosamente.",
+              userId: usuario.idusuario,
+            };
+          }
         }
 
+        // 2. Si no existe, creamos la cuenta desde cero (tu lógica original)
         const passwordHash = await hashPassword(input.password);
 
         const userId = await usuariosRepo.createAdmin({
@@ -145,27 +165,28 @@ export function createAuthService(
           apellidos: input.apellidos,
           email: input.email,
           passwordHash,
-          tipoUsuario: input.tipoUsuario,
+          tipoUsuario: input.tipoUsuario,// Casteo para evitar error de TS
         });
 
         const sent = await emitirCodigo(userId, input.email, input.nombres);
 
         if (!sent) {
           return {
-            message:
-              "Administrador creado, pero no pudimos enviar el código. Solicita un reenvío.",
+            message: "Administrador creado, pero no se pudo enviar el correo de verificación.",
             userId,
-            emailSendError: true,
+            emailSendError: true
           };
         }
 
         return {
-          message:
-            "Administrador creado. Debe verificar su correo con el código enviado.",
+          message: "Administrador creado. Revisa el correo para verificar la cuenta.",
           userId,
         };
-      } catch (error: unknown) {
-        return toAppError(error);
+        
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        console.error("Error al crear admin:", error);
+        throw new AppError(500, "Error interno al crear el administrador.");
       }
     },
 

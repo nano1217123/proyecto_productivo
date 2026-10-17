@@ -1,7 +1,7 @@
 // Tipos de usuario que este backend permite crear mediante la API.
-// El super_admin puede crear tanto admin_gimnasio como otros super_admin.
+// El super_admin puede crear tanto admin como otros super_admin.
 // "desarrollador" sigue asignándose manualmente en la BD.
-export const TIPOS_ADMIN_PERMITIDOS = ["admin_gimnasio", "super_admin"] as const;
+export const TIPOS_ADMIN_PERMITIDOS = ["admin", "super_admin"] as const;
 
 export type TipoAdminPermitido = (typeof TIPOS_ADMIN_PERMITIDOS)[number];
 
