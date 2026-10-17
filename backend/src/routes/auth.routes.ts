@@ -33,7 +33,7 @@ import {
 } from "../validator/auth.validator.js";
 
 const router = Router();
-
+//Cambiar este comentario
 // Registro público de clientes, verificación por OTP y sesión (login,
 // refresh, logout): Neon + Prisma + JWT propio, sin Supabase Auth.
 //
@@ -42,11 +42,16 @@ const router = Router();
 // validando contra Supabase (pendiente de migrar a JWT propio).
 //
 // Orden: límite de intentos → token → rol → validación del body → controlador.
+// Crear administradores requiere un usuario autenticado con rol super_admin.
+// requireAuth valida el JWT de las cookies y requireRole consulta el rol
+// actual en la BD en cada petición.
+//
+// Orden: límite de intentos → token → rol → validación del body → controlador.
 router.post(
   "/create-admin",
   authLimiter,
   requireAuth,
-  requireRole("super_admin", "desarrollador"),
+  requireRole("super_admin"),
   validateCreateAdmin,
   createAdmin
 );

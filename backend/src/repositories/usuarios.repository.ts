@@ -46,7 +46,9 @@ export function createUsuariosRepository() {
           idusuario: user.idusuario,
           nombres: user.nombres,
           apellidos: user.apellidos,
-          tipo_usuario: user.tipoUsuario,
+            // Prisma devuelve tipoUsuario como string (columna libre), pero la BD
+            // solo debería tener roles válidos. Casteamos al union literal.
+          tipo_usuario: user.tipoUsuario as TipoUsuario,
           tiempo_registrado: user.tiempoRegistrado,
           tiempo_duracion_inscripcion: user.tiempoDuracionInscripcion,
         };
