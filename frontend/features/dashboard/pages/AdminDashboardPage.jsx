@@ -18,7 +18,7 @@ const MIEMBROS_MOCK = [
 
 export default function AdminDashboardPage() {
   const { logout, profile, session } = useAuth();
-  const esSuperAdmin = profile?.tipo_usuario === "super_admin" || profile?.tipo_usuario === "desarrollador";
+  const esSuperAdmin = profile?.tipo_usuario === "super_admin";
   const [tabActiva, setTabActiva] = useState("miembros"); // 'miembros' | 'comunicacion' | 'configuracion'
   const [gymSeleccionado, setGymSeleccionado] = useState("jj-poblado");
   const [busqueda, setBusqueda] = useState("");
@@ -44,6 +44,14 @@ export default function AdminDashboardPage() {
 const [creandoAdmin, setCreandoAdmin] = useState(false);
 const [errorCrearAdmin, setErrorCrearAdmin] = useState("");
 const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
+
+  // Estado para la subida de imágenes cloudinary
+  const [imagenFile, setImagenFile] = useState(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [urlImagen, setUrlImagen] = useState("");
+  const [errorImagen, setErrorImagen] = useState("");
+   const [ejercicioId, setEjercicioId] = useState("");
+  const [mensajeAsignacion, setMensajeAsignacion] = useState("");
 
   // Acciones sobre Miembros
   const renovarSuscripcion = (id) => {
@@ -80,58 +88,111 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
     }, 1000);
   };
 
-  const crearAdministrador = async (e) => {
-  e.preventDefault();
-  setErrorCrearAdmin("");
-  setExitoCrearAdmin("");
-  setCreandoAdmin(true);
+   const crearAdministrador = async (e) => {
+    e.preventDefault();
+    setErrorCrearAdmin("");
+    setExitoCrearAdmin("");
+    setCreandoAdmin(true);
 
-  const nombres = nuevoAdmin.nombres.trim();
-  const apellidos = nuevoAdmin.apellidos.trim();
-  const email = nuevoAdmin.email.trim();
+    const nombres = nuevoAdmin.nombres.trim();
+    const apellidos = nuevoAdmin.apellidos.trim();
+    const email = nuevoAdmin.email.trim();
 
-  if (!nombres || !apellidos) {
-    setErrorCrearAdmin("Nombres y apellidos no pueden estar vacíos ni contener solo espacios.");
-    setCreandoAdmin(false);
-    return;
-  }
+    if (!nombres || !apellidos) {
+      setErrorCrearAdmin("Nombres y apellidos no pueden estar vacíos ni contener solo espacios.");
+      setCreandoAdmin(false);
+      return;
+    }
 
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-    let response;
     try {
-      response = await fetch(`${apiUrl}/api/auth/create-admin`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+      const response = await fetch(`${apiUrl}/api/auth/create-admin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
         },
+        credentials: "include", // 👈 IMPORTANTE: envía las cookies httpOnly al backend
         body: JSON.stringify({
           nombres,
           apellidos,
           email,
           password: nuevoAdmin.password,
-          tipoUsuario: "admin_gimnasio",
+          tipoUsuario: "admin", // 👈 Ahora es "admin", no "admin_gimnasio"
         }),
       });
-    } catch {
-      throw new Error("No pudimos conectar con el servidor. Verifica tu conexión e intenta de nuevo.");
-    }
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || "No se pudo crear el administrador.");
-    }
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo crear el administrador.");
+      }
 
-    setExitoCrearAdmin(`Administrador creado. Debe verificar su correo (${email}) con el código que le llegará.`);
-    setNuevoAdmin({ nombres: "", apellidos: "", email: "", password: "" });
-  } catch (err) {
-    setErrorCrearAdmin(err.message);
-  } finally {
-    setCreandoAdmin(false);
-  }
-};
+      setExitoCrearAdmin(`Administrador creado. Debe verificar su correo (${email}) con el código que le llegará.`);
+      setNuevoAdmin({ nombres: "", apellidos: "", email: "", password: "" });
+    } catch (err) {
+      setErrorCrearAdmin(err.message);
+    } finally {
+      setCreandoAdmin(false);
+    }
+  };
+    const subirImagen = async (e) => {
+    e.preventDefault();
+    if (!imagenFile) return;
+
+    setErrorImagen("");
+    setUrlImagen("");
+    setSubiendoImagen(true);
+
+    const formData = new FormData();
+    formData.append("imagen", imagenFile); // El nombre debe coincidir con upload.single("imagen") del backend
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${apiUrl}/api/imagenes/subir`, {
+        method: "POST",
+        credentials: "include", // Para enviar la cookie de sesión
+        body: formData, // Fetch pone el Content-Type multipart/form-data automáticamente
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Error al subir la imagen.");
+      }
+
+      setUrlImagen(data.url);
+      setImagenFile(null); // Limpiar el input
+    } catch (err) {
+      setErrorImagen(err.message);
+    } finally {
+      setSubiendoImagen(false);
+    }
+  };
+
+    const asignarImagenAEjercicio = async (e) => {
+    e.preventDefault();
+    if (!urlImagen || !ejercicioId) return;
+
+    setMensajeAsignacion("");
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${apiUrl}/api/ejercicios/${ejercicioId}/imagen`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ imagenUrl: urlImagen }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Error al asignar la imagen.");
+
+      setMensajeAsignacion("Imagen asignada al ejercicio correctamente.");
+      setEjercicioId("");
+    } catch (err) {
+      setErrorImagen(err.message);
+    }
+  };
+
 
   // Filtrado de la lista de miembros
   const miembrosFiltrados = miembros.filter((m) => {
@@ -186,6 +247,15 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
           👥 Miembros & Suscripciones
         </button>
 
+       <button
+          className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "imagenes" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
+          onClick={() => setTabActiva("imagenes")}
+        >
+          📸 Subir Imágenes
+        </button>
+        
+
+
         <button
           className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "comunicacion" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
           onClick={() => setTabActiva("comunicacion")}
@@ -233,6 +303,46 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
               <strong>{miembros.filter((m) => m.estado === "vencido" || m.estado === "suspendido").length}</strong>
             </div>
           </section>
+
+         {/* PESTAÑA 4: SUBIR IMÁGENES */}
+      {tabActiva === "imagenes" && (
+        <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+          <h2 className="text-xl mt-0 mb-2">Subir Imagen a Cloudinary</h2>
+          <p className="text-sm text-[#a9afa7] mb-6">
+            Sube imágenes para los ejercicios o el gimnasio. Las imágenes se almacenan en la nube.
+          </p>
+
+          {errorImagen && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{errorImagen}</div>}
+          
+          {urlImagen && (
+            <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px] break-all">
+              <strong>¡Imagen subida!</strong> <br />
+              URL: <a href={urlImagen} target="_blank" rel="noreferrer" className="underline">{urlImagen}</a>
+            </div>
+          )}
+
+          <form onSubmit={subirImagen} className="max-w-[600px]">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd]">
+              <label>Selecciona una imagen (máx. 5MB)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImagenFile(e.target.files[0])}
+                className="w-full p-2 bg-[#151714] border border-[#41463f] rounded-[10px] text-[#f2f4ef] text-sm"
+                required
+              />
+            </div>
+
+            <button
+              className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[##10110f] text-sm font-extrabold cursor-pointer transition hover:bg-[#d7adff] disabled:opacity-60"
+              type="submit"
+              disabled={subiendoImagen || !imagenFile}
+            >
+              {subiendoImagen ? "Subiendo a Cloudinary..." : "Subir Imagen"}
+            </button>
+          </form>
+        </section>
+      )}
 
           {/* Tabla de Control de Miembros */}
           <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
@@ -436,7 +546,7 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
         </section>
       )}
 
-            {tabActiva === "crear-admin" && esSuperAdmin && (
+             {tabActiva === "crear-admin" && esSuperAdmin && (
         <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
           <h2 className="text-xl mt-0 mb-2">Crear Administrador de Gimnasio</h2>
           <p className="text-sm text-[#a9afa7] mb-6">
@@ -499,6 +609,72 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
               {creandoAdmin ? "Creando..." : "Crear Administrador"}
             </button>
           </form>
+        </section>
+      )}
+
+      {/* PESTAÑA: SUBIR IMÁGENES */}
+      {tabActiva === "imagenes" && (
+        <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+          <h2 className="text-xl mt-0 mb-2">Subir Imagen a Cloudinary</h2>
+          <p className="text-sm text-[#a9afa7] mb-6">
+            Sube imágenes para los ejercicios. Las imágenes se almacenan en la nube.
+          </p>
+
+          {errorImagen && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{errorImagen}</div>}
+          
+          {urlImagen && (
+            <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px] break-all">
+              <strong>¡Imagen subida!</strong> <br />
+              URL: <a href={urlImagen} target="_blank" rel="noreferrer" className="underline">{urlImagen}</a>
+            </div>
+          )}
+
+          <form onSubmit={subirImagen} className="max-w-[600px] mb-8">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd]">
+              <label>Selecciona una imagen (máx. 5MB)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImagenFile(e.target.files[0])}
+                className="w-full p-2 bg-[#151714] border border-[#41463f] rounded-[10px] text-[#f2f4ef] text-sm"
+                required
+              />
+            </div>
+
+            <button
+              className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer transition hover:bg-[#d7adff] disabled:opacity-60"
+              type="submit"
+              disabled={subiendoImagen || !imagenFile}
+            >
+              {subiendoImagen ? "Subiendo a Cloudinary..." : "Subir Imagen"}
+            </button>
+          </form>
+
+          {urlImagen && (
+            <form onSubmit={asignarImagenAEjercicio} className="p-4 border border-[#41433f] rounded-lg bg-[#151714] max-w-[600px]">
+              <h3 className="text-[#b56cff] font-bold mb-3">Asignar esta imagen a un ejercicio</h3>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 [&_label]:block [&_label]:mb-1 [&_label]:text-xs [&_label]:text-[#a9afa7]">
+                  <label>ID del Ejercicio</label>
+                  <input
+                    type="number"
+                    value={ejercicioId}
+                    onChange={(e) => setEjercicioId(e.target.value)}
+                    placeholder="Ej: 1"
+                    className="w-full p-2 bg-[#212320] border border-[#41463f] rounded text-[#f2f4ef]"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#b56cff] text-[#10110f] font-bold rounded hover:bg-[#d7adff]"
+                >
+                  Asignar Imagen
+                </button>
+              </div>
+              {mensajeAsignacion && <p className="text-[#d7adff] text-xs mt-2">{mensajeAsignacion}</p>}
+            </form>
+          )}
         </section>
       )}
     </div>

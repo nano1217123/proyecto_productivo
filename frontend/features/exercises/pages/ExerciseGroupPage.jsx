@@ -18,6 +18,8 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
   const group = muscleGroupBySlug[groupSlug];
   const [selected, setSelected] = useState(null);
   const [restoredFromUrl, setRestoredFromUrl] = useState(false);
+  const [imagenes, setImagenes] = useState({});
+  const [vistaModal, setVistaModal] = useState("foto");
 
   useEffect(() => {
     if (!loading && !group) router.replace(`/dashboard/ejercicios?gym=${encodeURIComponent(gym)}`);
@@ -38,6 +40,24 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     if (selected) { document.addEventListener("keydown", handleKeyDown); return () => document.removeEventListener("keydown", handleKeyDown); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
+
+    useEffect(() => {
+    async function fetchImagenes() {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+        const res = await fetch(`${apiUrl}/api/ejercicios/grupo/${groupSlug}`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapa = {};
+          data.forEach(ej => { mapa[ej.slug] = ej.imagen_url; });
+          setImagenes(mapa);
+        }
+      } catch (err) {
+        console.error("Error cargando imágenes", err);
+      }
+    }
+    if (groupSlug) fetchImagenes();
+  }, [groupSlug]);
 
   function syncUrl(exerciseOrNull) {
     const params = new URLSearchParams(searchParams.toString());
@@ -70,17 +90,27 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
 
       <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[14px]" aria-label={`Ejercicios de ${group.name}`}>
         {group.exercises.map((exercise, index) => (
-          <button
-            className="group relative min-h-[150px] flex flex-col items-start gap-1.5 p-5 border border-[#41433f] rounded-lg bg-[#212320] text-left text-[#f2f4ef] cursor-pointer transition hover:border-[var(--accent)] hover:bg-[#292b28] hover:-translate-y-1"
+                    <button
+            className="group relative flex flex-col items-start border border-[#41433f] rounded-lg bg-[#212320] text-left text-[#f2f4ef] cursor-pointer transition hover:border-[var(--accent)] hover:bg-[#292b28] hover:-translate-y-1 overflow-hidden"
             key={exercise.name}
             type="button"
             style={{ "--accent": group.accent }}
             onClick={() => openExercise(exercise)}
           >
-            <span className="text-[11px] font-extrabold tracking-widest text-[var(--accent)]">{String(index + 1).padStart(2, "0")}</span>
-            <h2 className="m-0 text-[17px]">{exercise.name}</h2>
-            <p className="m-0 text-[12.5px] text-[#a9afa7]">{exercise.primary}</p>
-            <span className="mt-auto pt-2.5 inline-flex items-center gap-2 text-[12.5px] font-extrabold text-[var(--accent)]">Ver detalle <b aria-hidden="true">&rarr;</b></span>
+            {imagenes[slugify(exercise.name)] && (
+              <img 
+                src={imagenes[slugify(exercise.name)]} 
+                alt={exercise.name} 
+                className="w-full h-[140px] object-cover border-b border-[#41433f]"
+              />
+            )}
+            
+            <div className="p-5 flex flex-col items-start gap-1.5 w-full flex-1">
+              <span className="text-[11px] font-extrabold tracking-widest text-[var(--accent)]">{String(index + 1).padStart(2, "0")}</span>
+              <h2 className="m-0 text-[17px]">{exercise.name}</h2>
+              <p className="m-0 text-[12.5px] text-[#a9afa7]">{exercise.primary}</p>
+              <span className="mt-auto pt-2.5 inline-flex items-center gap-2 text-[12.5px] font-extrabold text-[var(--accent)]">Ver detalle <b aria-hidden="true">&rarr;</b></span>
+            </div>
           </button>
         ))}
       </section>
@@ -92,8 +122,43 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
             <div className="relative w-full max-w-[480px] max-h-[88vh] overflow-y-auto p-[30px_28px] border border-[#41433f] rounded-2xl bg-[#1c1e1b]" onClick={(event) => event.stopPropagation()}>
               <button className="absolute top-4 right-4 w-8 h-8 border border-[#41433f] rounded-full bg-[#262822] text-[#f2f4ef] text-lg leading-none cursor-pointer hover:border-[#b56cff] hover:text-[#b56cff]" type="button" onClick={closeModal} aria-label="Cerrar">&times;</button>
 
-              <div className="mb-[18px]">
-                <BodyMuscleDiagram primaryMuscles={anatomy.primaryIds} secondaryMuscles={anatomy.secondaryIds} accent={group.accent} />
+                                          {/* Pestañas para Foto / Diagrama */}
+              <div className="flex justify-center gap-3 mb-4 mt-2">
+                <button
+                  type="button"
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold transition ${vistaModal === 'foto' ? 'bg-[#b56cff] text-[#10110f]' : 'bg-[#262822] text-[#a9afa7] hover:text-[#f2f4ef]'}`}
+                  onClick={() => setVistaModal('foto')}
+                >
+                  Foto
+                </button>
+                <button
+                  type="button"
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold transition ${vistaModal === 'diagrama' ? 'bg-[#b56cff] text-[#10110f]' : 'bg-[#262822] text-[#a9afa7] hover:text-[#f2f4ef]'}`}
+                  onClick={() => setVistaModal('diagrama')}
+                >
+                  Diagrama
+                </button>
+              </div>
+
+              {/* Contenedor de la vista */}
+              <div className="mb-4">
+                {vistaModal === 'foto' && (
+                  imagenes[slugify(selected.name)] ? (
+                    <img 
+                      src={imagenes[slugify(selected.name)]} 
+                      alt={selected.name} 
+                      className="w-full h-[240px] object-cover rounded-lg border border-[#41433f] bg-[#151714]"
+                    />
+                  ) : (
+                    <div className="w-full h-[240px] flex items-center justify-center rounded-lg border border-[#41433f] bg-[#151714] text-[#a9afa7]">
+                      Imagen no disponible
+                    </div>
+                  )
+                )}
+
+                {vistaModal === 'diagrama' && (
+                  <BodyMuscleDiagram primaryMuscles={anatomy.primaryIds} secondaryMuscles={anatomy.secondaryIds} accent={group.accent} />
+                )}
               </div>
 
               <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px]" style={{ color: group.accent }}>{group.name.toUpperCase()}</p>
