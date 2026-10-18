@@ -8,7 +8,7 @@ import { getExerciseCatalog } from "@/features/training/lib/training";
 import { getRoutineDetail, createRoutine, updateRoutine } from "../lib/routines";
 
 export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
-  const { session, loading, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const esEdicion = Boolean(rutinaId);
 
@@ -82,7 +82,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
       if (esEdicion) {
         await updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds });
       } else {
-        await createRoutine({ usuarioId: session.user.id, nombre, diaEtiqueta, ejercicioIds });
+        await createRoutine({ nombre, diaEtiqueta, ejercicioIds });
       }
       router.push(`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`);
     } catch (err) {

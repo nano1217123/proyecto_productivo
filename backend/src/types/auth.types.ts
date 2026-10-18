@@ -1,6 +1,7 @@
 // Tipos de usuario que este backend permite crear mediante la API.
-// "super_admin" y "desarrollador" se asignan manualmente en Supabase.
-export const TIPOS_ADMIN_PERMITIDOS = ["admin_gimnasio"] as const;
+// El super_admin puede crear tanto admin como otros super_admin.
+// "desarrollador" sigue asignándose manualmente en la BD.
+export const TIPOS_ADMIN_PERMITIDOS = ["admin", "super_admin"] as const;
 
 export type TipoAdminPermitido = (typeof TIPOS_ADMIN_PERMITIDOS)[number];
 
@@ -13,11 +14,12 @@ export interface CreateAdminInput {
   tipoUsuario: TipoAdminPermitido;
 }
 
-// ============================================================
-// REGISTRO PÚBLICO
-// Cualquier persona puede registrarse como cliente desde /register.
-// Los administradores se crean con createAdmin (requiere auth).
-// ============================================================
+// Resultado que devuelve el servicio al crear un admin.
+export interface CreateAdminResult {
+  message: string;
+  userId: string;
+  emailSendError?: boolean;
+}
 
 // Tipos de usuario permitidos desde el registro público.
 // "admin_gimnasio", "super_admin" y "desarrollador" NO se pueden
@@ -33,8 +35,53 @@ export interface RegisterInput {
   password: string;
 }
 
-// Resultado que devuelve el servicio al registrar.
 export interface RegisterResult {
   message: string;
   userId: string;
+  emailSendError?: boolean;
+}
+
+export interface VerifyEmailInput {
+  email: string;
+  code: string;
+}
+
+export interface ResendCodeInput {
+  email: string;
+}
+
+export interface MessageResult {
+  message: string;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+// Datos del usuario que se devuelven al frontend (nunca el hash).
+export interface SessionUser {
+  idusuario: string;
+  nombres: string;
+  apellidos: string;
+  tipoUsuario: string;
+}
+
+// Tokens que el controller convierte en cookies httpOnly.
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface LoginResult extends AuthTokens {
+  user: SessionUser;
+}
+
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  password: string;
 }

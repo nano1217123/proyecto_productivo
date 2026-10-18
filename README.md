@@ -1,3 +1,9 @@
+> **Nota (2026-10-15):** El backend migró de Supabase Auth a un
+> sistema de autenticación propio con Neon + Prisma + JWT. La
+> documentación técnica del backend está en [`BACKEND.md`](./BACKEND.md).
+> El `README.md` describe el estado del frontend, que aún no se ha
+> migrado.
+
 # Módulo de autenticación — Next.js + Node.js + Supabase
 
 Registro con verificación por código de 6 dígitos, login, contraseñas

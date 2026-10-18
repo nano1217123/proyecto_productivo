@@ -2,131 +2,127 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../api/supabaseClient";
+import { apiClient } from "../api/apiClient";
 
 const AuthContext = createContext(null);
 
-function handleAuthError(error, fallbackMessage) {
-  console.error("Error de autenticación:", error);
-  throw new Error(fallbackMessage);
-}
-
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  async function fetchProfile(userId) {
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("idusuario", userId)
-      .single();
-
-    if (!error) setProfile(data);
-    setLoading(false);
-  }
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: activeSession } }) => {
-      setSession(activeSession);
-      if (activeSession) fetchProfile(activeSession.user.id);
-      else setLoading(false);
-    });
+    let cancelled = false;
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, activeSession) => {
-      setSession(activeSession);
-      if (activeSession) fetchProfile(activeSession.user.id);
-      else {
-        setProfile(null);
-        setLoading(false);
+    async function cargarSesion() {
+      // Si venimos del callback de OAuth, damos un pequeño margen para
+      // que el navegador termine de procesar las cookies httpOnly antes
+      // de pedir el perfil. Sin esto, a veces el primer getProfile falla.
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("oauth") === "ok") {
+          await new Promise((r) => setTimeout(r, 400));
+          window.history.replaceState({}, "", window.location.pathname);
+        }
       }
-    });
 
-    return () => listener.subscription.unsubscribe();
+      try {
+        const { profile } = await apiClient.getProfile();
+        if (!cancelled) setUser(profile);
+      } catch (err) {
+        // Si el access token expiró, intentamos refresh una vez.
+        if (err.status === 401) {
+          try {
+            await apiClient.refresh();
+            const { profile } = await apiClient.getProfile();
+            if (!cancelled) setUser(profile);
+          } catch {
+            if (!cancelled) setUser(null);
+          }
+        } else {
+          if (!cancelled) setUser(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    cargarSesion();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function signUp(nombres, apellidos, email, password) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { nombres, apellidos } },
-    });
-    if (error) handleAuthError(error, "No se pudo crear la cuenta. Verifica tus datos.");
-
-    if (data?.user && data.user.identities && data.user.identities.length === 0) {
-      throw new Error("Este correo ya está registrado. Intenta iniciar sesión.");
-    }
-
-    return data;
+    return apiClient.register({ nombres, apellidos, email, password });
   }
 
-  async function verifyOtp(email, token) {
-    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });
-    if (error) handleAuthError(error, "El código ingresado no es válido o expiró.");
-    return data;
+  async function verifyOtp(email, code) {
+    const result = await apiClient.verifyEmail({ email, code });
+    // El backend ya seteó las cookies → cargamos el perfil.
+    const { profile } = await apiClient.getProfile();
+    setUser(profile);
+    return result;
   }
 
   async function resendOtp(email) {
-    const { error } = await supabase.auth.resend({ type: "signup", email });
-    if (error) handleAuthError(error, "No se pudo reenviar el código. Intenta de nuevo.");
+    return apiClient.resendCode({ email });
   }
 
-  // FIX: actualiza session/profile de inmediato tras un login exitoso, en vez
-  // de depender únicamente del evento asíncrono onAuthStateChange. Sin esto,
-  // cualquier componente que se monte justo después del login (ej. al navegar
-  // a /dashboard) lee un `user` obsoleto y rebota a /login.
   async function login(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error("Error de autenticación:", error);
-      if (error.message.toLowerCase().includes("confirm")) {
-        throw new Error(error.message);
-      }
-      throw new Error("No se pudo completar la autenticación. Verifica tus datos.");
-    }
-
-    setSession(data.session);
-    if (data.session) {
-      await fetchProfile(data.session.user.id);
-    } else {
-      setLoading(false);
-    }
-
-    return data;
-  }
-
-  async function loginWithGoogle() {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) handleAuthError(error, "No se pudo iniciar sesión con Google. Intenta de nuevo.");
+    const result = await apiClient.login({ email, password });
+    const { profile } = await apiClient.getProfile();
+    setUser(profile);
+    return result;
   }
 
   async function logout() {
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error("Error de autenticación:", error);
-    setSession(null);
-    setProfile(null);
-    router.push("/login");
+    try {
+      await apiClient.logout();
+    } catch (err) {
+      console.error("Error al cerrar sesión:", err);
+    } finally {
+      setUser(null);
+      // Esperamos un momento para que el navegador procese el clearCookie
+      // del backend, y forzamos una recarga completa de la página para
+      // evitar el flash de /dashboard antes de llegar a /login.
+      await new Promise((r) => setTimeout(r, 100));
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
   }
 
   async function resetPasswordForEmail(email) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) handleAuthError(error, "No se pudo enviar el enlace de recuperación. Intenta de nuevo.");
+    return apiClient.forgotPassword({ email });
   }
 
-  async function updatePassword(newPassword) {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) handleAuthError(error, "No se pudo actualizar la contraseña. Intenta de nuevo.");
+  async function updatePassword(token, newPassword) {
+    return apiClient.resetPassword({ token, password: newPassword });
+  }
+
+  function loginWithGoogle() {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    window.location.href = `${baseUrl}/api/auth/oauth/google`;
   }
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, loading, signUp, verifyOtp, resendOtp, login, loginWithGoogle, logout, resetPasswordForEmail, updatePassword }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile: user,
+        loading,
+        signUp,
+        verifyOtp,
+        resendOtp,
+        login,
+        logout,
+        resetPasswordForEmail,
+        updatePassword,
+        loginWithGoogle,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -134,6 +130,7 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth debe usarse dentro de un <AuthProvider>");
+  if (!context)
+    throw new Error("useAuth debe usarse dentro de un <AuthProvider>");
   return context;
 }

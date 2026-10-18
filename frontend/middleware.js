@@ -1,70 +1,48 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const ACCESS_COOKIE = "access_token";
+
+async function verifySession(request) {
+  const token = request.cookies.get(ACCESS_COOKIE)?.value;
+  if (!token) return null;
+
+  try {
+    // El middleware corre en Edge Runtime y NO puede verificar el JWT
+    // con JWT_SECRET sin exponerlo. Delegamos al backend.
+    // GET /api/perfil está protegido con requireAuth:
+    //   - 200 → sesión válida (devuelve { profile })
+    //   - 401 → sin sesión o token inválido
+    const res = await fetch(`${API_URL}/api/perfil`, {
+      method: "GET",
+      headers: { Cookie: `${ACCESS_COOKIE}=${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.profile;
+  } catch {
+    return null;
+  }
+}
 
 export async function middleware(request) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
-  );
-
-  // Obtiene la sesión actual y actualiza cookies si el token expiró.
-  // Si Supabase no responde (caída, timeout de red), evitamos que el
-  // middleware truene para TODAS las rutas: registramos el error y
-  // tratamos la sesión como "no autenticada" (fail-safe: es más seguro
-  // pedir login de nuevo que dejar pasar sin poder verificar quién es
-  // realmente el usuario).
-  let user = null;
-  try {
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    user = authUser;
-  } catch (error) {
-    console.error("middleware: error verificando la sesión con Supabase", error);
-  }
-
   const url = request.nextUrl.clone();
+  const user = await verifySession(request);
 
-  // Si no hay usuario y quiere entrar a una ruta protegida
+  // Ruta protegida sin sesión → /login
   if (!user && url.pathname.startsWith("/dashboard")) {
     url.pathname = "/login";
-    const redirectResponse = NextResponse.redirect(url);
-    response.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value);
-    });
-    return redirectResponse;
+    return NextResponse.redirect(url);
   }
 
-  // Si ya está logueado y va al login o registro
+  // Logueado en /login o /register → /dashboard
   if (user && (url.pathname === "/login" || url.pathname === "/register")) {
     url.pathname = "/dashboard";
-    const redirectResponse = NextResponse.redirect(url);
-    response.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value);
-    });
-    return redirectResponse;
+    return NextResponse.redirect(url);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

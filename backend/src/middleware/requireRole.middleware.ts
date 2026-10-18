@@ -16,7 +16,7 @@ export function createRequireRole(
   return function requireRole(...allowedRoles: TipoUsuario[]): RequestHandler {
     return asyncHandler(async (req, _res, next) => {
       if (!req.userId) {
-        throw new AppError(401, "No autorizado. Falta el token.");
+        throw new AppError(401, "No autorizado. Falta la sesión.");
       }
 
       const role = await repository.findRoleById(req.userId);

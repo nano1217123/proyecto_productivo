@@ -8,7 +8,17 @@ import {
 import { sanitizeString, sanitizeEmail, sanitizeName, containsSuspiciousPatterns } from "../lib/sanitize.js";
 import { validatePassword } from "../lib/passwordPolicy.js";
 import { validateEmail } from "../lib/emailPolicy.js";
-import type { RegisterInput } from "../types/auth.types.js";
+import type {
+  RegisterInput,
+  VerifyEmailInput,
+  ResendCodeInput,
+  LoginInput
+} from "../types/auth.types.js";
+import type {
+  ForgotPasswordInput,
+  ResetPasswordInput,
+  // ... los que ya estaban
+} from "../types/auth.types.js";
 const LIMITES = {
   nombreMax: 60,
   emailMax: 254,
@@ -236,5 +246,188 @@ export function parseRegisterBody(body: unknown): RegisterInput {
 // Middleware de Express: reemplaza req.body por los datos ya validados.
 export const validateRegister: RequestHandler = (req, _res, next) => {
   req.body = parseRegisterBody(req.body);
+  next();
+};
+
+// ============================================================
+// VERIFICACIÓN DE CORREO (OTP) Y REENVÍO
+// ============================================================
+
+// Valida el body de POST /api/auth/verify-email: { email, code }.
+export function parseVerifyEmailBody(body: unknown): VerifyEmailInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, "Faltan campos requeridos: email, code.");
+  }
+
+  const { email, code } = body as Record<string, unknown>;
+
+  if (typeof email !== "string" || typeof code !== "string") {
+    throw new AppError(400, "Faltan campos requeridos: email, code.");
+  }
+
+  const emailLimpio = sanitizeEmail(email);
+  const emailCheck = validateEmail(emailLimpio);
+  if (!emailCheck.valid) {
+    throw new AppError(400, emailCheck.message ?? "El correo no es válido.");
+  }
+
+  // El código son exactamente 6 dígitos.
+  const codeLimpio = code.trim();
+  if (!/^\d{6}$/.test(codeLimpio)) {
+    throw new AppError(400, "El código debe tener 6 dígitos.");
+  }
+
+  return { email: emailLimpio, code: codeLimpio };
+}
+
+// Valida el body de POST /api/auth/resend-code: { email }.
+export function parseResendCodeBody(body: unknown): ResendCodeInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, "Falta el campo requerido: email.");
+  }
+
+  const { email } = body as Record<string, unknown>;
+
+  if (typeof email !== "string") {
+    throw new AppError(400, "Falta el campo requerido: email.");
+  }
+
+  const emailLimpio = sanitizeEmail(email);
+  const emailCheck = validateEmail(emailLimpio);
+  if (!emailCheck.valid) {
+    throw new AppError(400, emailCheck.message ?? "El correo no es válido.");
+  }
+
+  return { email: emailLimpio };
+}
+
+export const validateVerifyEmail: RequestHandler = (req, _res, next) => {
+  req.body = parseVerifyEmailBody(req.body);
+  next();
+};
+
+export const validateResendCode: RequestHandler = (req, _res, next) => {
+  req.body = parseResendCodeBody(req.body);
+  next();
+};
+
+// ============================================================
+// LOGIN
+// No se aplica la política de contraseñas: solo se comprueba que
+// lleguen datos razonables (el hash decide si son correctos).
+// ============================================================
+
+export function parseLoginBody(body: unknown): LoginInput {
+  const mensaje = "Faltan campos requeridos: email, password.";
+
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, mensaje);
+  }
+
+  const { email, password } = body as Record<string, unknown>;
+
+  if (
+    typeof email !== "string" ||
+    typeof password !== "string" ||
+    !email ||
+    !password
+  ) {
+    throw new AppError(400, mensaje);
+  }
+
+  // Límite alto para evitar que contraseñas enormes saturen bcrypt.
+  if (password.length > 128) {
+    throw new AppError(400, "Credenciales inválidas.");
+  }
+
+  const emailLimpio = sanitizeEmail(email);
+  if (emailLimpio.length < 6 || emailLimpio.length > 254) {
+    throw new AppError(400, "Credenciales inválidas.");
+  }
+
+  return { email: emailLimpio, password };
+}
+
+export const validateLogin: RequestHandler = (req, _res, next) => {
+  req.body = parseLoginBody(req.body);
+  next();
+};
+
+// ============================================================
+// RECUPERACIÓN DE CONTRASEÑA
+// ============================================================
+
+/**
+ * Valida y limpia el body de POST /api/auth/forgot-password.
+ */
+export function parseForgotPasswordBody(body: unknown): ForgotPasswordInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, "Falta el correo.");
+  }
+
+  const { email } = body as Record<string, unknown>;
+
+  if (!email || typeof email !== "string") {
+    throw new AppError(400, "El correo es obligatorio.");
+  }
+
+  if (containsSuspiciousPatterns(email)) {
+    throw new AppError(400, "La solicitud contiene caracteres no permitidos.");
+  }
+
+  const emailLimpio = sanitizeEmail(email);
+  const check = validateEmail(emailLimpio);
+  if (!check.valid) {
+    throw new AppError(400, check.message ?? "El correo no es válido.");
+  }
+
+  return { email: emailLimpio };
+}
+
+export const validateForgotPassword: RequestHandler = (req, _res, next) => {
+  req.body = parseForgotPasswordBody(req.body);
+  next();
+};
+
+/**
+ * Valida y limpia el body de POST /api/auth/reset-password.
+ * El token debe ser un string hex de 64 caracteres (32 bytes).
+ */
+export function parseResetPasswordBody(body: unknown): ResetPasswordInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new AppError(400, "Faltan campos requeridos: token, password.");
+  }
+
+  const { token, password } = body as Record<string, unknown>;
+
+  if (!token || !password) {
+    throw new AppError(400, "Faltan campos requeridos: token, password.");
+  }
+
+  if (typeof token !== "string" || typeof password !== "string") {
+    throw new AppError(
+      400,
+      "Los campos token y password deben ser cadenas de texto."
+    );
+  }
+
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    throw new AppError(400, "Token inválido.");
+  }
+
+  // Reutilizamos la política de contraseñas.
+  const passwordCheck = validatePassword(password);
+  if (!passwordCheck.valid) {
+    throw new AppError(
+      400,
+      passwordCheck.message ?? "La contraseña no cumple los requisitos."
+    );
+  }
+
+  return { token, password };
+}
+
+export const validateResetPassword: RequestHandler = (req, _res, next) => {
+  req.body = parseResetPasswordBody(req.body);
   next();
 };

@@ -26,3 +26,76 @@ export const perfilLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? ""),
 });
+
+// Limita la creación de cuentas: 5 registros por IP cada hora.
+export const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  message: {
+    message:
+      "Demasiados registros desde esta IP. Intenta de nuevo en una hora.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Verificación de OTP: 10 intentos por IP cada 15 min.
+// Además, cada código admite máximo 5 intentos (se controla en el servicio).
+export const verifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  message: {
+    message: "Demasiados intentos de verificación. Intenta en 15 minutos.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Reenvío de OTP: 3 por IP cada 15 min (además del cooldown de 60 s).
+export const resendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  message: {
+    message: "Demasiados reenvíos. Intenta de nuevo en 15 minutos.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Login: 5 fallos por IP+correo cada 15 min. Los logins exitosos no cuentan.
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const email =
+      typeof req.body?.email === "string"
+        ? req.body.email.toLowerCase().slice(0, 254)
+        : "";
+    return `${ipKeyGenerator(req.ip ?? "")}|${email}`;
+  },
+  message: { message: "Demasiados intentos. Intenta de nuevo en 15 minutos." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Renovación y cierre de sesión: 30 por IP cada 15 min.
+export const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  message: { message: "Demasiadas solicitudes. Intenta más tarde." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Recuperación de contraseña: 3 solicitudes por IP cada hora.
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  message: {
+    message:
+      "Demasiadas solicitudes de recuperación. Intenta de nuevo en una hora.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
