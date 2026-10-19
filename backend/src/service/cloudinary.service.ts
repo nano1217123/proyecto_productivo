@@ -18,13 +18,29 @@ export function createCloudinaryService() {
           { folder, resource_type: "image" },
           (error, result) => {
             if (error || !result) {
-              console.error("Error en Cloudinary:", error);
+              console.error("Error en Cloudinary (imagen):", error);
               return reject(new AppError(500, "No se pudo subir la imagen a la nube."));
             }
             resolve(result.secure_url);
           }
         );
-        // Enviamos el buffer al stream de Cloudinary
+        uploadStream.end(fileBuffer);
+      });
+    },
+
+    // 👇 NUEVA FUNCIÓN PARA SUBIR VIDEOS 👇
+    async uploadVideo(fileBuffer: Buffer, folder: string = "jjgym/videos"): Promise<string> {
+      return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { folder, resource_type: "video" }, // 👈 CLAVE: resource_type "video"
+          (error, result) => {
+            if (error || !result) {
+              console.error("Error en Cloudinary (video):", error);
+              return reject(new AppError(500, "No se pudo subir el video a la nube."));
+            }
+            resolve(result.secure_url);
+          }
+        );
         uploadStream.end(fileBuffer);
       });
     },
