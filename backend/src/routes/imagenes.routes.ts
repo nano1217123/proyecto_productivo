@@ -1,28 +1,36 @@
 import { Router } from "express";
 import multer from "multer";
-import { uploadImage } from "../controller/imagenes.controller.js";
+import { uploadImage, uploadVideo } from "../controller/imagenes.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 
 // Configuramos multer para que guarde el archivo en memoria (buffer)
-// Esto es ideal para pasarlo directo a Cloudinary sin llenar el disco.
+// Aumentamos el límite a 50MB para permitir la subida de videos.
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // Límite de 5MB para las imágenes
+    fileSize: 50 * 1024 * 1024, // 50MB
   },
 });
 
 const router = Router();
 
-// POST /api/imagenes/subir
-// Solo los administradores y super_admins pueden subir fotos.
+// POST /api/imagenes/subir (Imágenes)
 router.post(
   "/subir",
   requireAuth,
   requireRole("admin", "super_admin"),
-  upload.single("imagen"), // "imagen" es el nombre del campo en el FormData
+  upload.single("imagen"),
   uploadImage
+);
+
+// POST /api/imagenes/subir-video (Videos)
+router.post(
+  "/subir-video",
+  requireAuth,
+  requireRole("admin", "super_admin"),
+  upload.single("video"),
+  uploadVideo
 );
 
 export default router;

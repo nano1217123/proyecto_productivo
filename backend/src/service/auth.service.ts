@@ -99,9 +99,11 @@ export function createAuthService(
   }
 
   // Crea un refresh token nuevo (guarda su hash) y firma el access token.
+    // Crea un refresh token nuevo (guarda su hash) y firma el access token.
   async function abrirSesion(
     userId: string,
-    email: string
+    email: string,
+    role: string // 👈 Agregamos el rol como parámetro
   ): Promise<AuthTokens> {
     const refreshToken = generateRefreshToken();
     await sessions.create(
@@ -109,8 +111,13 @@ export function createAuthService(
       hashRefreshToken(refreshToken),
       refreshExpiresAt()
     );
+
     return {
-      accessToken: signAccessToken({ sub: userId, email }),
+      accessToken: signAccessToken({
+        sub: userId,
+        email,
+        role, // 👈 Lo pasamos al JWT
+      }),
       refreshToken,
     };
   }
@@ -264,8 +271,7 @@ export function createAuthService(
           throw new AppError(500, "No se pudo cargar el usuario.");
         }
 
-        const tokens = await abrirSesion(userFull.idusuario, userFull.correo);
-
+        const tokens = await abrirSesion(userFull.idusuario, userFull.correo, userFull.tipoUsuario);
         return {
           message: "Correo verificado correctamente.",
           ...tokens,
@@ -339,7 +345,7 @@ export function createAuthService(
         }
 
         await usuariosRepo.resetFailedLogins(user.idusuario);
-        const tokens = await abrirSesion(user.idusuario, user.correo);
+        const tokens = await abrirSesion(user.idusuario, user.correo, user.tipoUsuario);
 
         return {
           ...tokens,
@@ -385,10 +391,11 @@ export function createAuthService(
         );
 
         return {
-          accessToken: signAccessToken({
-            sub: user.idusuario,
-            email: user.correo,
-          }),
+         accessToken: signAccessToken({
+        sub: user.idusuario,
+        email: user.correo,
+        role: user.tipoUsuario, // 👈 AGREGAMOS EL ROL AQUÍ
+      }),
           refreshToken,
         };
       } catch (error: unknown) {

@@ -18,6 +18,22 @@ export const actualizarImagenEjercicio: RequestHandler = asyncHandler(async (req
   });
 });
 
+// 👇 NUEVA FUNCIÓN PARA VIDEO 👇
+export const actualizarVideoEjercicio: RequestHandler = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { videoUrl } = req.body;
+
+  if (!videoUrl) {
+    throw new AppError(400, "Falta la URL del video.");
+  }
+
+  await ejerciciosRepository.updateVideo(BigInt(id), videoUrl);
+
+  return res.status(200).json({
+    message: "Video asignado correctamente al ejercicio.",
+  });
+});
+
 export const getEjerciciosPorGrupo: RequestHandler = asyncHandler(async (req, res) => {
   const { grupo } = req.params;
   const ejercicios = await ejerciciosRepository.findAllAgrupados();

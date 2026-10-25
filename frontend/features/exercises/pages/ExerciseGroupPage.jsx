@@ -7,7 +7,6 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { muscleGroupBySlug } from "../lib/muscleGroups";
 import { getExerciseAnatomy } from "../lib/muscleMap";
 import { slugify } from "../lib/slugify";
-import BodyMuscleDiagram from "../components/BodyMuscleDiagram";
 import { ExerciseGroupSkeleton } from "@/components/ui/Skeleton";
 
 export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
@@ -19,6 +18,7 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
   const [selected, setSelected] = useState(null);
   const [restoredFromUrl, setRestoredFromUrl] = useState(false);
   const [imagenes, setImagenes] = useState({});
+  const [videos, setVideos] = useState({});
   const [vistaModal, setVistaModal] = useState("foto");
 
   useEffect(() => {
@@ -41,22 +41,29 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-    useEffect(() => {
-    async function fetchImagenes() {
+  useEffect(() => {
+    async function fetchMedios() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-        const res = await fetch(`${apiUrl}/api/ejercicios/grupo/${groupSlug}`);
+        const res = await fetch(`${apiUrl}/api/ejercicios/grupo/${groupSlug}`, {
+          credentials: "include", // 👈 AGREGA ESTA LÍNEA
+        });
         if (res.ok) {
           const data = await res.json();
-          const mapa = {};
-          data.forEach(ej => { mapa[ej.slug] = ej.imagen_url; });
-          setImagenes(mapa);
+          const mapaImagenes = {};
+          const mapaVideos = {};
+          data.forEach((ej) => {
+            if (ej.imagen_url || ej.imagenUrl) mapaImagenes[ej.slug] = ej.imagen_url || ej.imagenUrl;
+            if (ej.video_url || ej.videoUrl) mapaVideos[ej.slug] = ej.video_url || ej.videoUrl;
+          });
+          setImagenes(mapaImagenes);
+          setVideos(mapaVideos);
         }
       } catch (err) {
-        console.error("Error cargando imágenes", err);
+        console.error("Error cargando medios de ejercicios", err);
       }
     }
-    if (groupSlug) fetchImagenes();
+    if (groupSlug) fetchMedios();
   }, [groupSlug]);
 
   function syncUrl(exerciseOrNull) {
@@ -117,12 +124,15 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
 
       {selected && (() => {
         const anatomy = getExerciseAnatomy(selected, groupSlug, group.name);
+        const exerciseSlug = slugify(selected.name);
+        const videoUrl = videos[exerciseSlug] || selected.videoUrl || selected.video_url;
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-[rgba(8,9,7,0.72)] backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label={selected.name} onClick={closeModal}>
             <div className="relative w-full max-w-[480px] max-h-[88vh] overflow-y-auto p-[30px_28px] border border-[#41433f] rounded-2xl bg-[#1c1e1b]" onClick={(event) => event.stopPropagation()}>
               <button className="absolute top-4 right-4 w-8 h-8 border border-[#41433f] rounded-full bg-[#262822] text-[#f2f4ef] text-lg leading-none cursor-pointer hover:border-[#b56cff] hover:text-[#b56cff]" type="button" onClick={closeModal} aria-label="Cerrar">&times;</button>
 
-                                          {/* Pestañas para Foto / Diagrama */}
+              {/* Pestañas para Foto / Video */}
               <div className="flex justify-center gap-3 mb-4 mt-2">
                 <button
                   type="button"
@@ -133,10 +143,10 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
                 </button>
                 <button
                   type="button"
-                  className={`px-4 py-1.5 rounded-full text-sm font-bold transition ${vistaModal === 'diagrama' ? 'bg-[#b56cff] text-[#10110f]' : 'bg-[#262822] text-[#a9afa7] hover:text-[#f2f4ef]'}`}
-                  onClick={() => setVistaModal('diagrama')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold transition ${vistaModal === 'video' ? 'bg-[#b56cff] text-[#10110f]' : 'bg-[#262822] text-[#a9afa7] hover:text-[#f2f4ef]'}`}
+                  onClick={() => setVistaModal('video')}
                 >
-                  Diagrama
+                  Video
                 </button>
               </div>
 
@@ -156,8 +166,8 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
                   )
                 )}
 
-                {vistaModal === 'diagrama' && (
-                  <BodyMuscleDiagram primaryMuscles={anatomy.primaryIds} secondaryMuscles={anatomy.secondaryIds} accent={group.accent} />
+                {vistaModal === 'video' && (
+                  <video controls className="w-full rounded-lg" src={videoUrl} />
                 )}
               </div>
 

@@ -9,7 +9,6 @@ const UNITS: Record<string, number> = {
   d: 86_400_000,
 };
 
-// Convierte "15m", "7d", etc. a milisegundos.
 export function durationToMs(value: string): number {
   const match = /^(\d+)([smhd])$/.exec(value);
   if (!match) throw new Error(`Duración inválida en .env: ${value}`);
@@ -21,6 +20,7 @@ export function durationToMs(value: string): number {
 export interface AccessTokenPayload {
   sub: string; // idusuario
   email: string;
+  role: string; // 👈 NUEVO: para que el middleware sepa el rol
 }
 
 export function signAccessToken(payload: AccessTokenPayload): string {
@@ -30,17 +30,16 @@ export function signAccessToken(payload: AccessTokenPayload): string {
   });
 }
 
-// Devuelve el payload o null si es inválido/expirado.
-// Se fija el algoritmo para evitar ataques con "alg: none".
 export function verifyAccessToken(token: string): AccessTokenPayload | null {
   try {
     const decoded = jwt.verify(token, env.jwtSecret, { algorithms: ["HS256"] });
     if (
       typeof decoded === "object" &&
       typeof decoded.sub === "string" &&
-      typeof decoded.email === "string"
+      typeof decoded.email === "string" &&
+      typeof decoded.role === "string" // 👈 Verificamos que el rol exista
     ) {
-      return { sub: decoded.sub, email: decoded.email };
+      return { sub: decoded.sub, email: decoded.email, role: decoded.role };
     }
     return null;
   } catch {
@@ -49,12 +48,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
 }
 
 // ---------- Refresh token (opaco) ----------
-
+// (El resto del archivo sigue igual)
 export function generateRefreshToken(): string {
   return randomBytes(32).toString("hex");
 }
 
-// SHA-256: el token ya es aleatorio de alta entropía, no necesita bcrypt.
 export function hashRefreshToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }

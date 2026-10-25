@@ -8,19 +8,18 @@ async function verifySession(request) {
   if (!token) return null;
 
   try {
-    // El middleware corre en Edge Runtime y NO puede verificar el JWT
-    // con JWT_SECRET sin exponerlo. Delegamos al backend.
-    // GET /api/perfil está protegido con requireAuth:
-    //   - 200 → sesión válida (devuelve { profile })
-    //   - 401 → sin sesión o token inválido
+    // Delegamos la verificación al backend (que sí tiene el JWT_SECRET)
     const res = await fetch(`${API_URL}/api/perfil`, {
       method: "GET",
       headers: { Cookie: `${ACCESS_COOKIE}=${token}` },
       cache: "no-store",
     });
+    
     if (!res.ok) return null;
+    
+    // El backend devuelve { profile: { ..., tipo_usuario } }
     const data = await res.json();
-    return data.profile;
+    return data.profile; 
   } catch {
     return null;
   }
@@ -30,16 +29,33 @@ export async function middleware(request) {
   const url = request.nextUrl.clone();
   const user = await verifySession(request);
 
-  // Ruta protegida sin sesión → /login
+  // 1. Si no hay sesión y quiere ir a /dashboard, lo mandamos al login
   if (!user && url.pathname.startsWith("/dashboard")) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Logueado en /login o /register → /dashboard
-  if (user && (url.pathname === "/login" || url.pathname === "/register")) {
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  // 2. Si hay sesión, verificamos los roles
+  if (user) {
+    const isAdmin = user.tipo_usuario === "admin" || user.tipo_usuario === "super_admin";
+    
+    // Si es admin y quiere entrar a rutas de cliente (ejercicios, rutinas, etc.)
+    if (isAdmin && url.pathname.startsWith("/dashboard") && !url.pathname.startsWith("/dashboard/admin")) {
+      url.pathname = "/dashboard/admin";
+      return NextResponse.redirect(url);
+    }
+
+    // Si es cliente y quiere entrar a rutas de admin
+    if (!isAdmin && url.pathname.startsWith("/dashboard/admin")) {
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    // Si ya está logueado y quiere ir a /login o /register, lo mandamos a su panel
+    if (url.pathname === "/login" || url.pathname === "/register") {
+      url.pathname = isAdmin ? "/dashboard/admin" : "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();
