@@ -125,10 +125,10 @@ export function createUsuariosAuthRepository(db: typeof prisma = prisma) {
     // Datos para renovar sesión, o null.
     async findSessionById(
       idUsuario: string
-    ): Promise<{ idusuario: string; correo: string; emailVerified: boolean } | null> {
+    ): Promise<{ idusuario: string; correo: string; emailVerified: boolean; tipoUsuario: string } | null> {
       return db.usuario.findUnique({
         where: { idusuario: idUsuario },
-        select: { idusuario: true, correo: true, emailVerified: true },
+        select: { idusuario: true, correo: true, emailVerified: true, tipoUsuario: true }, // 👈 Agregado
       });
     },
 

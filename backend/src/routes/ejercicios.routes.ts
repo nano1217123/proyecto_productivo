@@ -3,16 +3,21 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 import { 
   actualizarImagenEjercicio, 
-  actualizarVideoEjercicio, // 👈 AGREGADO
+  actualizarVideoEjercicio,
   getEjerciciosPorGrupo 
 } from "../controller/ejercicios.controller.js";
 
 const router = Router();
 
-// Ruta pública para que el cliente vea los ejercicios con sus imágenes
-router.get("/grupo/:grupo", getEjerciciosPorGrupo);
+// Ruta protegida: Solo los clientes pueden ver el catálogo
+router.get(
+  "/grupo/:grupo", 
+  requireAuth, 
+  requireRole("cliente"), 
+  getEjerciciosPorGrupo
+);
 
-// Ruta protegida para que el admin asigne la imagen
+// Rutas protegidas para que el admin asigne la imagen
 router.patch(
   "/:id/imagen",
   requireAuth,
@@ -20,7 +25,7 @@ router.patch(
   actualizarImagenEjercicio
 );
 
-// 👇 NUEVA RUTA PARA VIDEO 👇
+// Rutas protegidas para que el admin asigne el video
 router.patch(
   "/:id/video",
   requireAuth,

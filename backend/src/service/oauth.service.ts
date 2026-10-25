@@ -70,11 +70,12 @@ export function createOAuthService(
         refreshExpiresAt()
       );
 
-      return {
-        accessToken: signAccessToken({
-          sub: usuarioId,
-          email: profile.email,
-        }),
+          return {
+      accessToken: signAccessToken({
+        sub: usuarioId,
+        email: profile.email,
+        role: tipoUsuario, // 👈 Agrega esta línea
+      }),
         refreshToken,
         user: { idusuario: usuarioId, nombres, apellidos, tipoUsuario },
       };
