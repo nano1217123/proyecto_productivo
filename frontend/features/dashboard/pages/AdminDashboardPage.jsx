@@ -52,6 +52,13 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
   const [errorImagen, setErrorImagen] = useState("");
    const [ejercicioId, setEjercicioId] = useState("");
   const [mensajeAsignacion, setMensajeAsignacion] = useState("");
+  const [videoFile, setVideoFile] = useState(null);
+  const [subiendoVideo, setSubiendoVideo] = useState(false);
+  const [urlVideo, setUrlVideo] = useState("");
+  const [errorVideo, setErrorVideo] = useState("");
+  const [ejercicioVideoId, setEjercicioVideoId] = useState("");
+  const [mensajeAsignacionVideo, setMensajeAsignacionVideo] = useState("");
+  const [asignandoVideo, setAsignandoVideo] = useState(false);
 
   // Acciones sobre Miembros
   const renovarSuscripcion = (id) => {
@@ -193,6 +200,74 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
     }
   };
 
+  const subirVideo = async (e) => {
+    e.preventDefault();
+    if (!videoFile) return;
+
+    setErrorVideo("");
+    setUrlVideo("");
+    setSubiendoVideo(true);
+
+    const formData = new FormData();
+    formData.append("video", videoFile);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const response = await fetch(`${apiUrl}/api/imagenes/subir-video`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Error al subir el video.");
+
+      setUrlVideo(data.url);
+      setVideoFile(null);
+    } catch (err) {
+      setErrorVideo(err.message || "Error al subir el video.");
+    } finally {
+      setSubiendoVideo(false);
+    }
+  };
+
+  const asignarVideoAEjercicio = async (e) => {
+    e.preventDefault();
+    if (!urlVideo) {
+      setErrorVideo("No hay ninguna URL de video cargada.");
+      return;
+    }
+    if (!ejercicioVideoId) {
+      setErrorVideo("Por favor ingresa el ID del ejercicio.");
+      return;
+    }
+
+    setMensajeAsignacionVideo("");
+    setErrorVideo("");
+    setAsignandoVideo(true);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const id = String(ejercicioVideoId).trim();
+      const response = await fetch(`${apiUrl}/api/ejercicios/${id}/video`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ videoUrl: urlVideo }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Error al asignar el video.");
+
+      setMensajeAsignacionVideo("Video asignado al ejercicio correctamente.");
+      setEjercicioVideoId("");
+    } catch (err) {
+      setErrorVideo(err.message || "Error al asignar el video al ejercicio.");
+    } finally {
+      setAsignandoVideo(false);
+    }
+  };
+
 
   // Filtrado de la lista de miembros
   const miembrosFiltrados = miembros.filter((m) => {
@@ -303,46 +378,6 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
               <strong>{miembros.filter((m) => m.estado === "vencido" || m.estado === "suspendido").length}</strong>
             </div>
           </section>
-
-         {/* PESTAÑA 4: SUBIR IMÁGENES */}
-      {tabActiva === "imagenes" && (
-        <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
-          <h2 className="text-xl mt-0 mb-2">Subir Imagen a Cloudinary</h2>
-          <p className="text-sm text-[#a9afa7] mb-6">
-            Sube imágenes para los ejercicios o el gimnasio. Las imágenes se almacenan en la nube.
-          </p>
-
-          {errorImagen && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{errorImagen}</div>}
-          
-          {urlImagen && (
-            <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px] break-all">
-              <strong>¡Imagen subida!</strong> <br />
-              URL: <a href={urlImagen} target="_blank" rel="noreferrer" className="underline">{urlImagen}</a>
-            </div>
-          )}
-
-          <form onSubmit={subirImagen} className="max-w-[600px]">
-            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd]">
-              <label>Selecciona una imagen (máx. 5MB)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImagenFile(e.target.files[0])}
-                className="w-full p-2 bg-[#151714] border border-[#41463f] rounded-[10px] text-[#f2f4ef] text-sm"
-                required
-              />
-            </div>
-
-            <button
-              className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[##10110f] text-sm font-extrabold cursor-pointer transition hover:bg-[#d7adff] disabled:opacity-60"
-              type="submit"
-              disabled={subiendoImagen || !imagenFile}
-            >
-              {subiendoImagen ? "Subiendo a Cloudinary..." : "Subir Imagen"}
-            </button>
-          </form>
-        </section>
-      )}
 
           {/* Tabla de Control de Miembros */}
           <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
@@ -612,9 +647,11 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
         </section>
       )}
 
-      {/* PESTAÑA: SUBIR IMÁGENES */}
+            {/* PESTAÑA: SUBIR IMÁGENES Y VIDEOS */}
       {tabActiva === "imagenes" && (
         <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+          
+          {/* --- SECCIÓN DE IMÁGENES --- */}
           <h2 className="text-xl mt-0 mb-2">Subir Imagen a Cloudinary</h2>
           <p className="text-sm text-[#a9afa7] mb-6">
             Sube imágenes para los ejercicios. Las imágenes se almacenan en la nube.
@@ -673,6 +710,69 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
                 </button>
               </div>
               {mensajeAsignacion && <p className="text-[#d7adff] text-xs mt-2">{mensajeAsignacion}</p>}
+            </form>
+          )}
+
+          {/* --- SECCIÓN DE VIDEOS --- */}
+          <hr className="my-8 border-[#41433f]" />
+          <h2 className="text-xl mt-0 mb-2">Subir Video a Cloudinary</h2>
+          <p className="text-sm text-[#a9afa7] mb-6">Sube videos para los ejercicios. Los videos se almacenan en la nube.</p>
+
+          {errorVideo && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{errorVideo}</div>}
+
+          {urlVideo && (
+            <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px] break-all">
+              <strong>¡Video subido!</strong> <br />
+              URL: <a href={urlVideo} target="_blank" rel="noreferrer" className="underline">{urlVideo}</a>
+            </div>
+          )}
+
+          <form onSubmit={subirVideo} className="max-w-[600px] mb-8">
+            <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd]">
+              <label>Selecciona un video (máx. 50MB)</label>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => setVideoFile(e.target.files[0])}
+                className="w-full p-2 bg-[#151714] border border-[#41463f] rounded-[10px] text-[#f2f4ef] text-sm"
+                required
+              />
+            </div>
+
+            <button
+              className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer transition hover:bg-[#d7adff] disabled:opacity-60"
+              type="submit"
+              disabled={subiendoVideo || !videoFile}
+            >
+              {subiendoVideo ? "Subiendo a Cloudinary..." : "Subir Video"}
+            </button>
+          </form>
+
+          {urlVideo && (
+            <form onSubmit={asignarVideoAEjercicio} className="p-4 border border-[#41433f] rounded-lg bg-[#151714] max-w-[600px]">
+              <h3 className="text-[#b56cff] font-bold mb-3">Asignar este video a un ejercicio</h3>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 [&_label]:block [&_label]:mb-1 [&_label]:text-xs [&_label]:text-[#a9afa7]">
+                  <label>ID del Ejercicio</label>
+                  <input
+                    type="number"
+                    value={ejercicioVideoId}
+                    onChange={(e) => setEjercicioVideoId(e.target.value)}
+                    placeholder="Ej: 1"
+                    className="w-full p-2 bg-[#212320] border border-[#41463f] rounded text-[#f2f4ef]"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={asignandoVideo}
+                  className="px-4 py-2 bg-[#b56cff] text-[#10110f] font-bold rounded hover:bg-[#d7adff] disabled:opacity-60 transition"
+                >
+                  {asignandoVideo ? "Asignando..." : "Asignar Video"}
+                </button>
+              </div>
+              {mensajeAsignacionVideo && <p className="text-[#d7adff] text-xs mt-2 font-semibold">{mensajeAsignacionVideo}</p>}
+              {errorVideo && <p className="text-[#ff7979] text-xs mt-2 font-semibold">{errorVideo}</p>}
             </form>
           )}
         </section>

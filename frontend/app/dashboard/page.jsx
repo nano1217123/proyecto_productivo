@@ -2,21 +2,37 @@
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
-import AdminDashboardPage from "@/features/dashboard/pages/AdminDashboardPage";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import RoleGuard from "@/features/auth/components/RoleGuard";
+
 
 export default function DashboardRoute() {
   const { profile, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && profile) {
+      // Si es admin, lo enviamos a su panel exclusivo
+      if (["admin", "super_admin"].includes(profile.tipo_usuario)) {
+        router.replace("/dashboard/admin");
+      }
+    }
+  }, [profile, loading, router]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
         <p className="text-sm text-[#a9afa7]">Cargando panel...</p>
       </div>
     );
   }
 
-  // Roles actualizados según la nueva lógica del backend
-  const esAdmin = ["admin", "super_admin"].includes(profile?.tipo_usuario);
-  
-  return esAdmin ? <AdminDashboardPage /> : <DashboardPage />;
+  // Si es admin, mostramos un mensaje mientras redirige
+  if (["admin", "super_admin"].includes(profile?.tipo_usuario)) {
+    return <div className="text-white p-10">Redirigiendo a tu panel de administrador...</div>;
+  }
+
+  // Si es cliente, ve su dashboard normal
+  return <DashboardPage />;
 }
