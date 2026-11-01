@@ -20,15 +20,15 @@ function LoginForm() {
     : "/dashboard";
 
   // Maneja los errores que el backend agrega a la URL (?oauth=error)
-  // cuando vuelve del flujo de Google.
+  // cuando vuelve del flujo de Google o Microsoft.
   useEffect(() => {
     const oauthError = searchParams.get("oauth");
     if (oauthError === "cancelled") {
-      setError("Cancelaste el inicio de sesión con Google.");
+      setError("Cancelaste el inicio de sesión.");
     } else if (oauthError === "invalid") {
-      setError("El enlace de Google no es válido.");
+      setError("El enlace de inicio de sesión no es válido.");
     } else if (oauthError === "error") {
-      setError("No se pudo completar el inicio de sesión con Google.");
+      setError("No se pudo completar el inicio de sesión.");
     }
   }, [searchParams]);
 
@@ -56,6 +56,12 @@ function LoginForm() {
     const baseUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
     window.location.href = `${baseUrl}/api/auth/oauth/google`;
+  }
+
+  function handleMicrosoftLogin() {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    window.location.href = `${baseUrl}/api/auth/oauth/microsoft`;
   }
 
   return (
@@ -109,13 +115,11 @@ function LoginForm() {
                 aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
                 {mostrarPassword ? (
-                  // Ojo abierto
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
                 ) : (
-                  // Ojo tachado
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                     <line x1="1" y1="1" x2="23" y2="23" />
@@ -144,12 +148,28 @@ function LoginForm() {
           o
         </div>
 
+        {/* Botón de Google */}
         <button
           type="button"
-          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]"
+          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47] mb-3"
           onClick={handleGoogleLogin}
         >
           Continuar con Google
+        </button>
+
+        {/* Botón de Microsoft */}
+        <button
+          type="button"
+          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47] flex items-center justify-center gap-2"
+          onClick={handleMicrosoftLogin}
+        >
+          <svg width="18" height="18" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 0H11V11H0V0Z" fill="#F25022"/>
+            <path d="M12 0H23V11H12V0Z" fill="#7FBA00"/>
+            <path d="M0 12H11V23H0V12Z" fill="#00A4EF"/>
+            <path d="M12 12H23V23H12V12Z" fill="#FFB900"/>
+          </svg>
+          Boton inabilitado
         </button>
 
         <p className="mt-5 text-[13px] text-center text-[#a9afa7]">

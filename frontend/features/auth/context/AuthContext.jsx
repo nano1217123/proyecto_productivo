@@ -107,6 +107,13 @@ export function AuthProvider({ children }) {
     window.location.href = `${baseUrl}/api/auth/oauth/google`;
   }
 
+  // NUEVO: Redirige al endpoint del backend que inicia el flujo con Microsoft
+  function loginWithMicrosoft() {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    window.location.href = `${baseUrl}/api/auth/oauth/microsoft`;
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -121,6 +128,7 @@ export function AuthProvider({ children }) {
         resetPasswordForEmail,
         updatePassword,
         loginWithGoogle,
+        loginWithMicrosoft,
       }}
     >
       {children}
