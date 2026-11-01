@@ -33,7 +33,7 @@ export const env = {
   port: Number(process.env.PORT) || 4000,
   clientOrigin: clientOrigin || "http://localhost:3000",
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY ?? "1"),
-  databaseUrl: required("DATABASE_URL"),    
+  databaseUrl: required("DATABASE_URL"),
   directUrl: required("DIRECT_URL"),
   jwtSecret: required("JWT_SECRET"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "15m",
@@ -41,11 +41,19 @@ export const env = {
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:3000",
+  
+  // Google
   googleClientId: required("GOOGLE_CLIENT_ID"),
   googleClientSecret: required("GOOGLE_CLIENT_SECRET"),
   googleRedirectUri: required("GOOGLE_REDIRECT_URI"),
 
-   cloudinaryCloudName: required("CLOUDINARY_CLOUD_NAME"),
+  // Microsoft
+  microsoftClientId: required("MICROSOFT_CLIENT_ID"),
+  microsoftClientSecret: required("MICROSOFT_CLIENT_SECRET"),
+  microsoftTenantId: process.env.MICROSOFT_TENANT_ID ?? "common",
+  microsoftRedirectUri: required("MICROSOFT_REDIRECT_URI"),
+
+  cloudinaryCloudName: required("CLOUDINARY_CLOUD_NAME"),
   cloudinaryApiKey: required("CLOUDINARY_API_KEY"),
   cloudinaryApiSecret: required("CLOUDINARY_API_SECRET"),
 } as const;
