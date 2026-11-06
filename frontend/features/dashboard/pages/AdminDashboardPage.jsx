@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { adminApi } from "../api/adminApi";
+import { useMembersFilter } from "../hooks/useMembersFilter";
 import AdminHeader from "../components/AdminHeader";
 import AdminTabs from "../components/AdminTabs";
 import MembersTab from "../components/MembersTab";
@@ -25,11 +26,8 @@ export default function AdminDashboardPage() {
   const esSuperAdmin = profile?.tipo_usuario === "super_admin";
   const [tabActiva, setTabActiva] = useState("miembros"); // 'miembros' | 'comunicacion' | 'configuracion'
   const [gymSeleccionado, setGymSeleccionado] = useState("jj-poblado");
-  const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("todos");
   const [miembros, setMiembros] = useState(MIEMBROS_MOCK);
-
-  // Formulario de Comunicación
+  const { busqueda, setBusqueda, filtroEstado, setFiltroEstado, miembrosFiltrados, proximosAVencer } = useMembersFilter(miembros);
   const [correoTarget, setCorreoTarget] = useState("por_vencer");
   const [asuntoCorreo, setAsuntoCorreo] = useState("");
   const [mensajeCorreo, setMensajeCorreo] = useState("");
@@ -160,15 +158,7 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
 
 
   // Filtrado de la lista de miembros
-  const miembrosFiltrados = miembros.filter((m) => {
-    const coincideTexto =
-      m.nombres.toLowerCase().includes(busqueda.toLowerCase()) ||
-      m.correo.toLowerCase().includes(busqueda.toLowerCase());
-    const coincideEstado = filtroEstado === "todos" || m.estado === filtroEstado;
-    return coincideTexto && coincideEstado;
-  });
 
-  const proximosAVencer = miembros.filter((m) => m.estado === "por_vencer");
 
   return (
     <div className="w-full max-w-[1060px] mx-auto px-6 pt-10 pb-20">
