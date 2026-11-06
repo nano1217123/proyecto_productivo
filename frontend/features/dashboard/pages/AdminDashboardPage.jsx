@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { adminApi } from "../api/adminApi";
 
 const GIMNASIOS = [
   { id: "jj-poblado", nombre: "JJ GYM El Poblado" },
@@ -105,27 +106,12 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-      const response = await fetch(`${apiUrl}/api/auth/create-admin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // 👈 IMPORTANTE: envía las cookies httpOnly al backend
-        body: JSON.stringify({
-          nombres,
-          apellidos,
-          email,
-          password: nuevoAdmin.password,
-          tipoUsuario: "admin", // 👈 Ahora es "admin", no "admin_gimnasio"
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "No se pudo crear el administrador.");
-      }
+          await adminApi.createAdmin({
+        nombres,
+        apellidos,
+        email,
+        password: nuevoAdmin.password,
+      }); 
 
       setExitoCrearAdmin(`Administrador creado. Debe verificar su correo (${email}) con el código que le llegará.`);
       setNuevoAdmin({ nombres: "", apellidos: "", email: "", password: "" });
@@ -143,22 +129,8 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
     setUrlImagen("");
     setSubiendoImagen(true);
 
-    const formData = new FormData();
-    formData.append("imagen", imagenFile); // El nombre debe coincidir con upload.single("imagen") del backend
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${apiUrl}/api/imagenes/subir`, {
-        method: "POST",
-        credentials: "include", // Para enviar la cookie de sesión
-        body: formData, // Fetch pone el Content-Type multipart/form-data automáticamente
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Error al subir la imagen.");
-      }
-
+        try {
+      const data = await adminApi.uploadImage(imagenFile);
       setUrlImagen(data.url);
       setImagenFile(null); // Limpiar el input
     } catch (err) {
@@ -174,18 +146,8 @@ const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
 
     setMensajeAsignacion("");
 
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${apiUrl}/api/ejercicios/${ejercicioId}/imagen`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ imagenUrl: urlImagen }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Error al asignar la imagen.");
-
+        try {
+      await adminApi.assignImageToExercise(ejercicioId, urlImagen);
       setMensajeAsignacion("Imagen asignada al ejercicio correctamente.");
       setEjercicioId("");
     } catch (err) {
