@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { getExerciseCatalog, saveTrainingSession } from "../lib/training";
+import { exercisesApi } from "@/features/exercises/api/exercisesApi";
+import { trainingApi } from "../api/trainingApi";
 
 function nuevaFila() {
   return {
@@ -36,7 +37,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
   const [exito, setExito] = useState("");
 
   useEffect(() => {
-    getExerciseCatalog()
+    exercisesApi.getExerciseCatalog()
       .then(setCatalogo)
       .catch((err) => setError(err.message))
       .finally(() => setCargandoCatalogo(false));
@@ -91,7 +92,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
 
     setGuardando(true);
     try {
-      await saveTrainingSession({
+      await trainingApi.saveTrainingSession({
         fecha,
         notas: notas.trim(),
         series,

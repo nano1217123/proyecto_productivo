@@ -10,7 +10,19 @@
  *   - Manejo de errores.
  */
 
-import { http } from "@/lib/api/httpClient";
+import { http, HttpError } from "@/lib/api/httpClient";
+
+/**
+ * Re-lanza un error con un mensaje amigable, preservando el status y body
+ * originales cuando el error provino de httpClient (HttpError).
+ */
+function withMessage(err, message) {
+  if (err instanceof HttpError) {
+    err.message = message;
+    return err;
+  }
+  return new HttpError(message);
+}
 
 export const exercisesApi = {
   /**
@@ -34,6 +46,26 @@ export const exercisesApi = {
       if (ej && ej.slug) mapa[ej.slug] = ej.imagen_url;
     });
     return mapa;
+  },
+
+  /**
+   * Obtiene el catálogo completo de ejercicios agrupado por grupo muscular.
+   * Usado para poblar los <select> al crear rutinas o registrar entrenamientos.
+   *
+   * @returns {Promise<Array<{ slug: string, nombre: string, ejercicios: Array }>>}
+   *
+   * Nota: esta función vivía en features/training/lib/training.js, pero el
+   * endpoint (/api/ejercicios) y el dominio (ejercicios) corresponden a esta
+   * feature. La movimos aquí para eliminar la dependencia cruzada
+   * routines → training.
+   */
+  async getExerciseCatalog() {
+    try {
+      const { grupos } = await http.get("/api/ejercicios");
+      return grupos;
+    } catch (err) {
+      throw withMessage(err, "No se pudo cargar el catálogo de ejercicios.");
+    }
   },
 };
 

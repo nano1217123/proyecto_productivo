@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { getExerciseCatalog } from "@/features/training/lib/training";
+import { exercisesApi } from "@/features/exercises/api/exercisesApi";
 import { routinesApi } from "../api/routinesApi";
 
 export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
@@ -24,7 +24,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
   useEffect(() => {
     async function cargar() {
       try {
-        const cat = await getExerciseCatalog();
+        const cat = await exercisesApi.getExerciseCatalog();
         setCatalogo(cat);
 
         if (esEdicion) {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { getTrainingHistory, getExerciseHistory } from "../lib/training";
+import { trainingApi } from "../api/trainingApi";
 
 export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
@@ -18,7 +18,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
   const [cargandoProgreso, setCargandoProgreso] = useState(false);
 
   useEffect(() => {
-    getTrainingHistory()
+    trainingApi.getTrainingHistory()
       .then(setSesiones)
       .catch((err) => setError(err.message))
       .finally(() => setCargando(false));
@@ -44,7 +44,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
       return;
     }
     setCargandoProgreso(true);
-    getExerciseHistory(Number(ejercicioSeleccionado))
+    trainingApi.getExerciseHistory(Number(ejercicioSeleccionado))
       .then(setProgreso)
       .catch((err) => setError(err.message))
       .finally(() => setCargandoProgreso(false));
