@@ -9,6 +9,7 @@ import { getExerciseAnatomy } from "../lib/muscleMap";
 import { slugify } from "../lib/slugify";
 import BodyMuscleDiagram from "../components/BodyMuscleDiagram";
 import { ExerciseGroupSkeleton } from "@/components/ui/Skeleton";
+import { exercisesApi } from "../api/exercisesApi";
 
 export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
@@ -41,22 +42,25 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-    useEffect(() => {
-    async function fetchImagenes() {
+  useEffect(() => {
+    if (!groupSlug) return;
+
+    let cancelled = false;
+
+    async function loadImagenes() {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-        const res = await fetch(`${apiUrl}/api/ejercicios/grupo/${groupSlug}`);
-        if (res.ok) {
-          const data = await res.json();
-          const mapa = {};
-          data.forEach(ej => { mapa[ej.slug] = ej.imagen_url; });
-          setImagenes(mapa);
-        }
+        const mapa = await exercisesApi.getImagesByGroup(groupSlug);
+        if (!cancelled) setImagenes(mapa);
       } catch (err) {
         console.error("Error cargando imágenes", err);
       }
     }
-    if (groupSlug) fetchImagenes();
+
+    loadImagenes();
+
+    return () => {
+      cancelled = true;
+    };
   }, [groupSlug]);
 
   function syncUrl(exerciseOrNull) {
