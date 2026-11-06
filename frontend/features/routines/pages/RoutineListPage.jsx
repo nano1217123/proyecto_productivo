@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { getRoutines, deleteRoutine } from "../lib/routines";
+import { routinesApi } from "../api/routinesApi";
 
 export default function RoutineListPage({ gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
@@ -13,7 +13,7 @@ export default function RoutineListPage({ gym = "jj-poblado" }) {
 
   function cargarRutinas() {
     setCargando(true);
-    getRoutines()
+    routinesApi.getRoutines()
       .then(setRutinas)
       .catch((err) => setError(err.message))
       .finally(() => setCargando(false));
@@ -26,7 +26,7 @@ export default function RoutineListPage({ gym = "jj-poblado" }) {
   async function handleEliminar(id, nombre) {
     if (!window.confirm(`¿Eliminar la rutina "${nombre}"? Esta acción no se puede deshacer.`)) return;
     try {
-      await deleteRoutine(id);
+      await routinesApi.deleteRoutine(id);
       setRutinas((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       setError(err.message);

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { getExerciseCatalog } from "@/features/training/lib/training";
-import { getRoutineDetail, createRoutine, updateRoutine } from "../lib/routines";
+import { routinesApi } from "../api/routinesApi";
 
 export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
   const { user, loading, logout } = useAuth();
@@ -28,7 +28,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
         setCatalogo(cat);
 
         if (esEdicion) {
-          const rutina = await getRoutineDetail(rutinaId);
+          const rutina = await routinesApi.getRoutineDetail(rutinaId);
           setNombre(rutina.nombre);
           setDiaEtiqueta(rutina.dia_etiqueta || "");
           setSeleccionados(rutina.ejercicios.map((e) => ({ ejercicio_id: e.ejercicio_id, nombre: e.nombre })));
@@ -80,9 +80,9 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
     try {
       const ejercicioIds = seleccionados.map((s) => s.ejercicio_id);
       if (esEdicion) {
-        await updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds });
+        await routinesApi.updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds });
       } else {
-        await createRoutine({ nombre, diaEtiqueta, ejercicioIds });
+        await routinesApi.createRoutine({ nombre, diaEtiqueta, ejercicioIds });
       }
       router.push(`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`);
     } catch (err) {

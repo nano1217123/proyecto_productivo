@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { getRoutineDetail, deleteRoutine } from "../lib/routines";
+import { routinesApi } from "../api/routinesApi";
 
 export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
   const { loading, logout } = useAuth();
@@ -14,7 +14,7 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getRoutineDetail(rutinaId)
+    routinesApi.getRoutineDetail(rutinaId)
       .then(setRutina)
       .catch((err) => setError(err.message))
       .finally(() => setCargando(false));
@@ -23,7 +23,7 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
   async function handleEliminar() {
     if (!window.confirm(`¿Eliminar la rutina "${rutina.nombre}"? Esta acción no se puede deshacer.`)) return;
     try {
-      await deleteRoutine(rutinaId);
+      await routinesApi.deleteRoutine(rutinaId);
       router.push(`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`);
     } catch (err) {
       setError(err.message);
