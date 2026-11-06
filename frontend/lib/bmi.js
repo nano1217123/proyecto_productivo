@@ -2,7 +2,7 @@
  * Módulo unificado de IMC (Índice de Masa Corporal).
  *
  * Antes estaba dividido entre:
- *   - features/home/lib/bmi.js     (getBmiStatus)
+ *   - features/home/lib/bmi.js (eliminada en Fase 4)
  *   - features/nutrition/lib/nutrition.js (calculateBmi)
  *
  * Ahora vive en lib/ porque es lógica transversal usada por múltiples
