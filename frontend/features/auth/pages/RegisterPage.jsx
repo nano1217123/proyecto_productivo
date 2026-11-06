@@ -12,7 +12,7 @@ const GIMNASIOS = [
 ];
 
 export default function RegisterPage() {
-  const { signUp } = useAuth();
+  const { signUp, loginWithGoogle } = useAuth();
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -156,9 +156,7 @@ export default function RegisterPage() {
         <button
           type="button"
           className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]"
-          onClick={() => {
-            window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/auth/oauth/google`;
-          }}
+          onClick={loginWithGoogle}
         >
           Continuar con Google
         </button>

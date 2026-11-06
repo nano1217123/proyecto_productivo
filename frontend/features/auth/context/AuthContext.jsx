@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "../api/apiClient";
+import { env } from "@/config/env";
 
 const AuthContext = createContext(null);
 
@@ -103,7 +104,7 @@ export function AuthProvider({ children }) {
 
   function loginWithGoogle() {
     const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      env.apiUrl;
     window.location.href = `${baseUrl}/api/auth/oauth/google`;
   }
 

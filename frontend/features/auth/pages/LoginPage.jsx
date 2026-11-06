@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 
 function LoginForm() {
   const [mostrarPassword, setMostrarPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -50,12 +50,6 @@ function LoginForm() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function handleGoogleLogin() {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-    window.location.href = `${baseUrl}/api/auth/oauth/google`;
   }
 
   return (
@@ -147,7 +141,7 @@ function LoginForm() {
         <button
           type="button"
           className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]"
-          onClick={handleGoogleLogin}
+          onClick={loginWithGoogle}
         >
           Continuar con Google
         </button>

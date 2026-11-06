@@ -1,76 +1,40 @@
-"use client";
+/**
+ * API de la feature "auth".
+ *
+ * Puerta de entrada para todas las operaciones de autenticación.
+ * Usa el cliente HTTP base (lib/api/httpClient.js) que centraliza:
+ *   - Base URL (config/env.js).
+ *   - Cookies de sesión (credentials: 'include').
+ *   - Serialización JSON automática.
+ *   - Errores estructurados (HttpError con status/body).
+ *
+ * Importante: NO traducimos los mensajes de error del backend. El servidor
+ * ya devuelve mensajes en español específicos por caso (credenciales
+ * inválidas, email no verificado, etc.), y algunos consumidores (LoginPage)
+ * inspeccionan err.status para redirigir a /verify-otp. Preservar el
+ * mensaje y el status del backend es intencional.
+ */
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
-async function request(path, options = {}) {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
-  let body = null;
-  try {
-    body = await response.json();
-  } catch {
-    // respuesta sin body
-  }
-
-  if (!response.ok) {
-    const message =
-      body?.message || `Error ${response.status} en la petición.`;
-    const error = new Error(message);
-    error.status = response.status;
-    throw error;
-  }
-
-  return body;
-}
+import { http } from "@/lib/api/httpClient";
 
 export const apiClient = {
-  register: (data) =>
-    request("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  register: (data) => http.post("/api/auth/register", data),
 
-  verifyEmail: (data) =>
-    request("/api/auth/verify-email", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  verifyEmail: (data) => http.post("/api/auth/verify-email", data),
 
-  resendCode: (data) =>
-    request("/api/auth/resend-code", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  resendCode: (data) => http.post("/api/auth/resend-code", data),
 
-  login: (data) =>
-    request("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  login: (data) => http.post("/api/auth/login", data),
 
-  logout: () => request("/api/auth/logout", { method: "POST" }),
+  logout: () => http.post("/api/auth/logout"),
 
-  refresh: () => request("/api/auth/refresh", { method: "POST" }),
+  refresh: () => http.post("/api/auth/refresh"),
 
-  forgotPassword: (data) =>
-    request("/api/auth/forgot-password", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  forgotPassword: (data) => http.post("/api/auth/forgot-password", data),
 
-  resetPassword: (data) =>
-    request("/api/auth/reset-password", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  resetPassword: (data) => http.post("/api/auth/reset-password", data),
 
-  getProfile: () => request("/api/perfil"),
+  getProfile: () => http.get("/api/perfil"),
 };
+
+export default apiClient;
