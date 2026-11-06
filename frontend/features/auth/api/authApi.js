@@ -17,7 +17,7 @@
 
 import { http } from "@/lib/api/httpClient";
 
-export const apiClient = {
+export const authApi = {
   register: (data) => http.post("/api/auth/register", data),
 
   verifyEmail: (data) => http.post("/api/auth/verify-email", data),
@@ -37,4 +37,4 @@ export const apiClient = {
   getProfile: () => http.get("/api/perfil"),
 };
 
-export default apiClient;
+export default authApi;

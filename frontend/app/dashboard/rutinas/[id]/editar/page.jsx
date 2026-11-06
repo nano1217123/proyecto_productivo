@@ -1,4 +1,4 @@
-import RoutineFormPage from "@/features/routines/pages/RoutineFormPage";
+import RoutineFormPage from "@/features/routines/views/RoutineFormPage";
 
 export default async function Page({ params, searchParams }) {
   const { id } = await params;

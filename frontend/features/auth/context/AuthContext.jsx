@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiClient } from "../api/apiClient";
+import { authApi } from "../api/authApi";
 import { env } from "@/config/env";
 
 const AuthContext = createContext(null);
@@ -28,14 +28,14 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const { profile } = await apiClient.getProfile();
+        const { profile } = await authApi.getProfile();
         if (!cancelled) setUser(profile);
       } catch (err) {
         // Si el access token expiró, intentamos refresh una vez.
         if (err.status === 401) {
           try {
-            await apiClient.refresh();
-            const { profile } = await apiClient.getProfile();
+            await authApi.refresh();
+            const { profile } = await authApi.getProfile();
             if (!cancelled) setUser(profile);
           } catch {
             if (!cancelled) setUser(null);
@@ -55,31 +55,31 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function signUp(nombres, apellidos, email, password) {
-    return apiClient.register({ nombres, apellidos, email, password });
+    return authApi.register({ nombres, apellidos, email, password });
   }
 
   async function verifyOtp(email, code) {
-    const result = await apiClient.verifyEmail({ email, code });
+    const result = await authApi.verifyEmail({ email, code });
     // El backend ya seteó las cookies → cargamos el perfil.
-    const { profile } = await apiClient.getProfile();
+    const { profile } = await authApi.getProfile();
     setUser(profile);
     return result;
   }
 
   async function resendOtp(email) {
-    return apiClient.resendCode({ email });
+    return authApi.resendCode({ email });
   }
 
   async function login(email, password) {
-    const result = await apiClient.login({ email, password });
-    const { profile } = await apiClient.getProfile();
+    const result = await authApi.login({ email, password });
+    const { profile } = await authApi.getProfile();
     setUser(profile);
     return result;
   }
 
   async function logout() {
     try {
-      await apiClient.logout();
+      await authApi.logout();
     } catch (err) {
       console.error("Error al cerrar sesión:", err);
     } finally {
@@ -95,11 +95,11 @@ export function AuthProvider({ children }) {
   }
 
   async function resetPasswordForEmail(email) {
-    return apiClient.forgotPassword({ email });
+    return authApi.forgotPassword({ email });
   }
 
   async function updatePassword(token, newPassword) {
-    return apiClient.resetPassword({ token, password: newPassword });
+    return authApi.resetPassword({ token, password: newPassword });
   }
 
   function loginWithGoogle() {

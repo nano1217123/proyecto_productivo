@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
-import DashboardPage from "@/features/dashboard/pages/DashboardPage";
-import AdminDashboardPage from "@/features/dashboard/pages/AdminDashboardPage";
+import DashboardPage from "@/features/dashboard/views/DashboardPage";
+import AdminDashboardPage from "@/features/admin/views/AdminDashboardPage";
 
 export default function DashboardRoute() {
   const { profile, loading } = useAuth();
