@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { exercisesApi } from "@/features/exercises/api/exercisesApi";
-import { trainingApi } from "../api/trainingApi";
+import { useTrainingSession } from "../hooks/useTrainingSession";
 
 function nuevaFila() {
   return {
@@ -17,96 +15,15 @@ function nuevaFila() {
 }
 function TrainingPageContent({ gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
-  const searchParams = useSearchParams();
-
-  const [catalogo, setCatalogo] = useState([]);
-  const [cargandoCatalogo, setCargandoCatalogo] = useState(true);
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
-  const [notas, setNotas] = useState("");
-  const [filas, setFilas] = useState(() => {
-  const rutinaParam = searchParams.get("rutina");
-  if (!rutinaParam) return [nuevaFila()];
-
-  return rutinaParam
-    .split(",")
-    .filter(Boolean)
-    .map((id) => ({ ...nuevaFila(), ejercicioId: id }));
-});
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState("");
-  const [exito, setExito] = useState("");
-
-  useEffect(() => {
-    exercisesApi.getExerciseCatalog()
-      .then(setCatalogo)
-      .catch((err) => setError(err.message))
-      .finally(() => setCargandoCatalogo(false));
-  }, []);
-
-  // Mapa id -> nombre, para mostrar el nombre del ejercicio ya elegido
-  // sin tener que recorrer el catálogo completo cada vez.
-  const nombrePorId = useMemo(() => {
-    const mapa = new Map();
-    for (const grupo of catalogo) {
-      for (const ej of grupo.ejercicios) mapa.set(String(ej.id), ej.nombre);
-    }
-    return mapa;
-  }, [catalogo]);
-
-  function actualizarFila(id, campo, valor) {
-    setFilas((prev) => prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
-  }
-
-  function agregarFila() {
-    setFilas((prev) => [...prev, nuevaFila()]);
-  }
-
-  function quitarFila(id) {
-    setFilas((prev) => (prev.length > 1 ? prev.filter((f) => f.id !== id) : prev));
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setExito("");
-
-    const filasValidas = filas.filter((f) => f.ejercicioId && f.repeticiones);
-    if (filasValidas.length === 0) {
-      setError("Agrega al menos una serie con ejercicio y repeticiones.");
-      return;
-    }
-
-    // Calcula el número de serie por ejercicio: cuenta cuántas filas
-    // anteriores (en el orden en que las agregaste) son del mismo ejercicio.
-    const contador = new Map();
-    const series = filasValidas.map((f) => {
-      const actual = (contador.get(f.ejercicioId) || 0) + 1;
-      contador.set(f.ejercicioId, actual);
-      return {
-        ejercicio_id: Number(f.ejercicioId),
-        numero_serie: actual,
-        repeticiones: Number(f.repeticiones),
-        peso_kg: f.pesoKg ? Number(f.pesoKg) : null,
-      };
-    });
-
-    setGuardando(true);
-    try {
-      await trainingApi.saveTrainingSession({
-        fecha,
-        notas: notas.trim(),
-        series,
-      });
-      setExito("Entrenamiento guardado correctamente.");
-      setFilas([nuevaFila()]);
-      setNotas("");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setGuardando(false);
-    }
-  }
-
+  const {
+    catalogo, cargandoCatalogo,
+    fecha, setFecha,
+    notas, setNotas,
+    filas, guardando, error, exito,
+    nombrePorId,
+    actualizarFila, agregarFila, quitarFila,
+    guardarEntrenamiento
+  } = useTrainingSession();
   if (loading || cargandoCatalogo) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
@@ -143,7 +60,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
         {error && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
         {exito && <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px]">{exito}</div>}
 
-        <form onSubmit={handleSubmit} className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
+        <form onSubmit={guardarEntrenamiento} className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-[15px] mb-6">
             <label className="text-xs font-bold text-[#c0c7bd]">
               Fecha
