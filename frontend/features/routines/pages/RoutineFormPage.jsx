@@ -2,95 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { exercisesApi } from "@/features/exercises/api/exercisesApi";
-import { routinesApi } from "../api/routinesApi";
+import { useRoutineForm } from "../hooks/useRoutineForm";
 
 export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
   const { user, loading, logout } = useAuth();
-  const router = useRouter();
-  const esEdicion = Boolean(rutinaId);
-
-  const [catalogo, setCatalogo] = useState([]);
-  const [cargandoDatos, setCargandoDatos] = useState(true);
-  const [nombre, setNombre] = useState("");
-  const [diaEtiqueta, setDiaEtiqueta] = useState("");
-  const [seleccionados, setSeleccionados] = useState([]); // [{ ejercicio_id, nombre }]
-  const [ejercicioAAgregar, setEjercicioAAgregar] = useState("");
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    async function cargar() {
-      try {
-        const cat = await exercisesApi.getExerciseCatalog();
-        setCatalogo(cat);
-
-        if (esEdicion) {
-          const rutina = await routinesApi.getRoutineDetail(rutinaId);
-          setNombre(rutina.nombre);
-          setDiaEtiqueta(rutina.dia_etiqueta || "");
-          setSeleccionados(rutina.ejercicios.map((e) => ({ ejercicio_id: e.ejercicio_id, nombre: e.nombre })));
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setCargandoDatos(false);
-      }
-    }
-    cargar();
-  }, [rutinaId, esEdicion]);
-
-  const nombrePorId = new Map();
-  for (const grupo of catalogo) {
-    for (const ej of grupo.ejercicios) nombrePorId.set(String(ej.id), ej.nombre);
-  }
-
-  function agregarEjercicio() {
-    if (!ejercicioAAgregar) return;
-    setSeleccionados((prev) => [...prev, { ejercicio_id: Number(ejercicioAAgregar), nombre: nombrePorId.get(ejercicioAAgregar) }]);
-    setEjercicioAAgregar("");
-  }
-
-  function quitarEjercicio(idx) {
-    setSeleccionados((prev) => prev.filter((_, i) => i !== idx));
-  }
-
-  function moverEjercicio(idx, direccion) {
-    setSeleccionados((prev) => {
-      const next = [...prev];
-      const destino = idx + direccion;
-      if (destino < 0 || destino >= next.length) return prev;
-      [next[idx], next[destino]] = [next[destino], next[idx]];
-      return next;
-    });
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-
-    if (seleccionados.length === 0) {
-      setError("Agrega al menos un ejercicio a la rutina.");
-      return;
-    }
-
-    setGuardando(true);
-    try {
-      const ejercicioIds = seleccionados.map((s) => s.ejercicio_id);
-      if (esEdicion) {
-        await routinesApi.updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds });
-      } else {
-        await routinesApi.createRoutine({ nombre, diaEtiqueta, ejercicioIds });
-      }
-      router.push(`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`);
-    } catch (err) {
-      setError(err.message);
-      setGuardando(false);
-    }
-  }
-
+  const {
+    esEdicion, catalogo, cargandoDatos,
+    nombre, setNombre,
+    diaEtiqueta, setDiaEtiqueta,
+    seleccionados, ejercicioAAgregar, setEjercicioAAgregar,
+    guardando, error,
+    agregarEjercicio, quitarEjercicio, moverEjercicio,
+    guardarRutina
+  } = useRoutineForm(gym, rutinaId);
   if (loading || cargandoDatos) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
@@ -120,7 +45,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
       {error && <div className="w-full max-w-[1060px] mx-auto mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
 
       <section className="w-full max-w-[1060px] mx-auto pb-10">
-        <form onSubmit={handleSubmit} className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
+        <form onSubmit={guardarRutina} className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-[15px] mb-6">
             <label className="text-xs font-bold text-[#c0c7bd]">
               Nombre de la rutina
