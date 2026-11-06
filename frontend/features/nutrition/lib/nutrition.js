@@ -1,16 +1,13 @@
-import { getBmiStatus } from "@/features/home/lib/bmi";
-
-export { getBmiStatus };
-
-// IMC = peso (kg) / estatura (m)^2
-export function calculateBmi(weightKg, heightCm) {
-  const weight = Number(weightKg);
-  const heightInMeters = Number(heightCm) / 100;
-  const isValidWeight = Number.isFinite(weight) && weight >= 1 && weight <= 300;
-  const isValidHeight = Number.isFinite(heightInMeters) && heightInMeters >= 0.5 && heightInMeters <= 2.5;
-  if (!isValidWeight || !isValidHeight) return null;
-  return weight / heightInMeters ** 2;
-}
+/**
+ * Lógica de dominio de la feature "nutrition".
+ *
+ * Contiene los objetivos (goals), el cálculo de meta de proteína y el
+ * catálogo de alimentos.
+ *
+ * Nota: calculateBmi() y getBmiStatus() YA NO viven aquí. Fueron movidos
+ * a @/lib/bmi porque son lógica transversal usada por app/page.jsx y por
+ * esta misma feature.
+ */
 
 export const goals = [
   { value: "bajar", label: "Bajar de peso", gramsPerKg: 1.6, hint: "Prioriza proteína magra para conservar músculo en déficit calórico." },

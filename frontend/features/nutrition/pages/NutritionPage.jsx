@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { calculateBmi, getBmiStatus, getProteinTarget, goals, getFoodsByGoal } from "../lib/nutrition";
+import { calculateBmi, getBmiStatus } from "@/lib/bmi";
+import { getProteinTarget, goals, getFoodsByGoal } from "../lib/nutrition";
 
 function NutritionCalculator({ gym }) {
   const { loading, logout } = useAuth();

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
-import { calculateBmi, getBmiStatus } from "@/features/nutrition/lib/nutrition";
+import { calculateBmi, getBmiStatus } from "@/lib/bmi";
 
 const gyms = [
   {
