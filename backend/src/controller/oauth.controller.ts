@@ -12,20 +12,17 @@ import {
 } from "../lib/googleOAuth.js";
 import { oauthService } from "../service/oauth.service.js";
 
-// Nombre de cookies temporales para PKCE + state (viven solo durante el flujo).
 const PKCE_COOKIE = "oauth_pkce";
 const STATE_COOKIE = "oauth_state";
-const FLOW_TTL_MS = 10 * 60 * 1000; // 10 min
+const FLOW_TTL_MS = 10 * 60 * 1000;
 
 const flowCookieBase: CookieOptions = {
   httpOnly: true,
   secure: env.isProduction,
-  sameSite: "lax", // tiene que ser lax para que la cookie sobreviva el redirect de Google
+  sameSite: "lax",
   maxAge: FLOW_TTL_MS,
 };
 
-// GET /api/auth/oauth/google
-// Genera PKCE + state, los guarda en cookies y redirige a Google.
 export const googleStart: RequestHandler = (_req, res) => {
   const state = generateState();
   const codeVerifier = generateCodeVerifier();
@@ -38,17 +35,12 @@ export const googleStart: RequestHandler = (_req, res) => {
   return res.redirect(authUrl);
 };
 
-// GET /api/auth/oauth/google/callback
-// Google redirige aquí. Validamos state, cambiamos code por perfil,
-// creamos sesión y redirigimos al frontend.
 export const googleCallback: RequestHandler = asyncHandler(async (req, res) => {
   const { code, state, error } = req.query as Record<string, string | undefined>;
 
-  // Limpiamos las cookies del flujo en cualquier caso.
   res.clearCookie(STATE_COOKIE, { ...flowCookieBase, path: "/" });
   res.clearCookie(PKCE_COOKIE, { ...flowCookieBase, path: "/" });
 
-  // Google devolvió error (usuario canceló, etc.)
   if (error) {
     return res.redirect(`${env.frontendUrl}/login?oauth=cancelled`);
   }
@@ -70,7 +62,6 @@ export const googleCallback: RequestHandler = asyncHandler(async (req, res) => {
 
     setAuthCookies(res, result.accessToken, result.refreshToken);
 
-    // Redirigimos al dashboard. El frontend detectará la sesión por cookies.
     return res.redirect(`${env.frontendUrl}/dashboard?oauth=ok`);
   } catch (err) {
     console.error("Error en callback de Google:", err);

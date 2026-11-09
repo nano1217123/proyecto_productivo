@@ -16,9 +16,6 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     async function cargarSesion() {
-      // Si venimos del callback de OAuth, damos un pequeño margen para
-      // que el navegador termine de procesar las cookies httpOnly antes
-      // de pedir el perfil. Sin esto, a veces el primer getProfile falla.
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
         if (params.get("oauth") === "ok") {
@@ -31,7 +28,6 @@ export function AuthProvider({ children }) {
         const { profile } = await authApi.getProfile();
         if (!cancelled) setUser(profile);
       } catch (err) {
-        // Si el access token expiró, intentamos refresh una vez.
         if (err.status === 401) {
           try {
             await authApi.refresh();
@@ -58,7 +54,7 @@ export function AuthProvider({ children }) {
     return authApi.register({ nombres, apellidos, email, password });
   }
 
-  async function verifyOtp(email, code) {
+   async function verifyOtp(email, code) {
     const result = await authApi.verifyEmail({ email, code });
     // El backend ya seteó las cookies → cargamos el perfil.
     const { profile } = await authApi.getProfile();
@@ -84,9 +80,6 @@ export function AuthProvider({ children }) {
       console.error("Error al cerrar sesión:", err);
     } finally {
       setUser(null);
-      // Esperamos un momento para que el navegador procese el clearCookie
-      // del backend, y forzamos una recarga completa de la página para
-      // evitar el flash de /dashboard antes de llegar a /login.
       await new Promise((r) => setTimeout(r, 100));
       if (typeof window !== "undefined") {
         window.location.href = "/login";
