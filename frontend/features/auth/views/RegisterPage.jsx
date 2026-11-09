@@ -1,163 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useRegisterForm } from "../hooks/useRegisterForm";
+import AuthInput from "@/components/ui/AuthInput";
 
-const GIMNASIOS = [
-  { id: "jj-poblado", nombre: "JJ GYM El Poblado" },
-  { id: "power-laureles", nombre: "Power Laureles" },
-  { id: "fit-belen", nombre: "Fit Lab Belén" },
-];
-
-export default function RegisterPage() {
-  const { signUp, loginWithGoogle } = useAuth();
-  const router = useRouter();
-
-  const [form, setForm] = useState({
-    nombres: "",
-    apellidos: "",
-    email: "",
-    password: "",
-    gimnasio: "jj-poblado",
-  });
-
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const setField = (field) => (event) =>
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setSubmitting(true);
-
-    const nombres = form.nombres.trim();
-    const apellidos = form.apellidos.trim();
-    const email = form.email.trim();
-
-    if (!nombres || !apellidos) {
-      setError("Nombres y apellidos no pueden estar vacíos ni contener solo espacios.");
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-      await signUp(nombres, apellidos, email, form.password);
-      router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
-    } catch (err) {
-      setError(err.message || "Ocurrió un error en el registro");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+function RegisterForm() {
+  const { loginWithGoogle } = useAuth();
+  const { form, error, submitting, handleChange, handleSubmit } = useRegisterForm();
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]">
       <div className="w-full max-w-[410px] p-[38px_34px_32px] border border-[#383c35] rounded-[18px] bg-[rgba(28,30,27,0.95)] shadow-[0_22px_54px_rgba(0,0,0,0.42)]">
         <h1 className="m-0 mb-2 text-[27px] font-bold tracking-[-0.7px]">Crear cuenta</h1>
-        <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Regístrate para empezar</p>
+        <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Únete para empezar a entrenar</p>
 
-        {error && (
-          <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">
-            {error}
-          </div>
-        )}
+        {error && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
-            <label htmlFor="nombres">Nombres</label>
-            <input
-              id="nombres"
-              value={form.nombres}
-              onChange={setField("nombres")}
-              placeholder="Tus nombres"
-              required
-              maxLength={15}
-              autoComplete="given-name"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <AuthInput label="Nombres" id="nombres" value={form.nombres} onChange={(e) => handleChange("nombres", e.target.value)} />
+            <AuthInput label="Apellidos" id="apellidos" value={form.apellidos} onChange={(e) => handleChange("apellidos", e.target.value)} />
           </div>
+          <AuthInput label="Email" id="email" type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
+          <AuthInput label="Contraseña" id="password" type="password" value={form.password} onChange={(e) => handleChange("password", e.target.value)} />
+          <AuthInput label="Confirmar contraseña" id="confirmPassword" type="password" value={form.confirmPassword} onChange={(e) => handleChange("confirmPassword", e.target.value)} />
 
-          <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
-            <label htmlFor="apellidos">Apellidos</label>
-            <input
-              id="apellidos"
-              value={form.apellidos}
-              onChange={setField("apellidos")}
-              placeholder="Tus apellidos"
-              required
-              maxLength={20}
-              autoComplete="family-name"
-            />
-          </div>
-
-          <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={form.email}
-              onChange={setField("email")}
-              placeholder="tu@email.com"
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
-            <label htmlFor="password">Contraseña</label>
-            <input
-              id="password"
-              type="password"
-              value={form.password}
-              onChange={setField("password")}
-              placeholder="Mínimo 8 caracteres, 1 mayúscula y 1 número"
-              required
-              minLength={8}
-              maxLength={30}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd]">
-            <label htmlFor="gimnasio">Sede / Gimnasio</label>
-            <select
-              id="gimnasio"
-              value={form.gimnasio}
-              disabled
-              className="w-full p-[12px_13px] border border-[#41463f] rounded-[10px] bg-[#1a1a1a] text-[#7a7a7a] text-sm cursor-not-allowed opacity-70"
-            >
-              {GIMNASIOS.map((gym) => (
-                <option key={gym.id} value={gym.id}>
-                  {gym.nombre}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1.5 text-[12px] text-[#ff7979]">
-              ⚠ El campo gimnasio aún no se guarda en el backend. Falta implementarlo.
-            </p>
-          </div>
-
-          <button
-            className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
-            type="submit"
-            disabled={submitting}
-          >
+          <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={submitting}>
             {submitting ? "Creando cuenta..." : "Crear cuenta"}
           </button>
         </form>
 
-        <div className="flex items-center gap-2.5 my-[22px] text-xs text-[#a9afa7] before:content-[''] before:flex-1 before:h-px before:bg-[#30332f] after:content-[''] after:flex-1 after:h-px after:bg-[#30332f]">
-          o
-        </div>
+        <div className="flex items-center gap-2.5 my-[22px] text-xs text-[#a9afa7] before:content-[''] before:flex-1 before:h-px before:bg-[#30332f] after:content-[''] after:flex-1 after:h-px after:bg-[#30332f]">o</div>
 
-        <button
-          type="button"
-          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]"
-          onClick={loginWithGoogle}
-        >
+        <button type="button" className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]" onClick={loginWithGoogle}>
           Continuar con Google
         </button>
 
@@ -166,5 +43,13 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]"><p className="text-sm text-[#a9afa7]">Cargando...</p></div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }
