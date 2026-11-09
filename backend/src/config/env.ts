@@ -1,7 +1,5 @@
 import "dotenv/config";
 
-// Devuelve el valor de una variable obligatoria o detiene el arranque
-// con un mensaje claro si no existe.
 function required(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -10,8 +8,6 @@ function required(name: string): string {
   return value;
 }
 
-// TRUST_PROXY acepta "false", un número de saltos (ej. "1") o un texto
-// (ej. "loopback"), tal como lo acepta Express en "trust proxy".
 function parseTrustProxy(raw: string): boolean | number | string {
   if (raw === "false") return false;
   const asNumber = Number(raw);
@@ -42,16 +38,9 @@ export const env = {
   emailFrom: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:3000",
   
-  // Google
   googleClientId: required("GOOGLE_CLIENT_ID"),
   googleClientSecret: required("GOOGLE_CLIENT_SECRET"),
   googleRedirectUri: required("GOOGLE_REDIRECT_URI"),
-
-  // Microsoft
-  microsoftClientId: required("MICROSOFT_CLIENT_ID"),
-  microsoftClientSecret: required("MICROSOFT_CLIENT_SECRET"),
-  microsoftTenantId: process.env.MICROSOFT_TENANT_ID ?? "common",
-  microsoftRedirectUri: required("MICROSOFT_REDIRECT_URI"),
 
   cloudinaryCloudName: required("CLOUDINARY_CLOUD_NAME"),
   cloudinaryApiKey: required("CLOUDINARY_API_KEY"),
