@@ -19,16 +19,14 @@ function LoginForm() {
     ? `/dashboard?gym=${encodeURIComponent(gym)}`
     : "/dashboard";
 
-  // Maneja los errores que el backend agrega a la URL (?oauth=error)
-  // cuando vuelve del flujo de Google o Microsoft.
   useEffect(() => {
     const oauthError = searchParams.get("oauth");
     if (oauthError === "cancelled") {
-      setError("Cancelaste el inicio de sesión.");
+      setError("Cancelaste el inicio de sesión con Google.");
     } else if (oauthError === "invalid") {
-      setError("El enlace de inicio de sesión no es válido.");
+      setError("El enlace de Google no es válido.");
     } else if (oauthError === "error") {
-      setError("No se pudo completar el inicio de sesión.");
+      setError("No se pudo completar el inicio de sesión con Google.");
     }
   }, [searchParams]);
 
@@ -40,8 +38,6 @@ function LoginForm() {
       await login(email, password);
       router.push(destination);
     } catch (err) {
-      // Si el backend responde 403 porque falta verificar el correo,
-      // redirigimos a /verify-otp.
       if (err.status === 403) {
         router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
         return;
@@ -56,12 +52,6 @@ function LoginForm() {
     const baseUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
     window.location.href = `${baseUrl}/api/auth/oauth/google`;
-  }
-
-  function handleMicrosoftLogin() {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-    window.location.href = `${baseUrl}/api/auth/oauth/microsoft`;
   }
 
   return (
@@ -148,28 +138,12 @@ function LoginForm() {
           o
         </div>
 
-        {/* Botón de Google */}
         <button
           type="button"
-          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47] mb-3"
+          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]"
           onClick={handleGoogleLogin}
         >
           Continuar con Google
-        </button>
-
-        {/* Botón de Microsoft */}
-        <button
-          type="button"
-          className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47] flex items-center justify-center gap-2"
-          onClick={handleMicrosoftLogin}
-        >
-          <svg width="18" height="18" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 0H11V11H0V0Z" fill="#F25022"/>
-            <path d="M12 0H23V11H12V0Z" fill="#7FBA00"/>
-            <path d="M0 12H11V23H0V12Z" fill="#00A4EF"/>
-            <path d="M12 12H23V23H12V12Z" fill="#FFB900"/>
-          </svg>
-          Boton inabilitado
         </button>
 
         <p className="mt-5 text-[13px] text-center text-[#a9afa7]">

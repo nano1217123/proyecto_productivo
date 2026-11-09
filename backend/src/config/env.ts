@@ -47,12 +47,6 @@ export const env = {
   googleClientSecret: required("GOOGLE_CLIENT_SECRET"),
   googleRedirectUri: required("GOOGLE_REDIRECT_URI"),
 
-  // Microsoft
-  microsoftClientId: required("MICROSOFT_CLIENT_ID"),
-  microsoftClientSecret: required("MICROSOFT_CLIENT_SECRET"),
-  microsoftTenantId: process.env.MICROSOFT_TENANT_ID ?? "common",
-  microsoftRedirectUri: required("MICROSOFT_REDIRECT_URI"),
-
   cloudinaryCloudName: required("CLOUDINARY_CLOUD_NAME"),
   cloudinaryApiKey: required("CLOUDINARY_API_KEY"),
   cloudinaryApiSecret: required("CLOUDINARY_API_SECRET"),

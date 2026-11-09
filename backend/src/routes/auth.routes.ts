@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { googleStart, googleCallback, microsoftStart, microsoftCallback } from "../controller/oauth.controller.js";
+import { googleStart, googleCallback } from "../controller/oauth.controller.js";
 import {
   createAdmin,
   forgotPassword,     
@@ -34,12 +34,7 @@ import {
 
 const router = Router();
 
-// Orden: límite de intentos → token → rol → validación del body → controlador.
 // Crear administradores requiere un usuario autenticado con rol super_admin.
-// requireAuth valida el JWT de las cookies y requireRole consulta el rol
-// actual en la BD en cada petición.
-//
-// Orden: límite de intentos → token → rol → validación del body → controlador.
 router.post(
   "/create-admin",
   authLimiter,
@@ -50,7 +45,6 @@ router.post(
 );
 
 // Registro público de clientes.
-// Orden: límite por IP → validación/sanitización → controlador.
 router.post("/register", registerLimiter, validateRegister, register);
 
 // Verificación del correo con el código de 6 dígitos.
@@ -76,9 +70,5 @@ router.post("/reset-password", validateResetPassword, resetPassword);
 // OAuth Google (Authorization Code + PKCE).
 router.get("/oauth/google", googleStart);
 router.get("/oauth/google/callback", googleCallback);
-
-// OAuth Microsoft (Authorization Code + PKCE).
-router.get("/oauth/microsoft", microsoftStart);
-router.get("/oauth/microsoft/callback", microsoftCallback);
 
 export default router;
