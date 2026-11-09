@@ -9,7 +9,7 @@ import { getExerciseAnatomy } from "../lib/muscleMap";
 import { slugify } from "../lib/slugify";
 import BodyMuscleDiagram from "../components/BodyMuscleDiagram";
 import { ExerciseGroupSkeleton } from "@/components/ui/Skeleton";
-import { exercisesApi } from "../api/exercisesApi";
+import { useExerciseImages } from "../hooks/useExerciseImages";
 
 export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
@@ -19,7 +19,6 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
   const group = muscleGroupBySlug[groupSlug];
   const [selected, setSelected] = useState(null);
   const [restoredFromUrl, setRestoredFromUrl] = useState(false);
-  const [imagenes, setImagenes] = useState({});
   const [vistaModal, setVistaModal] = useState("foto");
 
   useEffect(() => {
@@ -42,26 +41,7 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-  useEffect(() => {
-    if (!groupSlug) return;
-
-    let cancelled = false;
-
-    async function loadImagenes() {
-      try {
-        const mapa = await exercisesApi.getImagesByGroup(groupSlug);
-        if (!cancelled) setImagenes(mapa);
-      } catch (err) {
-        console.error("Error cargando imágenes", err);
-      }
-    }
-
-    loadImagenes();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [groupSlug]);
+  const imagenes = useExerciseImages(groupSlug);
 
   function syncUrl(exerciseOrNull) {
     const params = new URLSearchParams(searchParams.toString());
