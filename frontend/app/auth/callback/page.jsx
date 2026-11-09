@@ -1,1 +1,1 @@
-export { default } from "@/features/auth/pages/AuthCallbackPage";
+export { default } from "@/features/auth/views/AuthCallbackPage";

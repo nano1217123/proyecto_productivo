@@ -1,4 +1,4 @@
-import NutritionPage from "@/features/nutrition/pages/NutritionPage";
+import NutritionPage from "@/features/nutrition/views/NutritionPage";
 
 export default async function Page({ searchParams }) {
   const { gym } = await searchParams;
