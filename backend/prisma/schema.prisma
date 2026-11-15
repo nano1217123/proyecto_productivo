@@ -27,6 +27,7 @@ model Usuario {
   rutinas                   Rutina[]
   seriesEntrenamiento       SerieEntrenamiento[]
   verificationCodes         VerificationCode[]
+  resenas                   Resena[]
 
   @@map("usuarios")
 }
@@ -142,4 +143,19 @@ model RefreshToken {
 
   @@index([usuarioId])
   @@map("refresh_tokens")
+}
+
+model Resena {
+  id           String   @id @default(uuid()) @db.Uuid
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  gymSlug      String   @map("gym_slug") @db.VarChar
+  calificacion Int
+  comentario   String   @db.VarChar(1000)
+  creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([gymSlug, creadoEn])
+  @@map("resenas")
 }
