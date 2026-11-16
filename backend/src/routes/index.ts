@@ -7,6 +7,7 @@ import perfilRoutes from "./perfil.routes.js";
 import rolRoutes from "./rol.routes.js";
 import rutinasRoutes from "./rutinas.routes.js";
 import imagenesRoutes from "./imagenes.routes.js";
+import resenasRoutes from "./resenas.routes.js";
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use("/rutinas", rutinasRoutes);
 router.use("/ejercicios", ejerciciosRoutes);
 router.use("/entrenamientos", entrenamientosRoutes);
 router.use("/imagenes", imagenesRoutes);
+router.use("/resenas", resenasRoutes);
 
 export default router;
