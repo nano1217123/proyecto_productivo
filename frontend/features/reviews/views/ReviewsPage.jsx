@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import reviewsApi from "../api/reviewsApi";
 
@@ -17,67 +17,56 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
   const [comentario, setComentario] = useState("");
   const [publicando, setPublicando] = useState(false);
 
+  const solicitudActual = useRef(0);
   const rol = user?.tipo_usuario;
 
-  async function cargarResenas() {
-    setCargando(true);
-    setError("");
-
-    try {
-      const resultado =
-        rol === "super_admin"
-          ? await reviewsApi.getAllReviews()
-          : await reviewsApi.getPublicReviews(gym);
-
-      setResenas(resultado);
-    } catch (err) {
-      setError(err.message || "No se pudieron cargar las reseñas.");
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  useEffect(() => {
-    if (authLoading) return;
+  // Carga las reseñas según el rol del usuario.
+  const cargarResenas = useCallback(async () => {
+    const solicitud = ++solicitudActual.current;
 
     if (!user) {
       setCargando(false);
       return;
     }
 
-    let cancelado = false;
+    setCargando(true);
+    setError("");
 
-    async function cargar() {
-      setCargando(true);
-      setError("");
+    try {
+      const resultado =
+        user.tipo_usuario === "super_admin"
+          ? await reviewsApi.getAllReviews()
+          : await reviewsApi.getPublicReviews(gym);
 
-      try {
-        const resultado =
-          user.tipo_usuario === "super_admin"
-            ? await reviewsApi.getAllReviews()
-            : await reviewsApi.getPublicReviews(gym);
-
-        if (!cancelado) {
-          setResenas(resultado);
-        }
-      } catch (err) {
-        if (!cancelado) {
-          setError(err.message || "No se pudieron cargar las reseñas.");
-        }
-      } finally {
-        if (!cancelado) {
-          setCargando(false);
-        }
+      // Evita actualizar la pantalla con respuestas antiguas.
+      if (solicitud === solicitudActual.current) {
+        setResenas(resultado);
+      }
+    } catch (err) {
+      if (solicitud === solicitudActual.current) {
+        setError(err.message || "No se pudieron cargar las reseñas.");
+      }
+    } finally {
+      if (solicitud === solicitudActual.current) {
+        setCargando(false);
       }
     }
+  }, [user, gym]);
 
-    cargar();
+  // Carga las reseñas cuando termina la autenticación.
+  useEffect(() => {
+    if (authLoading) return;
+
+    cargarResenas();
 
     return () => {
-      cancelado = true;
+      // Invalida cualquier solicitud pendiente al cambiar
+      // de usuario, gimnasio o desmontar el componente.
+      solicitudActual.current += 1;
     };
-  }, [authLoading, user, gym]);
+  }, [authLoading, cargarResenas]);
 
+  // Publica una reseña del cliente.
   async function handlePublicar(event) {
     event.preventDefault();
     setError("");
@@ -203,6 +192,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                     type="button"
                     onClick={() => setCalificacion(estrella)}
                     aria-label={`${estrella} estrellas`}
+                    aria-pressed={calificacion === estrella}
                     className={`text-3xl ${
                       estrella <= calificacion
                         ? "text-[#d5ad55]"
@@ -257,7 +247,8 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
             <button
               type="button"
               onClick={cargarResenas}
-              className="text-sm text-[#d5ad55] hover:underline"
+              disabled={cargando}
+              className="text-sm text-[#d5ad55] hover:underline disabled:opacity-50"
             >
               Actualizar
             </button>
