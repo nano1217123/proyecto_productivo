@@ -21,6 +21,7 @@ model Usuario {
   tiempoDuracionInscripcion String               @default("30 days") @map("tiempo_duracion_inscripcion") @db.VarChar
   bloqueadoHasta            DateTime?            @map("bloqueado_hasta") @db.Timestamptz(6)
   intentosFallidos          Int                  @default(0) @map("intentos_fallidos")
+  
   entrenamientos            Entrenamiento[]
   passwordResetTokens       PasswordResetToken[]
   refreshTokens             RefreshToken[]
@@ -29,7 +30,6 @@ model Usuario {
   verificationCodes         VerificationCode[]
   resenas                   Resena[]
   metricasDiarias           MetricaDiaria[]
-  resenas                   Resena[]
 
   @@map("usuarios")
 }
@@ -47,6 +47,7 @@ model Ejercicio {
   creadoEn            DateTime             @default(now()) @map("creado_en") @db.Timestamptz(6)
   imagenUrl           String?              @map("imagen_url")
   videoUrl            String?              @map("video_url")
+  
   rutinaEjercicios    RutinaEjercicio[]
   seriesEntrenamiento SerieEntrenamiento[]
 
@@ -60,6 +61,7 @@ model Entrenamiento {
   fecha               DateTime             @default(now()) @db.Date
   notas               String?
   creadoEn            DateTime             @default(now()) @map("creado_en") @db.Timestamptz(6)
+  
   usuario             Usuario              @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
   seriesEntrenamiento SerieEntrenamiento[]
 
@@ -72,6 +74,7 @@ model Rutina {
   nombre           String
   diaEtiqueta      String?           @map("dia_etiqueta")
   creadoEn         DateTime          @default(now()) @map("creado_en") @db.Timestamptz(6)
+  
   rutinaEjercicios RutinaEjercicio[]
   usuario          Usuario           @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
@@ -84,6 +87,7 @@ model RutinaEjercicio {
   ejercicioId BigInt    @map("ejercicio_id")
   orden       Int
   creadoEn    DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  
   ejercicio   Ejercicio @relation(fields: [ejercicioId], references: [id])
   rutina      Rutina    @relation(fields: [rutinaId], references: [id], onDelete: Cascade)
 
@@ -100,6 +104,7 @@ model SerieEntrenamiento {
   repeticiones    Int
   pesoKg          Decimal?      @map("peso_kg") @db.Decimal
   creadoEn        DateTime      @default(now()) @map("creado_en") @db.Timestamptz(6)
+  
   ejercicio       Ejercicio     @relation(fields: [ejercicioId], references: [id])
   entrenamiento   Entrenamiento @relation(fields: [entrenamientoId], references: [id], onDelete: Cascade)
   usuario         Usuario       @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
@@ -108,13 +113,14 @@ model SerieEntrenamiento {
 }
 
 model VerificationCode {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid(7)) @db.Uuid
   usuarioId String   @map("usuario_id") @db.Uuid
   codeHash  String   @map("code_hash") @db.VarChar
   expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
   used      Boolean  @default(false)
   intentos  Int      @default(0)
   creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  
   usuario   Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
   @@index([usuarioId])
@@ -122,12 +128,13 @@ model VerificationCode {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid(7)) @db.Uuid
   usuarioId String   @map("usuario_id") @db.Uuid
   tokenHash String   @map("token_hash") @db.VarChar
   expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
   used      Boolean  @default(false)
   creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  
   usuario   Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
   @@index([usuarioId])
@@ -135,12 +142,13 @@ model PasswordResetToken {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid(7)) @db.Uuid
   usuarioId String   @map("usuario_id") @db.Uuid
   tokenHash String   @unique @map("token_hash") @db.VarChar
   expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
   revoked   Boolean  @default(false)
   creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  
   usuario   Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
   @@index([usuarioId])
@@ -148,7 +156,7 @@ model RefreshToken {
 }
 
 model Resena {
-  id           String   @id @default(uuid()) @db.Uuid
+  id           String   @id @default(uuid(7)) @db.Uuid
   usuarioId    String   @map("usuario_id") @db.Uuid
   gymSlug      String   @map("gym_slug") @db.VarChar
   calificacion Int
@@ -163,7 +171,7 @@ model Resena {
 }
 
 model MetricaDiaria {
-  id                      String   @id @default(uuid()) @db.Uuid
+  id                      String   @id @default(uuid(7)) @db.Uuid
   usuarioId               String   @map("usuario_id") @db.Uuid
   fecha                   DateTime @default(now()) @db.Timestamptz(6)
   pesoActualKg            Float?   @map("peso_actual_kg")
@@ -174,19 +182,3 @@ model MetricaDiaria {
 
   @@map("metricas_diarias")
 }
-
-model Resena {
-  id            String   @id @default(uuid()) @db.Uuid
-  usuarioId     String   @map("usuario_id") @db.Uuid
-  gymSlug       String   @map("gym_slug")
-  calificacion  Int      @default(5) // 👈 Columna de ellos
-  comentario    String?              // 👈 Columna de ellos
-  creadoEn      DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
-
-  usuario       Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
-
-  @@index([gymSlug, creadoEn])
-  @@index([usuarioId])
-  @@map("resenas")
-}
-
