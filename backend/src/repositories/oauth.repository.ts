@@ -31,7 +31,7 @@ export function createOAuthRepository(db: typeof prisma = prisma) {
           apellidos: profile.apellidos,
           correo: profile.email,
           passwordHash: null,
-          tipoUsuario: "cliente",
+          tipoUsuario: "usuario_particular", // registro web vía OAuth
           emailVerified: true, // el proveedor ya verificó el correo
           provider: profile.provider,
           providerId: profile.providerId,

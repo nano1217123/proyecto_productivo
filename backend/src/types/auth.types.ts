@@ -22,9 +22,9 @@ export interface CreateAdminResult {
 }
 
 // Tipos de usuario permitidos desde el registro público.
-// "admin_gimnasio", "super_admin" y "desarrollador" NO se pueden
-// pedir desde aquí.
-export const TIPOS_REGISTRO_PUBLICO = ["cliente"] as const;
+// Quien se registra desde la web es un usuario particular; "cliente"
+// (alumno de gimnasio), "admin" y "super_admin" NO se pueden pedir desde aquí.
+export const TIPOS_REGISTRO_PUBLICO = ["usuario_particular"] as const;
 export type TipoRegistroPublico = (typeof TIPOS_REGISTRO_PUBLICO)[number];
 
 // Datos de entrada ya validados y limpios para registrar un cliente.
