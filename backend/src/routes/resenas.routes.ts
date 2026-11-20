@@ -10,17 +10,17 @@ import { validateCreateResena } from "../validator/resenas.validator.js";
 const router = Router();
 // Todas las rutas requieren una sesión autenticada.
 router.use(requireAuth);
-// Publicar reseñas: únicamente clientes.
+// Publicar reseñas: clientes de gimnasio y usuarios particulares.
 router.post(
   "/",
-  requireRole("cliente"),
+  requireRole("cliente", "usuario_particular"),
   validateCreateResena,
   createResena
 );
-// Consultar reseñas positivas: clientes, administradores y superadministradores.
+// Consultar reseñas positivas: clientes, particulares, administradores y superadministradores.
 router.get(
   "/gimnasio/:gymSlug",
-  requireRole("cliente", "admin", "super_admin"),
+  requireRole("cliente", "usuario_particular", "admin", "super_admin"),
   listResenasPublicas
 );
 // Consultar todas las reseñas: únicamente superadministradores.

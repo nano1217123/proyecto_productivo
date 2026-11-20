@@ -48,25 +48,20 @@ export const exercisesApi = {
     return mapa;
   },
 
-  /**
+    /**
    * Obtiene el catálogo completo de ejercicios agrupado por grupo muscular.
-   * Usado para poblar los <select> al crear rutinas o registrar entrenamientos.
-   *
-   * @returns {Promise<Array<{ slug: string, nombre: string, ejercicios: Array }>>}
-   *
-   * Nota: esta función vivía en features/training/lib/training.js, pero el
-   * endpoint (/api/ejercicios) y el dominio (ejercicios) corresponden a esta
-   * feature. La movimos aquí para eliminar la dependencia cruzada
-   * routines → training.
+   * @param {boolean} modoCasa - Si es true, filtra solo ejercicios para casa.
    */
-  async getExerciseCatalog() {
+  async getExerciseCatalog(modoCasa = false) {
     try {
-      const { grupos } = await http.get("/api/ejercicios");
-      return grupos;
+      const url = modoCasa ? "/api/ejercicios?modo=casa" : "/api/ejercicios";
+      const response = await http.get(url);
+      // Dependiendo de cómo devuelva el backend, puede ser response.grupos o response.data
+      return response.grupos || response.data || response; 
     } catch (err) {
       throw withMessage(err, "No se pudo cargar el catálogo de ejercicios.");
     }
   },
-};
+}; 
 
 export default exercisesApi;

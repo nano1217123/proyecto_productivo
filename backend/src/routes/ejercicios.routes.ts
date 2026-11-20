@@ -3,10 +3,14 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 import { 
   actualizarImagenEjercicio, 
-  getEjerciciosPorGrupo 
+  getEjerciciosPorGrupo,
+  getCatalogoCompleto // 👈 Importamos la nueva función
 } from "../controller/ejercicios.controller.js";
 
 const router = Router();
+
+// 👇 RUTA NUEVA: Catálogo completo (con soporte para ?modo=casa)
+router.get("/", getCatalogoCompleto);
 
 // Ruta pública para que el cliente vea los ejercicios con sus imágenes
 router.get("/grupo/:grupo", getEjerciciosPorGrupo);

@@ -44,7 +44,7 @@ export function createUsuariosAuthRepository(db: typeof prisma = prisma) {
       });
     },
 
-    // Crea un cliente con email_verified = false.
+    // Crea un usuario particular (registro web) con email_verified = false.
     // Devuelve solo el id (nunca el hash).
     async createCliente(input: NuevoCliente): Promise<string> {
       try {
@@ -55,7 +55,7 @@ export function createUsuariosAuthRepository(db: typeof prisma = prisma) {
             apellidos: input.apellidos,
             correo: input.email,
             passwordHash: input.passwordHash,
-            tipoUsuario: "cliente",
+            tipoUsuario: "usuario_particular",
             emailVerified: false,
             provider: "email",
           },

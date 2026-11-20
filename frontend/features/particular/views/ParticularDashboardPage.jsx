@@ -100,8 +100,8 @@ export default function ParticularDashboardPage() {
         <div className="bg-[#121214] p-6 rounded-2xl border border-gray-800">
           <h2 className="text-xl font-semibold mb-6">Herramientas de Autogestión</h2>
           <div className="flex flex-col gap-4">
-            <Link href="/dashboard/ejercicios" className="p-4 rounded-xl border border-gray-700 hover:border-[#A855F7] transition flex items-center gap-3">
-              <span className="text-2xl">🏋️‍♂️</span> Catálogo de Ejercicios
+            <Link href="/dashboard/ejercicios?modo=casa" className="p-4 rounded-xl border border-gray-700 hover:border-[#A855F7] transition flex items-center gap-3">
+              <span className="text-2xl">🏋️‍♂️</span> Catálogo de Ejercicios (En Casa)
             </Link>
             <Link href="/dashboard/nutricion" className="p-4 rounded-xl border border-gray-700 hover:border-[#A855F7] transition flex items-center gap-3">
               <span className="text-2xl">🥗</span> Calcular IMC y Nutrición
