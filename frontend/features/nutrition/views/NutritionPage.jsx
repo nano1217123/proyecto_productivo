@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { NutritionSkeleton } from "@/components/ui/Skeleton";
 import { useNutritionCalculator } from "../hooks/useNutritionCalculator";
+import { goals } from "../lib/nutrition";
 
 function NutritionCalculator({ gym }) {
   const { loading, logout } = useAuth();
