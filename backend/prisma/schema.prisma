@@ -29,7 +29,6 @@ model Usuario {
   verificationCodes         VerificationCode[]
   resenas                   Resena[]
   metricasDiarias           MetricaDiaria[]
-  resenas                   Resena[]
 
   @@map("usuarios")
 }
@@ -152,7 +151,7 @@ model Resena {
   usuarioId    String   @map("usuario_id") @db.Uuid
   gymSlug      String   @map("gym_slug") @db.VarChar
   calificacion Int
-  comentario   String   @db.VarChar(1000)
+  comentario   String   @db.Text // 
   creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
 
   usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
@@ -173,20 +172,5 @@ model MetricaDiaria {
   usuario                 Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
   @@map("metricas_diarias")
-}
-
-model Resena {
-  id            String   @id @default(uuid()) @db.Uuid
-  usuarioId     String   @map("usuario_id") @db.Uuid
-  gymSlug       String   @map("gym_slug")
-  calificacion  Int      @default(5) // 👈 Columna de ellos
-  comentario    String?              // 👈 Columna de ellos
-  creadoEn      DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
-
-  usuario       Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
-
-  @@index([gymSlug, creadoEn])
-  @@index([usuarioId])
-  @@map("resenas")
 }
 
