@@ -18,6 +18,7 @@ const sections = [
   { title: "Ejercicios", eyebrow: "Entrenamiento", description: "Encuentra rutinas para fuerza, movilidad y rendimiento, organizadas para avanzar a tu ritmo.", marker: "01", className: "gym-section-exercises", href: "/dashboard/ejercicios" },
   { title: "Mis rutinas", eyebrow: "Planificación", description: "Crea y gestiona tus rutinas de entrenamiento personalizadas.", marker: "02", className: "gym-section-exercises", href: "/dashboard/rutinas" },
   { title: "Nutricion", eyebrow: "Bienestar", description: "Consulta recomendaciones para acompanar tu entrenamiento y construir habitos sostenibles.", marker: "03", className: "gym-section-nutrition", href: "/dashboard/nutricion" },
+  {title: "Reseñas y opiniones", eyebrow: "Comunidad", description: "Comparte tu experiencia y conoce las opiniones de otros usuarios de tu gimnasio.", marker: "04", className: "gym-section-exercises", href: "/dashboard/resenas" },
 ];
 
 function MemberDashboard() {
