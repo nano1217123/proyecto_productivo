@@ -53,6 +53,14 @@ function MemberDashboard() {
       marker: "03",
       href: "/dashboard/nutricion",
     },
+    {
+      title: "Reseñas",
+      eyebrow: "Comunidad",
+      description: "Comparte tu experiencia y consulta las opiniones de otros miembros.",
+      marker: "04",
+      icon: "⭐",
+      href: "/dashboard/resenas",
+    },
   ];
 
   if (loading) return <MemberDashboardSkeleton />;
@@ -120,7 +128,7 @@ function MemberDashboard() {
       )}
 
       <section
-        className="w-full max-w-[1060px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-[18px]"
+        className="w-full max-w-[1060px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[18px]"
         aria-label="Contenido principal"
       >
         {sections.map((section) => (
@@ -128,8 +136,13 @@ function MemberDashboard() {
             className={`relative min-h-[330px] flex flex-col justify-between overflow-hidden p-7 border border-[#41433f] rounded-lg bg-[#212320] after:content-[''] after:absolute after:top-0 after:right-0 after:w-[150px] after:h-[150px] after:rounded-[0_0_0_150px] after:opacity-[0.82] [&>*]:relative [&>*]:z-[1] [&_h2]:m-0 [&_h2]:text-[32px] [&_h2]:tracking-[-1px] [&_h2]:text-[#f2f4ef] [&_p:last-child]:text-[#a9afa7] after:bg-[#b56cff]`}
             key={section.title}
           >
-            <span className="text-[#c8cbc5] text-xs font-extrabold tracking-widest">
+            <span className="inline-flex items-center gap-2 text-[#c8cbc5] text-xs font-extrabold tracking-widest">
               {section.marker}
+              {section.icon && (
+                <span className="text-base" aria-hidden="true">
+                  {section.icon}
+                </span>
+              )}
             </span>
             <div>
               <p className="m-0 mb-2.5 text-[11px] font-extrabold tracking-[1.8px] uppercase text-[#b56cff]">
