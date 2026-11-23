@@ -7,6 +7,9 @@ import { paymentsApi } from "../api/paymentsApi";
 import {
   esUrlCheckoutWompi,
   formatearCop,
+  formatearTasa,
+  formatearUsd,
+  nombrePeriodo,
   nombrePlan,
   nombreSede,
   puedePagar,
@@ -126,10 +129,23 @@ export default function PaymentsPage() {
               {checkout.pago.gym_slug && ` · ${nombreSede(checkout.pago.gym_slug)}`}
             </h2>
             <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-              <dt className="text-[#a9afa7]">Valor de prueba</dt>
+              <dt className="text-[#a9afa7]">Valor a pagar</dt>
               <dd className="m-0 text-xl font-extrabold">
                 {formatearCop(checkout.pago.monto_en_centavos)} {checkout.pago.moneda}
               </dd>
+              {checkout.pago.precio_usd_centavos != null && (
+                <>
+                  <dt className="text-[#a9afa7]">Precio del plan</dt>
+                  <dd className="m-0 text-[#c8cbc5]">
+                    {formatearUsd(checkout.pago.precio_usd_centavos)} /{" "}
+                    {nombrePeriodo(checkout.pago.periodo)}
+                  </dd>
+                  <dt className="text-[#a9afa7]">Tasa de prueba</dt>
+                  <dd className="m-0 text-[#c8cbc5]">
+                    1 USD = {formatearTasa(checkout.pago.tasa_usd_cop)} COP
+                  </dd>
+                </>
+              )}
               <dt className="text-[#a9afa7]">Referencia</dt>
               <dd className="m-0 font-mono text-xs break-all text-[#c8cbc5]">
                 {checkout.pago.referencia}
@@ -183,10 +199,16 @@ export default function PaymentsPage() {
                   <h2 className="m-0 text-xl">
                     {opcion.gym_slug ? nombreSede(opcion.gym_slug) : "Tu cuenta"}
                   </h2>
-                  <p className="m-0 mt-1.5 text-sm text-[#a9afa7]">
+                  <p className="m-0 mt-1.5 text-sm text-[#c8cbc5]">
+                    {formatearUsd(opcion.precio_usd_centavos)} /{" "}
+                    {nombrePeriodo(opcion.periodo)}
+                    {opcion.disponible &&
+                      ` · ${formatearCop(opcion.monto_en_centavos)} ${opcion.moneda}`}
+                  </p>
+                  <p className="m-0 mt-1 text-xs text-[#a9afa7]">
                     {opcion.disponible
-                      ? `${formatearCop(opcion.monto_en_centavos)} ${opcion.moneda} · valor de prueba mensual`
-                      : "Pago no disponible en este momento"}
+                      ? `Tasa de prueba: 1 USD = ${formatearTasa(opcion.tasa_usd_cop)} COP`
+                      : opcion.motivo_no_disponible || "Pago no disponible en este momento."}
                   </p>
                 </div>
                 <button

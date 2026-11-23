@@ -6,6 +6,11 @@ import {
   generarReferenciaPago,
 } from "../lib/wompi.js";
 import {
+  CATALOGO_PLANES,
+  calcularMontoCopCentavos,
+  parseTasaUsdCop,
+} from "../lib/pagosPrecios.js";
+import {
   pagosRepository,
   type PagosRepository,
 } from "../repositories/pagos.repository.js";
@@ -18,7 +23,8 @@ import {
 } from "../types/pagos.types.js";
 import type { TipoUsuario } from "../types/usuario.types.js";
 
-// Roles que pueden iniciar pagos. cliente y super_admin quedan fuera.
+// Roles que pueden iniciar pagos. cliente (paga directamente al gimnasio)
+// y super_admin (administra la plataforma) quedan fuera.
 export const ROLES_PAGADORES = ["admin", "usuario_particular"] as const satisfies
   readonly TipoUsuario[];
 
@@ -31,6 +37,33 @@ function esRolPagador(rol: TipoUsuario): rol is RolPagador {
 // El plan lo decide el backend a partir del rol, nunca el cliente.
 function planDelRol(rol: RolPagador): PlanSuscripcion {
   return rol === "admin" ? "suscripcion_sede" : "suscripcion_particular";
+}
+
+const MSG_TASA_INVALIDA =
+  "No se puede calcular el importe en COP: la tasa de cambio no está configurada o no es válida. Inténtalo más tarde.";
+const MSG_PASARELA_NO_CONFIGURADA =
+  "Los pagos no están disponibles en este momento: la pasarela no está configurada.";
+
+// Precio del plan con la tasa vigente. Una única fuente de cálculo:
+// centavos USD del catálogo × USD_COP_TASA.
+type Cotizacion =
+  | { ok: true; precioUsdCentavos: number; tasaUsdCop: string; montoEnCentavos: number }
+  | { ok: false; precioUsdCentavos: number; tasaUsdCop: string | null; motivo: string };
+
+function cotizar(plan: PlanSuscripcion, config: WompiConfig): Cotizacion {
+  const { precioUsdCentavos } = CATALOGO_PLANES[plan];
+  const tasaUsdCop = parseTasaUsdCop(config.tasaUsdCop);
+  if (!tasaUsdCop) {
+    return { ok: false, precioUsdCentavos, tasaUsdCop: null, motivo: MSG_TASA_INVALIDA };
+  }
+  const montoEnCentavos = calcularMontoCopCentavos(precioUsdCentavos, tasaUsdCop);
+  if (montoEnCentavos === null) {
+    return { ok: false, precioUsdCentavos, tasaUsdCop, motivo: MSG_TASA_INVALIDA };
+  }
+  if (!config.publicKey || !config.integritySecret) {
+    return { ok: false, precioUsdCentavos, tasaUsdCop, motivo: MSG_PASARELA_NO_CONFIGURADA };
+  }
+  return { ok: true, precioUsdCentavos, tasaUsdCop, montoEnCentavos };
 }
 
 export interface CheckoutWompiOutput {
@@ -51,20 +84,23 @@ export function createPagosService(
   }
 
   return {
-    // Opciones que el usuario autenticado puede pagar.
+    // Opciones que el usuario autenticado puede pagar, con el importe COP
+    // calculado con la tasa vigente.
     async listarOpciones(usuarioId: string, rol: TipoUsuario): Promise<OpcionPago[]> {
       const rolPagador = exigirRolPagador(rol);
       const plan = planDelRol(rolPagador);
-      const monto = config.montosEnCentavos[plan];
-      const disponible =
-        monto !== null && Boolean(config.publicKey && config.integritySecret);
+      const cotizacion = cotizar(plan, config);
 
       const crearOpcion = (gymSlug: string | null): OpcionPago => ({
         plan,
+        periodo: CATALOGO_PLANES[plan].periodo,
         gym_slug: gymSlug,
-        monto_en_centavos: monto,
+        precio_usd_centavos: cotizacion.precioUsdCentavos,
+        tasa_usd_cop: cotizacion.tasaUsdCop,
+        monto_en_centavos: cotizacion.ok ? cotizacion.montoEnCentavos : null,
         moneda: MONEDA_PAGOS,
-        disponible,
+        disponible: cotizacion.ok,
+        motivo_no_disponible: cotizacion.ok ? null : cotizacion.motivo,
       });
 
       if (rolPagador === "admin") {
@@ -100,18 +136,27 @@ export function createPagosService(
         throw new AppError(400, "Tu suscripción es personal: no debes indicar una sede.");
       }
 
-      const montoEnCentavos = config.montosEnCentavos[plan];
-      if (!config.publicKey || !config.integritySecret || montoEnCentavos === null) {
-        throw new AppError(503, "Los pagos no están disponibles en este momento.");
+      // Se cotiza antes de crear nada: con una tasa inválida no se guarda
+      // ningún intento.
+      const cotizacion = cotizar(plan, config);
+      if (!cotizacion.ok) {
+        console.error(`Checkout no disponible (${plan}): ${cotizacion.motivo}`);
+        throw new AppError(503, cotizacion.motivo);
       }
+      const { precioUsdCentavos, tasaUsdCop, montoEnCentavos } = cotizacion;
 
       const referencia = generarReferencia();
 
+      // El intento conserva el precio USD, la tasa aplicada y el importe
+      // final: cambios posteriores de la tasa no lo afectan.
       const pago = await repository.crearIntento({
         referencia,
         plan,
+        periodo: CATALOGO_PLANES[plan].periodo,
         usuarioId,
         gymSlug,
+        precioUsdCentavos,
+        tasaUsdCop,
         montoEnCentavos,
         moneda: MONEDA_PAGOS,
       });

@@ -45,8 +45,11 @@ export function createPagosRepository() {
           data: {
             referencia: input.referencia,
             plan: input.plan,
+            periodo: input.periodo,
             usuarioId: input.usuarioId,
             gymSlug: input.gymSlug,
+            precioUsdCentavos: input.precioUsdCentavos,
+            tasaUsdCop: input.tasaUsdCop,
             montoEnCentavos: input.montoEnCentavos,
             moneda: input.moneda,
             estado: "PENDIENTE",
@@ -54,7 +57,10 @@ export function createPagosRepository() {
           select: {
             referencia: true,
             plan: true,
+            periodo: true,
             gymSlug: true,
+            precioUsdCentavos: true,
+            tasaUsdCop: true,
             montoEnCentavos: true,
             moneda: true,
             estado: true,
@@ -65,7 +71,10 @@ export function createPagosRepository() {
         return {
           referencia: pago.referencia,
           plan: pago.plan as PlanSuscripcion,
+          periodo: pago.periodo,
           gym_slug: pago.gymSlug,
+          precio_usd_centavos: pago.precioUsdCentavos,
+          tasa_usd_cop: pago.tasaUsdCop?.toString() ?? null,
           monto_en_centavos: pago.montoEnCentavos,
           moneda: pago.moneda,
           estado: pago.estado,

@@ -36,6 +36,31 @@ export function formatearCop(centavos) {
   return formatoCop.format(centavos / 100);
 }
 
+const formatoUsd = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "USD",
+  currencyDisplay: "code",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+// Precio de referencia: 15000 centavos USD = USD 150.
+export function formatearUsd(centavos) {
+  if (!Number.isFinite(centavos)) return "—";
+  return formatoUsd.format(centavos / 100);
+}
+
+// Tasa USD → COP con separadores locales: "4000" → "4.000".
+export function formatearTasa(tasa) {
+  const valor = Number(tasa);
+  if (!tasa || !Number.isFinite(valor)) return null;
+  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 4 }).format(valor);
+}
+
+export function nombrePeriodo(periodo) {
+  return periodo === "mensual" ? "mes" : periodo;
+}
+
 // Solo se redirige a URLs HTTPS de Wompi.
 export function esUrlCheckoutWompi(url) {
   try {

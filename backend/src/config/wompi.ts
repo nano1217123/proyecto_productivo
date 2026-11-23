@@ -1,32 +1,15 @@
 import "dotenv/config";
 import { env } from "./env.js";
-import type { PlanSuscripcion } from "../types/pagos.types.js";
 
 // Configuración del módulo de pagos con Wompi.
 // Se mantiene fuera de config/env.ts para que el módulo de pagos sea
-// independiente: si faltan las llaves, el servidor arranca igual y los
-// endpoints de pago responden 503 hasta que se configuren.
+// independiente: si faltan las llaves o la tasa, el servidor arranca igual y
+// los endpoints de pago responden 503 hasta que se configuren.
 //
 // Este paso solo admite el ambiente Sandbox de Wompi: se rechazan las
 // llaves de producción al arrancar.
 
 const CHECKOUT_URL_POR_DEFECTO = "https://checkout.wompi.co/p/";
-
-// Lee un importe en centavos COP. Vacío → null (pago no disponible).
-function leerCentavos(nombre: string): number | null {
-  const raw = process.env[nombre]?.trim();
-  if (!raw) return null;
-
-  if (!/^\d+$/.test(raw)) {
-    throw new Error(`${nombre} debe ser un entero positivo en centavos COP.`);
-  }
-
-  const valor = Number(raw);
-  if (!Number.isSafeInteger(valor) || valor <= 0 || valor > 2_147_483_647) {
-    throw new Error(`${nombre} está fuera del rango permitido.`);
-  }
-  return valor;
-}
 
 // Exige el prefijo de Sandbox si la variable viene definida.
 function leerLlaveSandbox(nombre: string, prefijo: string): string {
@@ -44,7 +27,10 @@ export interface WompiConfig {
   integritySecret: string;
   checkoutUrl: string;
   redirectUrl: string;
-  montosEnCentavos: Record<PlanSuscripcion, number | null>;
+  // Tasa USD → COP tal como viene del entorno. Se valida en el servicio
+  // en cada intento (ver lib/pagosPrecios.ts). Solo para Sandbox: la
+  // política de conversión de producción está pendiente.
+  tasaUsdCop: string;
 }
 
 export const wompiConfig: WompiConfig = {
@@ -54,8 +40,5 @@ export const wompiConfig: WompiConfig = {
   redirectUrl:
     process.env.WOMPI_REDIRECT_URL?.trim() ||
     `${env.frontendUrl}/dashboard/pagos/resultado`,
-  montosEnCentavos: {
-    suscripcion_sede: leerCentavos("PAGO_MONTO_SEDE_CENTAVOS"),
-    suscripcion_particular: leerCentavos("PAGO_MONTO_PARTICULAR_CENTAVOS"),
-  },
+  tasaUsdCop: process.env.USD_COP_TASA?.trim() ?? "",
 };

@@ -201,8 +201,14 @@ model PagoIntento {
   referencia      String   @unique @db.VarChar(64)
   proveedor       String   @default("wompi") @db.VarChar(20)
   plan            String   @db.VarChar(40)
+  periodo         String   @default("mensual") @db.VarChar(20)
   usuarioId       String   @map("usuario_id") @db.Uuid
   gymSlug         String?  @map("gym_slug") @db.VarChar(64)
+  // Precio de referencia en centavos USD y tasa USD→COP aplicados al crear
+  // el intento. Son null en intentos creados con importes fijos en COP.
+  precioUsdCentavos Int?     @map("precio_usd_centavos")
+  tasaUsdCop        Decimal? @map("tasa_usd_cop") @db.Decimal(12, 4)
+  // Importe final cobrado; nunca se recalcula.
   montoEnCentavos Int      @map("monto_en_centavos")
   moneda          String   @default("COP") @db.VarChar(3)
   estado          String   @default("PENDIENTE") @db.VarChar(20)
