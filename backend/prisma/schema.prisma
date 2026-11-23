@@ -29,6 +29,8 @@ model Usuario {
   verificationCodes         VerificationCode[]
   resenas                   Resena[]
   metricasDiarias           MetricaDiaria[]
+  adminSedes                AdminSede[]
+  pagosIntentos             PagoIntento[]
 
   @@map("usuarios")
 }
@@ -172,4 +174,45 @@ model MetricaDiaria {
   usuario                 Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
   @@map("metricas_diarias")
+}
+
+// Sedes que administra cada usuario con rol "admin".
+// Es la fuente verificada del backend para autorizar acciones sobre una sede
+// (por ejemplo, pagar su suscripción).
+model AdminSede {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  gymSlug   String   @map("gym_slug") @db.VarChar(64)
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@unique([usuarioId, gymSlug])
+  @@index([gymSlug])
+  @@map("admin_sedes")
+}
+
+// Intento de pago iniciado en una pasarela (por ahora Wompi).
+// - plan "suscripcion_sede": titular = la sede (gymSlug); usuarioId = admin que paga.
+// - plan "suscripcion_particular": titular = usuarioId; gymSlug = null.
+// El estado arranca en PENDIENTE; la confirmación llegará por webhook.
+model PagoIntento {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  referencia      String   @unique @db.VarChar(64)
+  proveedor       String   @default("wompi") @db.VarChar(20)
+  plan            String   @db.VarChar(40)
+  usuarioId       String   @map("usuario_id") @db.Uuid
+  gymSlug         String?  @map("gym_slug") @db.VarChar(64)
+  montoEnCentavos Int      @map("monto_en_centavos")
+  moneda          String   @default("COP") @db.VarChar(3)
+  estado          String   @default("PENDIENTE") @db.VarChar(20)
+  creadoEn        DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn   DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+
+  // Restrict: un registro de pago no debe desaparecer al borrar un usuario.
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Restrict)
+
+  @@index([usuarioId])
+  @@index([gymSlug])
+  @@map("pagos_intentos")
 }

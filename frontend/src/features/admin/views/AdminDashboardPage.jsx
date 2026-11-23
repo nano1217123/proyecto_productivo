@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useAuth } from "@/src/features/auth/context/AuthContext";
 import AdminHeader from "../components/AdminHeader";
 import AdminTabs from "../components/AdminTabs";
 import MembersTab from "../components/MembersTab";
@@ -18,6 +20,7 @@ const GIMNASIOS = [
 
 export default function AdminDashboardPage() {
   const dashboard = useAdminDashboard();
+  const { profile } = useAuth();
   const { miembrosFiltrados, proximosAVencer, busqueda, setBusqueda, filtroEstado, setFiltroEstado } = useMembersFilter(dashboard.miembros);
 
   return (
@@ -28,6 +31,16 @@ export default function AdminDashboardPage() {
         gimnasios={GIMNASIOS} 
         logout={dashboard.logout} 
       />
+
+      {/* Pagos: solo el admin de sede paga su suscripción (no super_admin). */}
+      {profile?.tipo_usuario === "admin" && (
+        <Link
+          href="/dashboard/pagos"
+          className="inline-block mb-6 px-3.5 py-2 rounded-md border border-[#b56cff] text-[#d7adff] text-sm font-bold no-underline hover:bg-[rgba(181,108,255,.12)]"
+        >
+          Pagar suscripción de la sede
+        </Link>
+      )}
 
       <AdminTabs 
         tabActiva={dashboard.tabActiva} 

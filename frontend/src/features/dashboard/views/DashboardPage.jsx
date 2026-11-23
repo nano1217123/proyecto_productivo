@@ -107,6 +107,14 @@ function MemberDashboard() {
               {subscription.active ? "Suscripcion activa" : "Suscripcion vencida"}
             </span>
           )}
+          {esParticular && (
+            <Link
+              href="/dashboard/pagos"
+              className="inline-block px-2.5 py-1.5 rounded border border-[#b56cff] text-[#d7adff] text-xs font-bold no-underline hover:bg-[rgba(181,108,255,.12)]"
+            >
+              Pagar suscripcion
+            </Link>
+          )}
         </div>
       </section>
 
