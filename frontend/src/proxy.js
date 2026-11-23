@@ -8,8 +8,7 @@ async function verifySession(request) {
   if (!token) return null;
 
   try {
-    // El middleware corre en Edge Runtime y NO puede verificar el JWT
-    // con JWT_SECRET sin exponerlo. Delegamos al backend.
+    // El backend valida la sesión y devuelve el perfil.
     // GET /api/perfil está protegido con requireAuth:
     //   - 200 → sesión válida (devuelve { profile })
     //   - 401 → sin sesión o token inválido
@@ -26,7 +25,7 @@ async function verifySession(request) {
   }
 }
 
-export async function middleware(request) {
+export async function proxy(request) {
   const url = request.nextUrl.clone();
   const user = await verifySession(request);
 
