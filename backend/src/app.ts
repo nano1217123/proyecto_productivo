@@ -39,4 +39,5 @@ app.use("/api", routes);
 // cualquier error lanzado en rutas, middleware, servicios o repositorios.
 app.use(errorHandler);
 
+
 export default app;

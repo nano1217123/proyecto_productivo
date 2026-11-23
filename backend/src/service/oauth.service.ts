@@ -44,7 +44,7 @@ export function createOAuthService(
         usuarioId = await repo.createFromOAuth(profile);
         nombres = profile.nombres;
         apellidos = profile.apellidos;
-        tipoUsuario = "cliente";
+        tipoUsuario = "usuario_particular";
       } else {
         // Caso 2: usuario existente.
         usuarioId = existente.idusuario;

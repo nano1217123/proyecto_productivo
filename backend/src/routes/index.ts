@@ -9,6 +9,8 @@ import rutinasRoutes from "./rutinas.routes.js";
 import imagenesRoutes from "./imagenes.routes.js";
 import resenasRoutes from "./resenas.routes.js";
 
+import particularRoutes from "./particular.routes.js"; 
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -19,5 +21,7 @@ router.use("/ejercicios", ejerciciosRoutes);
 router.use("/entrenamientos", entrenamientosRoutes);
 router.use("/imagenes", imagenesRoutes);
 router.use("/resenas", resenasRoutes);
+
+router.use("/particular", particularRoutes);
 
 export default router;

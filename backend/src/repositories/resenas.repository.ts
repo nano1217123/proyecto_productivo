@@ -10,7 +10,7 @@ function mapResena(resena: {
   id: string;
   gymSlug: string;
   calificacion: number;
-  comentario: string;
+  comentario: string | null; // ✅ Agregamos el | null
   creadoEn: Date;
 }): ResenaOutput {
   return {

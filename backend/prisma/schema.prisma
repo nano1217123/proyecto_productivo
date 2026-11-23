@@ -28,6 +28,7 @@ model Usuario {
   seriesEntrenamiento       SerieEntrenamiento[]
   verificationCodes         VerificationCode[]
   resenas                   Resena[]
+  metricasDiarias           MetricaDiaria[]
 
   @@map("usuarios")
 }
@@ -145,17 +146,30 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model MetricaDiaria {
+  id                      String   @id @default(uuid()) @db.Uuid
+  usuarioId               String   @map("usuario_id") @db.Uuid
+  fecha                   DateTime @default(now()) @db.Timestamptz(6)
+  pesoActualKg            Float?   @map("peso_actual_kg")
+  vasosAgua               Int      @default(0) @map("vasos_agua")
+  entrenamientoCompletado Boolean  @default(false) @map("entrenamiento_completado")
+  
+  usuario                 Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@map("metricas_diarias")
+}
 model Resena {
-  id           String   @id @default(uuid()) @db.Uuid
-  usuarioId    String   @map("usuario_id") @db.Uuid
-  gymSlug      String   @map("gym_slug") @db.VarChar
-  calificacion Int
-  comentario   String   @db.VarChar(1000)
-  creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  id            String   @id @default(uuid()) @db.Uuid
+  usuarioId     String   @map("usuario_id") @db.Uuid
+  gymSlug       String   @map("gym_slug")
+  calificacion  Int      @default(5)
+  comentario    String?
+  creadoEn      DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
 
-  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  usuario       Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
-  @@index([usuarioId])
   @@index([gymSlug, creadoEn])
+  @@index([usuarioId])
   @@map("resenas")
 }
+

@@ -12,13 +12,13 @@ export function createResenasService(
   repository: ResenasRepository = resenasRepository
 ) {
   return {
-    // Permite que un cliente publique una reseña.
+    // Permite que un cliente o un usuario particular publique una reseña.
     async create(
       usuarioId: string,
       rol: TipoUsuario,
       input: CreateResenaInput
     ): Promise<ResenaOutput> {
-      if (rol !== "cliente") {
+      if (rol !== "cliente" && rol !== "usuario_particular") {
         throw new AppError(
           403,
           "Solo los clientes pueden publicar reseñas."
@@ -31,7 +31,7 @@ export function createResenasService(
       gymSlug: string,
       rol: TipoUsuario
     ): Promise<ResenaOutput[]> {
-      if (!["cliente", "admin", "super_admin"].includes(rol)) {
+      if (!["cliente", "usuario_particular", "admin", "super_admin"].includes(rol)) {
         throw new AppError(403, "No tienes permisos para consultar reseñas.");
       }
       return repository.findPublicByGym(gymSlug);

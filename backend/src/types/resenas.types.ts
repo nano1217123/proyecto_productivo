@@ -10,6 +10,6 @@ export interface ResenaOutput {
   id: string;
   gym_slug: string;
   calificacion: number;
-  comentario: string;
+  comentario: string | null;
   creado_en: string;
 }

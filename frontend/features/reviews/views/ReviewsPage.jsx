@@ -170,7 +170,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
           </div>
         )}
 
-        {rol === "cliente" && (
+        {(rol === "cliente" || rol === "usuario_particular") && (
           <section className="mb-10 rounded-xl border border-[#41433f] bg-[#212320] p-6">
             <h2 className="mb-2 text-xl font-bold">
               Comparte tu experiencia
