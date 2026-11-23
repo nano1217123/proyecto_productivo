@@ -134,7 +134,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
         <button
           type="button"
           onClick={logout}
-          className="border-b border-[#6f756b] bg-transparent py-2 text-sm text-[#a9afa7] hover:text-white"
+          className="border-b border-[#41433f] bg-transparent py-2 text-sm text-[#a9afa7] hover:text-white"
         >
           Cerrar sesión
         </button>
@@ -148,7 +148,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
           ← Volver al inicio
         </Link>
 
-        <p className="mb-3 text-xs font-extrabold tracking-[2.7px] text-[#d5ad55]">
+        <p className="mb-3 text-xs font-extrabold tracking-[2.7px] text-[#b56cff]">
           OPINIONES DE NUESTROS USUARIOS
         </p>
 
@@ -165,7 +165,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
         )}
 
         {mensaje && (
-          <div className="mb-5 rounded-lg border border-green-500/30 bg-green-950/30 p-3 text-sm text-green-300">
+          <div className="mb-5 rounded-lg border border-[#ea9e48]/30 bg-[#ea9e48]/10 p-3 text-sm text-[#ea9e48]">
             {mensaje}
           </div>
         )}
@@ -195,7 +195,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                     aria-pressed={calificacion === estrella}
                     className={`text-3xl ${
                       estrella <= calificacion
-                        ? "text-[#d5ad55]"
+                        ? "text-[#b56cff]"
                         : "text-[#555951]"
                     }`}
                   >
@@ -218,7 +218,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                 maxLength={1000}
                 rows={4}
                 placeholder="Cuéntanos cómo fue tu experiencia..."
-                className="mb-2 w-full rounded-lg border border-[#41433f] bg-[#171817] p-3 text-sm text-white outline-none focus:border-[#d5ad55]"
+                className="mb-2 w-full rounded-lg border border-[#41433f] bg-[#171817] p-3 text-sm text-white outline-none focus:border-[#b56cff]"
               />
 
               <p className="mb-5 text-right text-xs text-[#a9afa7]">
@@ -228,7 +228,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
               <button
                 type="submit"
                 disabled={publicando}
-                className="rounded-lg bg-[#d5ad55] px-6 py-3 text-sm font-bold text-[#171817] transition hover:bg-[#e8c879] disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg bg-[#b56cff] px-6 py-3 text-sm font-bold text-[#171817] transition hover:bg-[#c994ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {publicando ? "Publicando..." : "Publicar reseña"}
               </button>
@@ -248,7 +248,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
               type="button"
               onClick={cargarResenas}
               disabled={cargando}
-              className="text-sm text-[#d5ad55] hover:underline disabled:opacity-50"
+              className="text-sm text-[#b56cff] hover:underline disabled:opacity-50"
             >
               Actualizar
             </button>
@@ -266,7 +266,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                   className="rounded-xl border border-[#41433f] bg-[#212320] p-5"
                 >
                   <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="text-xl tracking-wider text-[#d5ad55]">
+                    <span className="text-xl tracking-wider text-[#b56cff]">
                       {"★".repeat(resena.calificacion)}
                       <span className="text-[#555951]">
                         {"★".repeat(5 - resena.calificacion)}

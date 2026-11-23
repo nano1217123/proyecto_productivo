@@ -17,6 +17,7 @@ const gyms = {
   "fit-belÃ©n": { name: "Fit Lab Belen", location: "Belen, Medellin" },
 };
 
+
 function MemberDashboard() {
   const { profile, loading, logout } = useAuth();
   const searchParams = useSearchParams();
@@ -33,9 +34,8 @@ function MemberDashboard() {
     {
       title: esParticular ? "Ejercicios en Casa" : "Ejercicios",
       eyebrow: esParticular ? "Entrenamiento Libre" : "Entrenamiento",
-      description: esParticular 
-        ? "Ejercicios funcionales que puedes hacer en casa sin necesidad de máquinas ni pesas."
-        : "Encuentra rutinas para fuerza, movilidad y rendimiento, organizadas para avanzar a tu ritmo.",
+      description: esParticular ? "Ejercicios funcionales que puedes hacer en casa sin necesidad de máquinas ni pesas."
+      : "Encuentra rutinas para fuerza, movilidad y rendimiento, organizadas para avanzar a tu ritmo.",
       marker: "01",
       href: esParticular ? "/dashboard/ejercicios?modo=casa" : "/dashboard/ejercicios",
     },
@@ -52,6 +52,13 @@ function MemberDashboard() {
       description: "Consulta recomendaciones para acompanar tu entrenamiento y construir habitos sostenibles.",
       marker: "03",
       href: "/dashboard/nutricion",
+    },
+    {
+      title: "Reseñas y opiniones",
+      eyebrow: "Comunidad",
+      description: "Comparte tu experiencia y conoce las opiniones de otros usuarios de tu gimnasio.",
+      marker: "04",
+      href: "/dashboard/resenas",
     },
   ];
 
