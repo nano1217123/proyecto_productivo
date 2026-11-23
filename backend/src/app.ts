@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import routes from "./routes/index.js";
+import type {} from "./types/express.js";
 
 const app = express();
 
