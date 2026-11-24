@@ -21,7 +21,7 @@ import {
   resendLimiter,
   verifyLimiter,
 } from "../middleware/rateLimit.middleware.js";
-import { verifyLoginRecaptcha } from "../middleware/recaptcha.middleware.js";
+import { verifyRecaptcha } from "../middleware/recaptcha.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 import {
   validateCreateAdmin,
@@ -44,10 +44,16 @@ router.post(
   createAdmin
 );
 
-router.post("/register", registerLimiter, validateRegister, register);
+router.post(
+  "/register",
+  registerLimiter,
+  validateRegister,
+  verifyRecaptcha("register"),
+  register
+);
 router.post("/verify-email", verifyLimiter, validateVerifyEmail, verifyEmail);
 router.post("/resend-code", resendLimiter, validateResendCode, resendCode);
-router.post("/login", loginLimiter, validateLogin, verifyLoginRecaptcha, login);
+router.post("/login", loginLimiter, validateLogin, verifyRecaptcha("login"), login);
 router.post("/refresh", refreshLimiter, refresh);
 router.post("/logout", refreshLimiter, logout);
 router.post(
