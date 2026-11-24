@@ -1,6 +1,6 @@
 export const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim();
 
-export async function getLoginRecaptchaToken() {
+export async function getRecaptchaToken(action) {
   if (!recaptchaSiteKey) return undefined;
 
   const recaptcha = window.grecaptcha;
@@ -16,7 +16,7 @@ export async function getLoginRecaptchaToken() {
       new Promise((resolve, reject) => {
         recaptcha.ready(() => {
           Promise.resolve()
-            .then(() => recaptcha.execute(recaptchaSiteKey, { action: "login" }))
+            .then(() => recaptcha.execute(recaptchaSiteKey, { action }))
             .then(resolve, reject);
         });
       }),
