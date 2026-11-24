@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "../api/authApi";
 
@@ -48,6 +48,53 @@ export function AuthProvider({ children }) {
       cancelled = true;
     };
   }, []);
+
+  // El rol y la sede se leen del servidor. Si cambian con la sesión abierta
+  // (por ejemplo, un admin vincula esta cuenta a su sede), el panel se
+  // actualiza al volver a la pestaña, sin cerrar sesión. El backend ya
+  // aplica el nuevo rol desde la siguiente petición.
+  const ultimaRecarga = useRef(0);
+  const refreshProfile = useCallback(async () => {
+    ultimaRecarga.current = Date.now();
+    try {
+      const { profile } = await authApi.getProfile();
+      setUser(profile);
+      return profile;
+    } catch (err) {
+      // Otros errores (red, 5xx): se conserva el perfil actual y el panel.
+      if (err?.status !== 401) return null;
+    }
+    // Access token vencido: mismo flujo que al cargar la sesión. Se renueva
+    // con el refresh token y se reintenta una sola vez.
+    try {
+      await authApi.refresh();
+      const { profile } = await authApi.getProfile();
+      setUser(profile);
+      return profile;
+    } catch (err) {
+      // Error de red al renovar: no se cierra la sesión por eso.
+      if (err?.status === 0 || err?.status === undefined) return null;
+      // La renovación falló (refresh vencido o revocado): sesión terminada.
+      setUser(null);
+      router.replace("/login");
+      return null;
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    function alVolver() {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - ultimaRecarga.current < 5000) return;
+      refreshProfile();
+    }
+    document.addEventListener("visibilitychange", alVolver);
+    window.addEventListener("focus", alVolver);
+    return () => {
+      document.removeEventListener("visibilitychange", alVolver);
+      window.removeEventListener("focus", alVolver);
+    };
+  }, [user, refreshProfile]);
 
   async function signUp(nombres, apellidos, email, password) {
     return authApi.register({ nombres, apellidos, email, password });
@@ -112,6 +159,7 @@ export function AuthProvider({ children }) {
         resetPasswordForEmail,
         updatePassword,
         loginWithGoogle,
+        refreshProfile,
       }}
     >
       {children}

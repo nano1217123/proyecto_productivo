@@ -7,9 +7,7 @@ import type {
   ResetPasswordInput,
   // ... los que ya estaban
 } from "../types/auth.types.js";
-//import type { CreateAdminInput } from "../types/auth.types.js";
 import type {
-  CreateAdminInput,
   RegisterInput,
   ResendCodeInput,
   VerifyEmailInput,
@@ -27,14 +25,6 @@ export const verifyEmail: RequestHandler = asyncHandler(async (req, res) => {
 export const resendCode: RequestHandler = asyncHandler(async (req, res) => {
   const result = await authService.resendCode(req.body as ResendCodeInput);
   return res.status(200).json(result);
-});
-
-export const createAdmin: RequestHandler = asyncHandler(async (req, res) => {
-  // req.body ya pasó por validateCreateAdmin en la ruta.
-  const result = await authService.createAdmin(req.body as CreateAdminInput);
-
-  return res.status(201).json(result);
-  
 });
 
 export const register: RequestHandler = asyncHandler(async (req, res) => {

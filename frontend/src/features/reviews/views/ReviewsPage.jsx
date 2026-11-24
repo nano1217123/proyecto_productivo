@@ -19,6 +19,9 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
 
   const solicitudActual = useRef(0);
   const rol = user?.tipo_usuario;
+  // El cliente reseña la sede registrada en el servidor, no la de la URL.
+  const sedeResena = rol === "cliente" ? user?.sede ?? null : gym;
+  const clienteSinSede = rol === "cliente" && !sedeResena;
 
   // Carga las reseñas según el rol del usuario.
   const cargarResenas = useCallback(async () => {
@@ -33,10 +36,14 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
     setError("");
 
     try {
+      if (user.tipo_usuario !== "super_admin" && !sedeResena) {
+        if (solicitud === solicitudActual.current) setResenas([]);
+        return;
+      }
       const resultado =
         user.tipo_usuario === "super_admin"
           ? await reviewsApi.getAllReviews()
-          : await reviewsApi.getPublicReviews(gym);
+          : await reviewsApi.getPublicReviews(sedeResena);
 
       // Evita actualizar la pantalla con respuestas antiguas.
       if (solicitud === solicitudActual.current) {
@@ -51,7 +58,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
         setCargando(false);
       }
     }
-  }, [user, gym]);
+  }, [user, sedeResena]);
 
   // Carga las reseñas cuando termina la autenticación.
   useEffect(() => {
@@ -81,7 +88,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
 
     try {
       await reviewsApi.createReview({
-        gymSlug: gym,
+        gymSlug: sedeResena,
         calificacion,
         comentario,
       });
@@ -170,7 +177,14 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
           </div>
         )}
 
-        {(rol === "cliente" || rol === "usuario_particular") && (
+        {clienteSinSede && (
+          <p role="status" className="mb-10 rounded-xl border border-[rgba(255,196,87,.45)] bg-[rgba(120,86,20,.2)] p-4 text-sm text-[#ffcf70]">
+            Tu cuenta de cliente aún no tiene una sede asignada. Cuando tu
+            gimnasio te vincule podrás ver y publicar reseñas de tu sede.
+          </p>
+        )}
+
+        {(rol === "usuario_particular" || (rol === "cliente" && !clienteSinSede)) && (
           <section className="mb-10 rounded-xl border border-[#41433f] bg-[#212320] p-6">
             <h2 className="mb-2 text-xl font-bold">
               Comparte tu experiencia

@@ -1,15 +1,36 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { adminApi } from "../api/adminApi";
 import { MIEMBROS_MOCK } from "../lib/mockData";
+
+const CLAVE_PESTANA = "jjgym:admin:pestana";
+const PESTANAS = ["miembros", "clientes", "imagenes", "comunicacion", "configuracion"];
+
+// "crear-admin" solo para super_admin; el backend vuelve a comprobarlo.
+function pestanaPermitida(tab, esSuperAdmin) {
+  return PESTANAS.includes(tab) || (tab === "crear-admin" && esSuperAdmin);
+}
 
 export function useAdminDashboard() {
   const { logout, profile } = useAuth();
   const esSuperAdmin = profile?.tipo_usuario === "super_admin";
   
-  // Navegación
-  const [tabActiva, setTabActiva] = useState("miembros");
-  const [gymSeleccionado, setGymSeleccionado] = useState("jj-poblado");
+  // Navegación. La pestaña activa se conserva si el panel se vuelve a montar
+  // o se recarga la página, siempre que el rol actual pueda verla.
+  const [tabActiva, setTabActivaEstado] = useState("miembros");
+  const setTabActiva = useCallback((tab) => {
+    setTabActivaEstado(tab);
+    try { sessionStorage.setItem(CLAVE_PESTANA, tab); } catch { /* sin almacenamiento */ }
+  }, []);
+  useEffect(() => {
+    let guardada = null;
+    try { guardada = sessionStorage.getItem(CLAVE_PESTANA); } catch { /* sin almacenamiento */ }
+    if (guardada && pestanaPermitida(guardada, esSuperAdmin)) setTabActivaEstado(guardada);
+    else if (guardada) setTabActivaEstado("miembros");
+  }, [esSuperAdmin]);
+  // Sede elegida en el panel. Las opciones salen del servidor: las sedes
+  // del admin (admin_sedes) o el catálogo completo para el super_admin.
+  const [gymSeleccionado, setGymSeleccionado] = useState(null);
   
   // Miembros
   const [miembros, setMiembros] = useState(MIEMBROS_MOCK);
@@ -28,12 +49,6 @@ export function useAdminDashboard() {
     horario: "Lunes a Viernes: 5:00 AM - 10:00 PM | Sábados: 7:00 AM - 6:00 PM",
   });
   const [guardandoSede, setGuardandoSede] = useState(false);
-
-  // Crear Admin
-  const [nuevoAdmin, setNuevoAdmin] = useState({ nombres: "", apellidos: "", email: "", password: "" });
-  const [creandoAdmin, setCreandoAdmin] = useState(false);
-  const [errorCrearAdmin, setErrorCrearAdmin] = useState("");
-  const [exitoCrearAdmin, setExitoCrearAdmin] = useState("");
 
   // Imágenes
   const [imagenFile, setImagenFile] = useState(null);
@@ -71,33 +86,6 @@ export function useAdminDashboard() {
       alert("Datos de la sede actualizados con éxito.");
       setGuardandoSede(false);
     }, 1000);
-  };
-
-  const crearAdministrador = async (e) => {
-    e.preventDefault();
-    setErrorCrearAdmin("");
-    setExitoCrearAdmin("");
-    setCreandoAdmin(true);
-
-    const nombres = nuevoAdmin.nombres.trim();
-    const apellidos = nuevoAdmin.apellidos.trim();
-    const email = nuevoAdmin.email.trim();
-
-    if (!nombres || !apellidos) {
-      setErrorCrearAdmin("Nombres y apellidos no pueden estar vacíos ni contener solo espacios.");
-      setCreandoAdmin(false);
-      return;
-    }
-
-    try {
-      await adminApi.createAdmin({ nombres, apellidos, email, password: nuevoAdmin.password });
-      setExitoCrearAdmin(`Administrador creado. Debe verificar su correo (${email}) con el código que le llegará.`);
-      setNuevoAdmin({ nombres: "", apellidos: "", email: "", password: "" });
-    } catch (err) {
-      setErrorCrearAdmin(err.message);
-    } finally {
-      setCreandoAdmin(false);
-    }
   };
 
   const subirImagen = async (e) => {
@@ -139,7 +127,6 @@ export function useAdminDashboard() {
     miembros, setMiembros,
     correoTarget, setCorreoTarget, asuntoCorreo, setAsuntoCorreo, mensajeCorreo, setMensajeCorreo, enviandoCorreo, enviarAnuncio,
     sedeInfo, setSedeInfo, guardandoSede, guardarConfiguracion,
-    nuevoAdmin, setNuevoAdmin, creandoAdmin, errorCrearAdmin, exitoCrearAdmin, crearAdministrador,
     imagenFile, setImagenFile, subiendoImagen, urlImagen, errorImagen, ejercicioId, setEjercicioId, mensajeAsignacion, subirImagen, asignarImagenAEjercicio
   };
 }

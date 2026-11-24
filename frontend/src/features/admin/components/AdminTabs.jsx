@@ -10,6 +10,13 @@ export default function AdminTabs({ tabActiva, setTabActiva, esSuperAdmin }) {
         👥 Miembros & Suscripciones
       </button>
 
+      <button
+        className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "clientes" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
+        onClick={() => setTabActiva("clientes")}
+      >
+        🏷️ Clientes de la sede
+      </button>
+
      <button
         className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "imagenes" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
         onClick={() => setTabActiva("imagenes")}
@@ -36,7 +43,7 @@ export default function AdminTabs({ tabActiva, setTabActiva, esSuperAdmin }) {
           className={`px-[18px] py-2.5 rounded-lg border font-bold cursor-pointer transition ${tabActiva === "crear-admin" ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f] bg-[#151714] text-[#a9afa7]"}`}
           onClick={() => setTabActiva("crear-admin")}
         >
-          🛡️ Crear Administrador
+          🛡️ Asignar Administrador
         </button>
       )}
     </nav>

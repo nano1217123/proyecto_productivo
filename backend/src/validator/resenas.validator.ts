@@ -6,12 +6,9 @@ import {
   containsSuspiciousPatterns,
 } from "../lib/sanitize.js";
 import type { CreateResenaInput } from "../types/resenas.types.js";
-// Gimnasios disponibles en la plataforma.
-const GIMNASIOS_VALIDOS = [
-  "jj-poblado",
-  "power-laureles",
-  "fit-belen",
-] as const;
+import { SLUGS_SEDES } from "../lib/sedes.js";
+// Gimnasios disponibles en la plataforma (catálogo central del backend).
+const GIMNASIOS_VALIDOS = SLUGS_SEDES;
 const COMENTARIO_MAX = 1000;
 export function parseCreateResenaBody(
   body: unknown

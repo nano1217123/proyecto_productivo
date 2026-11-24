@@ -9,18 +9,29 @@ import ImagesTab from "../components/ImagesTab";
 import CommunicationTab from "../components/CommunicationTab";
 import ConfigTab from "../components/ConfigTab";
 import CreateAdminTab from "../components/CreateAdminTab";
+import ClientesSedeTab from "../components/ClientesSedeTab";
+import { useEffect } from "react";
+import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { useMembersFilter } from "../hooks/useMembersFilter";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
-
-const GIMNASIOS = [
-  { id: "jj-poblado", nombre: "JJ GYM El Poblado" },
-  { id: "power-laureles", nombre: "Power Laureles" },
-  { id: "fit-belen", nombre: "Fit Lab Belén" },
-];
 
 export default function AdminDashboardPage() {
   const dashboard = useAdminDashboard();
   const { profile } = useAuth();
+  const { sedes, nombreSede } = useSedes();
+  // Sedes del panel según el servidor: las del admin (admin_sedes) o todo
+  // el catálogo para el super_admin.
+  const gimnasios = (dashboard.esSuperAdmin
+    ? sedes.map((s) => s.slug)
+    : profile?.sedes_administradas ?? []
+  ).map((slug) => ({ id: slug, nombre: nombreSede(slug) }));
+  const idsSedes = gimnasios.map((g) => g.id).join(",");
+  const { gymSeleccionado, setGymSeleccionado } = dashboard;
+
+  useEffect(() => {
+    const ids = idsSedes ? idsSedes.split(",") : [];
+    if (!ids.includes(gymSeleccionado)) setGymSeleccionado(ids[0] ?? null);
+  }, [idsSedes, gymSeleccionado, setGymSeleccionado]);
   const { miembrosFiltrados, proximosAVencer, busqueda, setBusqueda, filtroEstado, setFiltroEstado } = useMembersFilter(dashboard.miembros);
 
   return (
@@ -28,7 +39,7 @@ export default function AdminDashboardPage() {
       <AdminHeader 
         gymSeleccionado={dashboard.gymSeleccionado} 
         setGymSeleccionado={dashboard.setGymSeleccionado} 
-        gimnasios={GIMNASIOS} 
+        gimnasios={gimnasios} 
         logout={dashboard.logout} 
       />
 
@@ -93,13 +104,11 @@ export default function AdminDashboardPage() {
         />
       )}
 
-      {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && (
-        <CreateAdminTab
-          errorCrearAdmin={dashboard.errorCrearAdmin} exitoCrearAdmin={dashboard.exitoCrearAdmin}
-          nuevoAdmin={dashboard.nuevoAdmin} setNuevoAdmin={dashboard.setNuevoAdmin}
-          crearAdministrador={dashboard.crearAdministrador} creandoAdmin={dashboard.creandoAdmin}
-        />
+      {dashboard.tabActiva === "clientes" && (
+        <ClientesSedeTab gymSlug={gymSeleccionado} esSuperAdmin={dashboard.esSuperAdmin} />
       )}
+
+      {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && <CreateAdminTab />}
     </div>
   );
 }

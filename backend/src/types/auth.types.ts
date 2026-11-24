@@ -1,26 +1,3 @@
-// Tipos de usuario que este backend permite crear mediante la API.
-// El super_admin puede crear tanto admin como otros super_admin.
-// "desarrollador" sigue asignándose manualmente en la BD.
-export const TIPOS_ADMIN_PERMITIDOS = ["admin", "super_admin"] as const;
-
-export type TipoAdminPermitido = (typeof TIPOS_ADMIN_PERMITIDOS)[number];
-
-// Datos de entrada ya validados y limpios para crear un administrador.
-export interface CreateAdminInput {
-  nombres: string;
-  apellidos: string;
-  email: string;
-  password: string;
-  tipoUsuario: TipoAdminPermitido;
-}
-
-// Resultado que devuelve el servicio al crear un admin.
-export interface CreateAdminResult {
-  message: string;
-  userId: string;
-  emailSendError?: boolean;
-}
-
 // Tipos de usuario permitidos desde el registro público.
 // Quien se registra desde la web es un usuario particular; "cliente"
 // (alumno de gimnasio), "admin" y "super_admin" NO se pueden pedir desde aquí.

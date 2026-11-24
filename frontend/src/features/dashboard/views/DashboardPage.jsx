@@ -2,27 +2,25 @@
 
 import Link from "next/link";
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { getSubscriptionStatus } from "../lib/subscription";
 import { MemberDashboardSkeleton } from "@/src/components/ui/Skeleton";
 import ModeBadge from "@/src/components/ui/ModeBadge";
 import DailyTrackerWidget from "@/src/features/particular/components/DailyTrackerWidget";
 
-const gyms = {
-  "jj-poblado": { name: "JJ GYM El Poblado", location: "El Poblado, Medellin" },
-  "power-laureles": { name: "Power Laureles", location: "Laureles, Medellin" },
-  "fit-belen": { name: "Fit Lab Belen", location: "Belen, Medellin" },
-  "fit-belén": { name: "Fit Lab Belen", location: "Belen, Medellin" },
-  "fit-belÃ©n": { name: "Fit Lab Belen", location: "Belen, Medellin" },
-};
-
 function MemberDashboard() {
   const { profile, loading, logout } = useAuth();
-  const searchParams = useSearchParams();
-  const gymSlug = searchParams.get("gym") || "jj-poblado";
-  const gym = gyms[gymSlug] || gyms["jj-poblado"];
+  const { sede: datosSede } = useSedes();
   const subscription = getSubscriptionStatus(profile);
+
+  // La sede del cliente es la registrada en el servidor (miembros_sede),
+  // nunca un parámetro de la URL.
+  const esCliente = profile?.tipo_usuario === "cliente";
+  const sede = esCliente && profile?.sede ? datosSede(profile.sede) : null;
+  const clienteSinSede = esCliente && !profile?.sede;
+  const marca = sede?.nombre ?? "JJ GYM";
+  const ubicacion = sede?.ubicacion ?? (clienteSinSede ? "Sin sede asignada" : "Entrenamiento en casa");
 
   // Solo el usuario particular (registro web) ve el tracker y "Ejercicios en Casa".
   // "cliente" (alumno de gimnasio), "admin" y "super_admin" ven las tarjetas normales.
@@ -68,7 +66,7 @@ function MemberDashboard() {
           <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">
             GYM
           </span>
-          <span>{gym.name}</span>
+          <span>{marca}</span>
         </Link>
         <button
           className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]"
@@ -84,7 +82,7 @@ function MemberDashboard() {
         aria-labelledby="member-title"
       >
         <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">
-          {gym.location}
+          {ubicacion}
         </p>
         <h1 id="member-title" className="text-[#f2f4ef]">
           Hola, {profile?.nombres || "usuario"}.
@@ -118,6 +116,16 @@ function MemberDashboard() {
         </div>
       </section>
 
+      {clienteSinSede && (
+        <p
+          role="status"
+          className="w-full max-w-[1060px] mx-auto mb-[28px] p-4 rounded-md border border-[rgba(255,196,87,.45)] bg-[rgba(120,86,20,.2)] text-[#ffcf70] text-sm"
+        >
+          Tu cuenta de cliente aún no tiene una sede asignada. Pídele a tu
+          gimnasio que te vincule para ver su información y publicar reseñas.
+        </p>
+      )}
+
       {esParticular && (
         <section
           className="w-full max-w-[1060px] mx-auto mb-[38px]"
@@ -147,10 +155,9 @@ function MemberDashboard() {
               <p>{section.description}</p>
             </div>
 
-            {/* Se agrega ?gym (o &gym si el href ya trae query, p. ej. modo=casa) */}
             <Link
               className="self-start inline-flex items-center gap-[18px] p-0 border-0 bg-transparent text-[#f2f4ef] text-sm font-extrabold cursor-pointer [&_span]:text-[#b56cff] [&_span]:text-xl [&_span]:transition [&:hover_span]:translate-x-[5px]"
-              href={`${section.href}${section.href.includes('?') ? '&' : '?'}gym=${encodeURIComponent(gymSlug)}`}
+              href={section.href}
             >
               Ver apartado <span aria-hidden="true">&rarr;</span>
             </Link>
