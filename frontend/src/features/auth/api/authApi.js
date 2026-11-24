@@ -17,6 +17,8 @@
 
 import { http } from "@/src/lib/api/httpClient";
 
+import { getLoginRecaptchaToken } from "./recaptcha";
+
 export const authApi = {
   register: (data) => http.post("/api/auth/register", data),
 
@@ -24,7 +26,10 @@ export const authApi = {
 
   resendCode: (data) => http.post("/api/auth/resend-code", data),
 
-  login: (data) => http.post("/api/auth/login", data),
+  async login(data) {
+    const recaptchaToken = await getLoginRecaptchaToken();
+    return http.post("/api/auth/login", { ...data, recaptchaToken });
+  },
 
   logout: () => http.post("/api/auth/logout"),
 
