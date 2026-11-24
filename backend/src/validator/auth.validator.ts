@@ -244,8 +244,10 @@ export function parseRegisterBody(body: unknown): RegisterInput {
 }
 
 // Middleware de Express: reemplaza req.body por los datos ya validados.
-export const validateRegister: RequestHandler = (req, _res, next) => {
-  req.body = parseRegisterBody(req.body);
+export const validateRegister: RequestHandler = (req, res, next) => {
+  const registration = parseRegisterBody(req.body);
+  res.locals.recaptchaToken = req.body.recaptchaToken;
+  req.body = registration;
   next();
 };
 
@@ -348,8 +350,10 @@ export function parseLoginBody(body: unknown): LoginInput {
   return { email: emailLimpio, password };
 }
 
-export const validateLogin: RequestHandler = (req, _res, next) => {
-  req.body = parseLoginBody(req.body);
+export const validateLogin: RequestHandler = (req, res, next) => {
+  const credentials = parseLoginBody(req.body);
+  res.locals.recaptchaToken = req.body.recaptchaToken;
+  req.body = credentials;
   next();
 };
 

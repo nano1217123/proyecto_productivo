@@ -17,14 +17,22 @@
 
 import { http } from "@/src/lib/api/httpClient";
 
+import { getRecaptchaToken } from "./recaptcha";
+
 export const authApi = {
-  register: (data) => http.post("/api/auth/register", data),
+  async register(data) {
+    const recaptchaToken = await getRecaptchaToken("register");
+    return http.post("/api/auth/register", { ...data, recaptchaToken });
+  },
 
   verifyEmail: (data) => http.post("/api/auth/verify-email", data),
 
   resendCode: (data) => http.post("/api/auth/resend-code", data),
 
-  login: (data) => http.post("/api/auth/login", data),
+  async login(data) {
+    const recaptchaToken = await getRecaptchaToken("login");
+    return http.post("/api/auth/login", { ...data, recaptchaToken });
+  },
 
   logout: () => http.post("/api/auth/logout"),
 

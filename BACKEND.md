@@ -99,10 +99,10 @@ routes → controller → service → repository → Prisma → Neon
 
 | Método | Ruta | Middleware | Descripción |
 |---|---|---|---|
-| POST | `/api/auth/register` | registerLimiter, validateRegister | Crea cliente + envía OTP. |
+| POST | `/api/auth/register` | registerLimiter, validateRegister, verifyRecaptcha("register") | Crea cliente + envía OTP. |
 | POST | `/api/auth/verify-email` | verifyLimiter, validateVerifyEmail | Valida OTP. |
 | POST | `/api/auth/resend-code` | resendLimiter, validateResendCode | Reenvía OTP (cooldown 60 s). |
-| POST | `/api/auth/login` | loginLimiter, validateLogin | Login, setea cookies httpOnly. |
+| POST | `/api/auth/login` | loginLimiter, validateLogin, verifyRecaptcha("login") | Login, setea cookies httpOnly. |
 | POST | `/api/auth/refresh` | refreshLimiter | Rota refresh token. |
 | POST | `/api/auth/logout` | refreshLimiter | Revoca refresh token. |
 | POST | `/api/auth/create-admin` | authLimiter, requireAuth, requireRole, validateCreateAdmin | super_admin crea admins. |
@@ -284,3 +284,11 @@ npx prisma studio
   (`AuthContext.jsx`, `middleware.js`, 7 páginas de auth).
 - **OAuth** de Google y Microsoft.
 - **Docker** (a cargo de otro miembro del equipo).
+## reCAPTCHA v3 en el inicio de sesión y el registro
+
+1. Registra una clave de reCAPTCHA v3 en la [consola de Google](https://www.google.com/recaptcha/admin/create). Agrega los dominios donde se sirve el frontend y conserva activa la validación de dominios de Google. Para pruebas locales, registra `localhost` en una clave de desarrollo.
+2. En el backend, configura `RECAPTCHA_SECRET_KEY` con la clave secreta. El umbral `RECAPTCHA_MIN_SCORE` es opcional y vale `0.5` por defecto.
+3. En el frontend, configura `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` con la clave pública del mismo registro. En Vercel, configura la variable antes de volver a compilar y desplegar el frontend.
+4. Despliega el frontend con la clave pública y activa después la verificación en el backend. Con la clave secreta configurada, `POST /api/auth/login` y `POST /api/auth/register` exigen un token válido para su acción respectiva (`login` o `register`) en cada intento. Sin la clave secreta, la verificación queda desactivada.
+
+La integración cubre el acceso con correo y contraseña y el registro público. El acceso con Google usa su flujo OAuth. En un entorno con las claves configuradas, comprueba que puedas iniciar sesión y que el registro exitoso y el acceso con un correo pendiente de confirmar lleven a la pantalla del código de verificación.
