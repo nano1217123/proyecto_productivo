@@ -348,8 +348,10 @@ export function parseLoginBody(body: unknown): LoginInput {
   return { email: emailLimpio, password };
 }
 
-export const validateLogin: RequestHandler = (req, _res, next) => {
-  req.body = parseLoginBody(req.body);
+export const validateLogin: RequestHandler = (req, res, next) => {
+  const credentials = parseLoginBody(req.body);
+  res.locals.recaptchaToken = req.body.recaptchaToken;
+  req.body = credentials;
   next();
 };
 

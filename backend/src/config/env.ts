@@ -23,6 +23,11 @@ if (nodeEnv === "production" && !clientOrigin) {
   );
 }
 
+const recaptchaMinScore = Number(process.env.RECAPTCHA_MIN_SCORE?.trim() || "0.5");
+if (!Number.isFinite(recaptchaMinScore) || recaptchaMinScore < 0 || recaptchaMinScore > 1) {
+  throw new Error("RECAPTCHA_MIN_SCORE debe estar entre 0 y 1.");
+}
+
 export const env = {
   nodeEnv,
   isProduction: nodeEnv === "production",
@@ -38,6 +43,9 @@ export const env = {
   emailFrom: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:3000",
   
+  recaptchaSecretKey: process.env.RECAPTCHA_SECRET_KEY?.trim() || "",
+  recaptchaMinScore,
+
   googleClientId: required("GOOGLE_CLIENT_ID"),
   googleClientSecret: required("GOOGLE_CLIENT_SECRET"),
   googleRedirectUri: required("GOOGLE_REDIRECT_URI"),
