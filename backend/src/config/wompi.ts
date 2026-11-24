@@ -10,6 +10,7 @@ import { env } from "./env.js";
 // llaves de producción al arrancar.
 
 const CHECKOUT_URL_POR_DEFECTO = "https://checkout.wompi.co/p/";
+const API_URL_POR_DEFECTO = "https://sandbox.wompi.co/v1";
 
 // Exige el prefijo de Sandbox si la variable viene definida.
 function leerLlaveSandbox(nombre: string, prefijo: string): string {
@@ -27,6 +28,14 @@ export interface WompiConfig {
   integritySecret: string;
   checkoutUrl: string;
   redirectUrl: string;
+  // Secreto de eventos: valida la firma de los webhooks. Si falta, el
+  // webhook rechaza todos los eventos (503).
+  eventsSecret: string;
+  // Llave privada: consulta la transacción en la API de Wompi antes de
+  // actualizar un pago. Nunca sale del backend.
+  privateKey: string;
+  // URL base de la API de Wompi (Sandbox por defecto).
+  apiUrl: string;
   // Tasa USD → COP tal como viene del entorno. Se valida en el servicio
   // en cada intento (ver lib/pagosPrecios.ts). Solo para Sandbox: la
   // política de conversión de producción está pendiente.
@@ -40,5 +49,8 @@ export const wompiConfig: WompiConfig = {
   redirectUrl:
     process.env.WOMPI_REDIRECT_URL?.trim() ||
     `${env.frontendUrl}/dashboard/pagos/resultado`,
+  eventsSecret: leerLlaveSandbox("WOMPI_EVENTS_SECRET", "test_events_"),
+  privateKey: leerLlaveSandbox("WOMPI_PRIVATE_KEY", "prv_test_"),
+  apiUrl: (process.env.WOMPI_API_URL?.trim() || API_URL_POR_DEFECTO).replace(/\/+$/, ""),
   tasaUsdCop: process.env.USD_COP_TASA?.trim() ?? "",
 };

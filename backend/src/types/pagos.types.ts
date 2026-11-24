@@ -16,7 +16,79 @@ export type PeriodoSuscripcion = "mensual";
 // Wompi Colombia solo acepta COP.
 export const MONEDA_PAGOS = "COP" as const;
 
-export type EstadoPago = "PENDIENTE";
+// Estados del intento de pago. Equivalen a los estados de la transacción
+// en Wompi (ver ESTADO_POR_STATUS_WOMPI en lib/wompi.ts).
+export const ESTADOS_PAGO = [
+  "PENDIENTE",
+  "APROBADO",
+  "RECHAZADO",
+  "ANULADO",
+  "ERROR",
+] as const;
+
+export type EstadoPago = (typeof ESTADOS_PAGO)[number];
+
+// Estados de una transacción en Wompi.
+export const STATUS_TRANSACCION_WOMPI = [
+  "PENDING",
+  "APPROVED",
+  "DECLINED",
+  "VOIDED",
+  "ERROR",
+] as const;
+
+export type StatusTransaccionWompi = (typeof STATUS_TRANSACCION_WOMPI)[number];
+
+// Campos de una transacción de Wompi que usa el webhook, tanto los del
+// evento como los de la consulta GET /v1/transactions/{id}.
+export interface TransaccionWompi {
+  id: string;
+  reference: string;
+  status: StatusTransaccionWompi;
+  amountInCents: number;
+  currency: string;
+}
+
+// Evento con la forma validada (la firma se verifica aparte).
+export interface EventoWompi {
+  event: string;
+  data: Record<string, unknown>;
+  environment: string;
+  signature: { properties: string[]; checksum: string };
+  timestamp: number;
+}
+
+// Intento de pago tal como lo necesita el webhook.
+export interface PagoIntentoWebhook {
+  id: string;
+  referencia: string;
+  montoEnCentavos: number;
+  moneda: string;
+  estado: EstadoPago;
+  wompiTransaccionId: string | null;
+  wompiEventoEn: Date | null;
+}
+
+// Cambio de estado que el webhook aplica de forma condicional.
+export interface AplicarEstadoWompiInput {
+  pagoId: string;
+  transaccionId: string;
+  estado: EstadoPago;
+  // Estados desde los que se permite pasar a `estado`.
+  estadosPrevios: readonly EstadoPago[];
+  eventoEn: Date;
+}
+
+// Respuesta del webhook cuando el evento se acepta (HTTP 200):
+// - aplicado:  el intento cambió de estado.
+// - duplicado: el intento ya tenía ese estado y esa transacción.
+// - ignorado:  evento no procesado (otro tipo de evento, evento antiguo o
+//              transición no permitida). Responder 200 evita reintentos.
+export interface ResultadoWebhookWompi {
+  resultado: "aplicado" | "duplicado" | "ignorado";
+  referencia?: string;
+  estado?: EstadoPago;
+}
 
 // Body ya validado de POST /api/pagos/wompi/checkout.
 export interface IniciarPagoInput {

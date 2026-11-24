@@ -1,9 +1,14 @@
 import { AppError } from "../errors/AppError.js";
 import { wompiConfig, type WompiConfig } from "../config/wompi.js";
 import {
+  ESTADO_POR_STATUS_WOMPI,
   calcularFirmaIntegridad,
   construirUrlCheckout,
+  crearConsultaTransaccionWompi,
   generarReferenciaPago,
+  parseTransaccionWompi,
+  verificarFirmaEvento,
+  type ConsultarTransaccionWompi,
 } from "../lib/wompi.js";
 import {
   CATALOGO_PLANES,
@@ -16,7 +21,11 @@ import {
 } from "../repositories/pagos.repository.js";
 import {
   MONEDA_PAGOS,
+  type EstadoPago,
+  type EventoWompi,
   type IniciarPagoInput,
+  type ResultadoWebhookWompi,
+  type TransaccionWompi,
   type OpcionPago,
   type PagoIntentoOutput,
   type PlanSuscripcion,
@@ -71,10 +80,31 @@ export interface CheckoutWompiOutput {
   checkoutUrl: string;
 }
 
+// Transiciones permitidas: estado nuevo → estados desde los que se admite.
+// APROBADO, RECHAZADO y ERROR son finales; solo un pago aprobado puede
+// anularse después (VOIDED, pagos con tarjeta). Nada vuelve a PENDIENTE.
+const ESTADOS_PREVIOS: Record<EstadoPago, readonly EstadoPago[]> = {
+  PENDIENTE: ["PENDIENTE"],
+  APROBADO: ["PENDIENTE"],
+  RECHAZADO: ["PENDIENTE"],
+  ERROR: ["PENDIENTE"],
+  ANULADO: ["PENDIENTE", "APROBADO"],
+};
+
+// Este paso solo admite Sandbox: environment "test" en los eventos.
+const AMBIENTE_WOMPI = "test";
+
+const MSG_WEBHOOK_NO_CONFIGURADO =
+  "El webhook de pagos no está configurado.";
+
 export function createPagosService(
   repository: PagosRepository = pagosRepository,
   config: WompiConfig = wompiConfig,
-  generarReferencia: () => string = generarReferenciaPago
+  generarReferencia: () => string = generarReferenciaPago,
+  consultarTransaccion: ConsultarTransaccionWompi = crearConsultaTransaccionWompi({
+    apiUrl: config.apiUrl,
+    privateKey: config.privateKey,
+  })
 ) {
   function exigirRolPagador(rol: TipoUsuario): RolPagador {
     if (!esRolPagador(rol)) {
@@ -180,6 +210,115 @@ export function createPagosService(
       });
 
       return { pago, checkoutUrl };
+    },
+
+    // Procesa un evento del webhook de Wompi. Solo actualiza el intento de
+    // pago; la activación de la suscripción queda para el siguiente paso.
+    // Lanza AppError (respuesta distinta de 200, Wompi reintenta) cuando el
+    // evento no es válido o no se pudo verificar.
+    async procesarEventoWompi(
+      evento: EventoWompi,
+      checksumCabecera?: string
+    ): Promise<ResultadoWebhookWompi> {
+      // 1. Sin secreto de eventos no se acepta ningún evento.
+      if (!config.eventsSecret) {
+        console.error("Webhook de Wompi rechazado: falta WOMPI_EVENTS_SECRET.");
+        throw new AppError(503, MSG_WEBHOOK_NO_CONFIGURADO);
+      }
+
+      // 2. Firma.
+      if (!verificarFirmaEvento(evento, config.eventsSecret, checksumCabecera)) {
+        console.warn("Webhook de Wompi rechazado: firma inválida.");
+        throw new AppError(401, "Firma del evento inválida.");
+      }
+
+      // 3. Solo se procesan cambios de transacción; el resto se confirma
+      //    con 200 para que Wompi no los reintente.
+      if (evento.event !== "transaction.updated") {
+        return { resultado: "ignorado" };
+      }
+
+      if (evento.environment !== AMBIENTE_WOMPI) {
+        console.warn(`Webhook de Wompi rechazado: ambiente "${evento.environment}".`);
+        throw new AppError(422, "El evento no corresponde al ambiente configurado.");
+      }
+
+      const delEvento = parseTransaccionWompi(evento.data.transaction);
+      if (!delEvento) {
+        throw new AppError(400, "El evento no tiene el formato esperado.");
+      }
+
+      // 4. Intento guardado y comparación con los datos del evento. Se usa
+      //    el importe original del intento: no se recalcula con la tasa.
+      const intento = await repository.findIntentoPorReferencia(delEvento.reference);
+      if (!intento) {
+        console.warn(`Webhook de Wompi: referencia desconocida ${delEvento.reference}.`);
+        throw new AppError(404, "Pago no encontrado.");
+      }
+      if (
+        delEvento.currency !== intento.moneda ||
+        delEvento.amountInCents !== intento.montoEnCentavos
+      ) {
+        console.warn(
+          `Webhook de Wompi: importe o moneda no coinciden (${intento.referencia}).`
+        );
+        throw new AppError(409, "El importe o la moneda no coinciden con el pago.");
+      }
+      if (intento.wompiTransaccionId && intento.wompiTransaccionId !== delEvento.id) {
+        console.warn(`Webhook de Wompi: transacción distinta para ${intento.referencia}.`);
+        throw new AppError(409, "El pago ya está asociado a otra transacción.");
+      }
+
+      // 5. Verificación del lado del servidor con la API de Wompi.
+      if (!config.privateKey) {
+        console.error("Webhook de Wompi rechazado: falta WOMPI_PRIVATE_KEY.");
+        throw new AppError(503, MSG_WEBHOOK_NO_CONFIGURADO);
+      }
+      let verificada: TransaccionWompi | null;
+      try {
+        verificada = await consultarTransaccion(delEvento.id);
+      } catch (error) {
+        console.error("No se pudo verificar la transacción con Wompi:", error);
+        throw new AppError(502, "No se pudo verificar la transacción con Wompi.");
+      }
+      if (
+        !verificada ||
+        verificada.id !== delEvento.id ||
+        verificada.reference !== intento.referencia ||
+        verificada.currency !== intento.moneda ||
+        verificada.amountInCents !== intento.montoEnCentavos
+      ) {
+        console.warn(
+          `Webhook de Wompi: la transacción verificada no coincide (${intento.referencia}).`
+        );
+        throw new AppError(409, "La transacción no coincide con el pago.");
+      }
+
+      // 6. Se aplica el estado consultado a Wompi, no el del evento.
+      const estado = ESTADO_POR_STATUS_WOMPI[verificada.status];
+      const aplicado = await repository.aplicarEstadoWompi({
+        pagoId: intento.id,
+        transaccionId: verificada.id,
+        estado,
+        estadosPrevios: ESTADOS_PREVIOS[estado],
+        eventoEn: new Date(evento.timestamp * 1000),
+      });
+      if (aplicado) {
+        return { resultado: "aplicado", referencia: intento.referencia, estado };
+      }
+
+      // Sin cambios: evento repetido, antiguo o transición no permitida.
+      // Se relee el estado para distinguir el duplicado.
+      const actual = await repository.findIntentoPorReferencia(intento.referencia);
+      if (actual?.wompiTransaccionId && actual.wompiTransaccionId !== verificada.id) {
+        throw new AppError(409, "El pago ya está asociado a otra transacción.");
+      }
+      const duplicado = actual?.estado === estado;
+      return {
+        resultado: duplicado ? "duplicado" : "ignorado",
+        referencia: intento.referencia,
+        estado: actual?.estado,
+      };
     },
   };
 }

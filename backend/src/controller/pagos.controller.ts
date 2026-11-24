@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
 import { pagosService, type PagosService } from "../service/pagos.service.js";
-import type { IniciarPagoInput } from "../types/pagos.types.js";
+import type { EventoWompi, IniciarPagoInput } from "../types/pagos.types.js";
 
 export function createPagosController(service: PagosService = pagosService) {
   return {
@@ -29,6 +29,18 @@ export function createPagosController(service: PagosService = pagosService) {
         req.body as IniciarPagoInput
       );
       return res.status(201).json(resultado);
+    }) satisfies RequestHandler,
+
+    // POST /api/pagos/wompi/webhook (público, sin sesión)
+    // Recibe los eventos de Wompi. El body ya pasó por parseEventoWompi.
+    // Wompi solo considera entregado un evento si recibe HTTP 200.
+    webhookWompi: asyncHandler(async (req, res) => {
+      const cabecera = req.get("x-event-checksum")?.trim() || undefined;
+      const resultado = await service.procesarEventoWompi(
+        req.body as EventoWompi,
+        cabecera
+      );
+      return res.status(200).json(resultado);
     }) satisfies RequestHandler,
   };
 }

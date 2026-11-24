@@ -195,7 +195,7 @@ model AdminSede {
 // Intento de pago iniciado en una pasarela (por ahora Wompi).
 // - plan "suscripcion_sede": titular = la sede (gymSlug); usuarioId = admin que paga.
 // - plan "suscripcion_particular": titular = usuarioId; gymSlug = null.
-// El estado arranca en PENDIENTE; la confirmación llegará por webhook.
+// El estado arranca en PENDIENTE y lo actualiza el webhook de Wompi.
 model PagoIntento {
   id              String   @id @default(uuid(7)) @db.Uuid
   referencia      String   @unique @db.VarChar(64)
@@ -211,7 +211,13 @@ model PagoIntento {
   // Importe final cobrado; nunca se recalcula.
   montoEnCentavos Int      @map("monto_en_centavos")
   moneda          String   @default("COP") @db.VarChar(3)
+  // PENDIENTE | APROBADO | RECHAZADO | ANULADO | ERROR. Lo actualiza el
+  // webhook de Wompi tras verificar la transacción con la API.
   estado          String   @default("PENDIENTE") @db.VarChar(20)
+  // Transacción de Wompi asociada y marca de tiempo del último evento
+  // aplicado (descarta eventos antiguos).
+  wompiTransaccionId String?   @unique @map("wompi_transaccion_id") @db.VarChar(64)
+  wompiEventoEn      DateTime? @map("wompi_evento_en") @db.Timestamptz(6)
   creadoEn        DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
   actualizadoEn   DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(6)
 

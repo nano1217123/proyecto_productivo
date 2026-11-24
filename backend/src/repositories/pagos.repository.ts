@@ -2,7 +2,10 @@
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/AppError.js";
 import type {
+  AplicarEstadoWompiInput,
+  EstadoPago,
   NuevoPagoIntento,
+  PagoIntentoWebhook,
   PagoIntentoOutput,
   PlanSuscripcion,
 } from "../types/pagos.types.js";
@@ -83,6 +86,75 @@ export function createPagosRepository() {
       } catch (error) {
         console.error("Error al guardar el intento de pago:", error);
         throw new AppError(500, "No se pudo registrar el pago.");
+      }
+    },
+
+    // Intento de pago por referencia, con los campos que usa el webhook.
+    async findIntentoPorReferencia(referencia: string): Promise<PagoIntentoWebhook | null> {
+      try {
+        const pago = await prisma.pagoIntento.findUnique({
+          where: { referencia },
+          select: {
+            id: true,
+            referencia: true,
+            montoEnCentavos: true,
+            moneda: true,
+            estado: true,
+            wompiTransaccionId: true,
+            wompiEventoEn: true,
+          },
+        });
+        return pago ? { ...pago, estado: pago.estado as EstadoPago } : null;
+      } catch (error) {
+        console.error("Error al consultar el intento de pago:", error);
+        throw new AppError(500, "Error al consultar la base de datos.");
+      }
+    },
+
+    // Aplica el nuevo estado con un único UPDATE condicional, atómico frente
+    // a eventos simultáneos: solo cambia la fila si
+    // - su estado actual está en `estadosPrevios`,
+    // - no tiene transacción o tiene esta misma, y
+    // - no se aplicó antes un evento más reciente.
+    // Devuelve true si la fila cambió.
+    async aplicarEstadoWompi(input: AplicarEstadoWompiInput): Promise<boolean> {
+      try {
+        const { count } = await prisma.pagoIntento.updateMany({
+          where: {
+            id: input.pagoId,
+            estado: { in: [...input.estadosPrevios] },
+            AND: [
+              // PENDIENTE → PENDIENTE solo sirve para registrar la transacción.
+              input.estado === "PENDIENTE"
+                ? { wompiTransaccionId: null }
+                : {
+                    OR: [
+                      { wompiTransaccionId: null },
+                      { wompiTransaccionId: input.transaccionId },
+                    ],
+                  },
+              {
+                OR: [
+                  { wompiEventoEn: null },
+                  { wompiEventoEn: { lte: input.eventoEn } },
+                ],
+              },
+            ],
+          },
+          data: {
+            estado: input.estado,
+            wompiTransaccionId: input.transaccionId,
+            wompiEventoEn: input.eventoEn,
+          },
+        });
+        return count === 1;
+      } catch (error) {
+        // La transacción ya está asociada a otro intento (índice único).
+        if ((error as { code?: string })?.code === "P2002") {
+          throw new AppError(409, "La transacción ya está asociada a otro pago.");
+        }
+        console.error("Error al actualizar el estado del pago:", error);
+        throw new AppError(500, "Error al actualizar el pago.");
       }
     },
   };

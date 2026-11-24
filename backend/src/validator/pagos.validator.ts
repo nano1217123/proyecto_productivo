@@ -1,7 +1,7 @@
 // Validaciones de entrada para el módulo de pagos.
 import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
-import type { IniciarPagoInput } from "../types/pagos.types.js";
+import type { EventoWompi, IniciarPagoInput } from "../types/pagos.types.js";
 
 // Formato de slug de sede (p. ej. "jj-poblado"). La autorización real se
 // hace en el servicio contra admin_sedes.
@@ -37,3 +37,50 @@ export const validateIniciarPago: RequestHandler = (req, _res, next) => {
   req.body = parseIniciarPagoBody(req.body);
   next();
 };
+
+// Forma mínima de un evento de Wompi (POST /api/pagos/wompi/webhook).
+// Solo valida la estructura necesaria para verificar la firma; los campos
+// de la transacción se validan en el servicio después de la firma.
+const MAX_PROPIEDADES_FIRMA = 10;
+
+function esObjeto(valor: unknown): valor is Record<string, unknown> {
+  return typeof valor === "object" && valor !== null && !Array.isArray(valor);
+}
+
+export const validateEventoWompi: RequestHandler = (req, _res, next) => {
+  req.body = parseEventoWompi(req.body);
+  next();
+};
+
+export function parseEventoWompi(body: unknown): EventoWompi {
+  const invalido = () => new AppError(400, "El evento no tiene el formato esperado.");
+
+  if (!esObjeto(body)) throw invalido();
+  const { event, data, environment, signature, timestamp } = body;
+
+  if (typeof event !== "string" || event.length === 0 || event.length > 100) throw invalido();
+  if (!esObjeto(data)) throw invalido();
+  if (typeof environment !== "string") throw invalido();
+  if (typeof timestamp !== "number" || !Number.isSafeInteger(timestamp) || timestamp <= 0) {
+    throw invalido();
+  }
+  if (!esObjeto(signature)) throw invalido();
+  const { properties, checksum } = signature;
+  if (
+    !Array.isArray(properties) ||
+    properties.length === 0 ||
+    properties.length > MAX_PROPIEDADES_FIRMA ||
+    !properties.every((p) => typeof p === "string" && p.length > 0 && p.length <= 100)
+  ) {
+    throw invalido();
+  }
+  if (typeof checksum !== "string") throw invalido();
+
+  return {
+    event,
+    data,
+    environment,
+    signature: { properties: properties as string[], checksum },
+    timestamp,
+  };
+}

@@ -1,4 +1,11 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  STATUS_TRANSACCION_WOMPI,
+  type EstadoPago,
+  type EventoWompi,
+  type StatusTransaccionWompi,
+  type TransaccionWompi,
+} from "../types/pagos.types.js";
 
 // Utilidades puras para Wompi Checkout Web.
 // Documentación: https://docs.wompi.co/docs/colombia/widget-checkout-web/
@@ -50,4 +57,143 @@ export function construirUrlCheckout(params: {
     url.searchParams.set("customer-data:email", params.correoCliente);
   }
   return url.toString();
+}
+
+// ---------------------------------------------------------------------------
+// Eventos (webhook)
+// Documentación: https://docs.wompi.co/docs/colombia/eventos/
+// ---------------------------------------------------------------------------
+
+export const ESTADO_POR_STATUS_WOMPI: Record<StatusTransaccionWompi, EstadoPago> = {
+  PENDING: "PENDIENTE",
+  APPROVED: "APROBADO",
+  DECLINED: "RECHAZADO",
+  VOIDED: "ANULADO",
+  ERROR: "ERROR",
+};
+
+const CHECKSUM_REGEX = /^[0-9a-f]{64}$/i;
+const SEGMENTO_RUTA_REGEX = /^[A-Za-z0-9_]+$/;
+
+// Lee una ruta como "transaction.amount_in_cents" dentro de `data`.
+// Solo recorre propiedades propias. Devuelve undefined si la ruta no existe
+// o si el valor no es un string, número o booleano.
+function leerPropiedad(data: Record<string, unknown>, ruta: string): string | undefined {
+  let actual: unknown = data;
+  for (const segmento of ruta.split(".")) {
+    if (!SEGMENTO_RUTA_REGEX.test(segmento)) return undefined;
+    if (typeof actual !== "object" || actual === null || Array.isArray(actual)) {
+      return undefined;
+    }
+    if (!Object.hasOwn(actual, segmento)) return undefined;
+    actual = (actual as Record<string, unknown>)[segmento];
+  }
+  if (typeof actual === "string") return actual;
+  if (typeof actual === "number" || typeof actual === "boolean") return String(actual);
+  return undefined;
+}
+
+// Checksum del evento: SHA-256 de los valores de signature.properties (en
+// el orden recibido, leídos de `data`), seguidos del timestamp del evento y
+// del secreto de eventos, sin separadores. null si falta alguna propiedad.
+export function calcularChecksumEvento(
+  evento: EventoWompi,
+  secretoEventos: string
+): string | null {
+  let cadena = "";
+  for (const ruta of evento.signature.properties) {
+    const valor = leerPropiedad(evento.data, ruta);
+    if (valor === undefined) return null;
+    cadena += valor;
+  }
+  cadena += `${evento.timestamp}${secretoEventos}`;
+  return createHash("sha256").update(cadena, "utf8").digest("hex");
+}
+
+// Compara dos checksums hexadecimales en tiempo constante, sin distinguir
+// mayúsculas (el ejemplo de Wompi viene en mayúsculas).
+function checksumsIguales(a: string, b: string): boolean {
+  const bufA = Buffer.from(a.toLowerCase(), "utf8");
+  const bufB = Buffer.from(b.toLowerCase(), "utf8");
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
+
+// true si la firma del evento es válida. Wompi envía el checksum en el body
+// (signature.checksum) y en la cabecera X-Event-Checksum. Si llegan ambos,
+// deben coincidir.
+export function verificarFirmaEvento(
+  evento: EventoWompi,
+  secretoEventos: string,
+  checksumCabecera?: string
+): boolean {
+  if (!secretoEventos) return false;
+  const recibido = evento.signature.checksum;
+  if (!CHECKSUM_REGEX.test(recibido)) return false;
+  if (checksumCabecera !== undefined && !checksumsIguales(checksumCabecera, recibido)) {
+    return false;
+  }
+  if (evento.signature.properties.length === 0) return false;
+  const esperado = calcularChecksumEvento(evento, secretoEventos);
+  return esperado !== null && checksumsIguales(esperado, recibido);
+}
+
+// Extrae y valida los campos de una transacción (del evento o de la API).
+// null si falta alguno o tiene un tipo inesperado.
+export function parseTransaccionWompi(valor: unknown): TransaccionWompi | null {
+  if (typeof valor !== "object" || valor === null || Array.isArray(valor)) return null;
+  const { id, reference, status, amount_in_cents: monto, currency } =
+    valor as Record<string, unknown>;
+  if (typeof id !== "string" || id.length === 0 || id.length > 64) return null;
+  if (typeof reference !== "string" || reference.length === 0 || reference.length > 64) {
+    return null;
+  }
+  if (typeof currency !== "string" || currency.length !== 3) return null;
+  if (typeof monto !== "number" || !Number.isSafeInteger(monto) || monto <= 0) return null;
+  if (
+    typeof status !== "string" ||
+    !(STATUS_TRANSACCION_WOMPI as readonly string[]).includes(status)
+  ) {
+    return null;
+  }
+  return {
+    id,
+    reference,
+    status: status as StatusTransaccionWompi,
+    amountInCents: monto,
+    currency,
+  };
+}
+
+// Consulta una transacción en la API de Wompi (GET /v1/transactions/{id})
+// con la llave privada. Devuelve null si Wompi responde 404 y lanza un error
+// ante cualquier otro fallo (red, tiempo de espera, respuesta inesperada).
+export type ConsultarTransaccionWompi = (id: string) => Promise<TransaccionWompi | null>;
+
+export function crearConsultaTransaccionWompi(params: {
+  apiUrl: string;
+  privateKey: string;
+  timeoutMs?: number;
+}): ConsultarTransaccionWompi {
+  return async (id) => {
+    const respuesta = await fetch(
+      `${params.apiUrl}/transactions/${encodeURIComponent(id)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${params.privateKey}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(params.timeoutMs ?? 10_000),
+      }
+    );
+    if (respuesta.status === 404) return null;
+    if (!respuesta.ok) {
+      throw new Error(`Wompi respondió ${respuesta.status} al consultar la transacción.`);
+    }
+    const cuerpo = (await respuesta.json()) as { data?: unknown } | null;
+    const transaccion = parseTransaccionWompi(cuerpo?.data);
+    if (!transaccion) {
+      throw new Error("La respuesta de Wompi no tiene el formato esperado.");
+    }
+    return transaccion;
+  };
 }
