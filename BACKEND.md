@@ -284,3 +284,11 @@ npx prisma studio
   (`AuthContext.jsx`, `middleware.js`, 7 páginas de auth).
 - **OAuth** de Google y Microsoft.
 - **Docker** (a cargo de otro miembro del equipo).
+## reCAPTCHA v3 en el inicio de sesión
+
+1. Registra una clave de reCAPTCHA v3 en la [consola de Google](https://www.google.com/recaptcha/admin/create). Agrega los dominios donde se sirve el frontend y conserva activa la validación de dominios de Google. Para pruebas locales, registra `localhost` en una clave de desarrollo.
+2. En el backend, configura `RECAPTCHA_SECRET_KEY` con la clave secreta. El umbral `RECAPTCHA_MIN_SCORE` es opcional y vale `0.5` por defecto.
+3. En el frontend, configura `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` con la clave pública del mismo registro. En Vercel, configura la variable antes de volver a compilar y desplegar el frontend.
+4. Despliega el frontend con la clave pública y activa después la verificación en el backend. Con la clave secreta configurada, `POST /api/auth/login` exige un token válido para la acción `login` en cada intento. Sin la clave secreta, la verificación queda desactivada.
+
+La integración cubre el acceso con correo y contraseña. El acceso con Google usa su flujo OAuth. En un entorno con las claves configuradas, comprueba que el formulario pueda iniciar sesión y que una cuenta con correo pendiente siga llegando a la pantalla del código de verificación.
