@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "../api/authApi";
-import { env } from "@/src/config/env";
 
 const AuthContext = createContext(null);
 
@@ -96,9 +95,7 @@ export function AuthProvider({ children }) {
   }
 
   function loginWithGoogle() {
-    const baseUrl =
-      env.apiUrl;
-    window.location.href = `${baseUrl}/api/auth/oauth/google`;
+    window.location.href = "/api/auth/oauth/google";
   }
 
   return (

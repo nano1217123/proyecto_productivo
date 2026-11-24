@@ -3,7 +3,7 @@
  *
  * Única puerta de entrada para comunicación con el backend.
  * Centraliza:
- *   - Base URL (desde config/env.js).
+ *   - Rutas de API en el dominio del frontend.
  *   - Cookies de sesión (credentials: 'include').
  *   - Serialización JSON.
  *   - Manejo uniforme de errores HTTP y de red.
@@ -11,8 +11,6 @@
  * NO maneja estado (loading/error/data): eso es responsabilidad de los hooks
  * que consuman este cliente (useExercises, useRoutines, etc.).
  */
-
-import { env } from "@/src/config/env";
 
 /**
  * Error estructurado para fallos HTTP o de red.
@@ -29,13 +27,12 @@ export class HttpError extends Error {
 }
 
 /**
- * Construye la URL final combinando base + path.
- * No duplica slashes.
+ * Resuelve rutas relativas desde la raíz del frontend.
  */
 function buildUrl(path) {
-  if (!path) return env.apiUrl;
+  if (!path) return "/";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${env.apiUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+  return path.startsWith("/") ? path : `/${path}`;
 }
 
 /**
