@@ -7,6 +7,7 @@ import {
   crearConsultaTransaccionWompi,
   generarReferenciaPago,
   parseTransaccionWompi,
+  redirectConReferencia,
   verificarFirmaEvento,
   type ConsultarTransaccionWompi,
 } from "../lib/wompi.js";
@@ -21,6 +22,7 @@ import {
 } from "../repositories/pagos.repository.js";
 import {
   MONEDA_PAGOS,
+  type ConsultaEstadoPagoInput,
   type EstadoPago,
   type EventoWompi,
   type IniciarPagoInput,
@@ -175,6 +177,15 @@ export function createPagosService(
       }
       const { precioUsdCentavos, tasaUsdCop, montoEnCentavos } = cotizacion;
 
+      // El usuario confirmó un importe concreto. Si la tasa cambió desde
+      // que lo vio, no se crea el intento: debe revisar el nuevo importe.
+      if (input.montoEnCentavos !== null && input.montoEnCentavos !== montoEnCentavos) {
+        throw new AppError(
+          409,
+          "El importe a pagar cambió. Revisa el nuevo valor antes de continuar."
+        );
+      }
+
       const referencia = generarReferencia();
 
       // El intento conserva el precio USD, la tasa aplicada y el importe
@@ -205,11 +216,47 @@ export function createPagosService(
         montoEnCentavos,
         moneda: MONEDA_PAGOS,
         firma,
-        redirectUrl: config.redirectUrl,
+        redirectUrl: config.redirectUrl
+          ? redirectConReferencia(config.redirectUrl, referencia)
+          : undefined,
         correoCliente: correo,
       });
 
       return { pago, checkoutUrl };
+    },
+
+    // Estado de un intento de pago, tal como lo dejó el webhook. Solo lo ve
+    // quien puede pagarlo:
+    // - usuario_particular: sus propios pagos de suscripción personal.
+    // - admin: pagos de sedes que tiene asignadas hoy.
+    // Si no existe o no le pertenece, responde 404 (no revela si existe).
+    async consultarEstadoPago(
+      usuarioId: string,
+      rol: TipoUsuario,
+      consulta: ConsultaEstadoPagoInput
+    ): Promise<PagoIntentoOutput> {
+      const rolPagador = exigirRolPagador(rol);
+      const noEncontrado = () => new AppError(404, "No encontramos ese pago en tu cuenta.");
+
+      const encontrado = await repository.findIntentoConsultable(consulta);
+      if (!encontrado) throw noEncontrado();
+      const { pago } = encontrado;
+
+      if (rolPagador === "usuario_particular") {
+        if (pago.plan !== "suscripcion_particular" || encontrado.usuarioId !== usuarioId) {
+          throw noEncontrado();
+        }
+        return pago;
+      }
+
+      if (
+        pago.plan !== "suscripcion_sede" ||
+        !pago.gym_slug ||
+        !(await repository.administraSede(usuarioId, pago.gym_slug))
+      ) {
+        throw noEncontrado();
+      }
+      return pago;
     },
 
     // Procesa un evento del webhook de Wompi. Solo actualiza el intento de

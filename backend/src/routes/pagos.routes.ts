@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 import { ROLES_PAGADORES } from "../service/pagos.service.js";
 import {
+  validateConsultaEstadoPago,
   validateEventoWompi,
   validateIniciarPago,
 } from "../validator/pagos.validator.js";
@@ -35,12 +36,24 @@ const wompiWebhookLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Consulta de estado: la página de resultado la repite cada pocos segundos
+// mientras el pago está pendiente, así que tiene su propio límite.
+const estadoLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  message: { message: "Demasiadas consultas. Espera un momento." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? ""),
+});
+
 interface PagosRouterDeps {
   auth: RequestHandler;
   roles: (...roles: TipoUsuario[]) => RequestHandler;
   controller: PagosController;
   limiter: RequestHandler;
   webhookLimiter: RequestHandler;
+  statusLimiter: RequestHandler;
 }
 
 export function createPagosRouter({
@@ -49,6 +62,7 @@ export function createPagosRouter({
   controller = createPagosController(),
   limiter = checkoutLimiter,
   webhookLimiter = wompiWebhookLimiter,
+  statusLimiter = estadoLimiter,
 }: Partial<PagosRouterDeps> = {}) {
   const router = Router();
 
@@ -68,6 +82,13 @@ export function createPagosRouter({
   router.use(roles(...ROLES_PAGADORES));
 
   router.get("/opciones", controller.listarOpciones);
+
+  router.get(
+    "/estado",
+    statusLimiter,
+    validateConsultaEstadoPago,
+    controller.consultarEstado
+  );
 
   router.post(
     "/wompi/checkout",

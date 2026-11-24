@@ -73,3 +73,67 @@ export function esUrlCheckoutWompi(url) {
     return false;
   }
 }
+
+// Último pago iniciado en esta pestaña. Se guarda antes de ir a Wompi para
+// identificar el pago al volver si la URL de retorno no trae la referencia
+// (por ejemplo, en local, donde Wompi no admite redirect-url).
+const CLAVE_ULTIMO_PAGO = "jjgym:pagos:ultima-referencia";
+const REFERENCIA_REGEX = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function esReferenciaValida(valor) {
+  return typeof valor === "string" && REFERENCIA_REGEX.test(valor);
+}
+
+export function guardarUltimaReferencia(referencia) {
+  try {
+    sessionStorage.setItem(CLAVE_ULTIMO_PAGO, referencia);
+  } catch {
+    // Sin almacenamiento (modo privado estricto): la URL de retorno basta.
+  }
+}
+
+export function leerUltimaReferencia() {
+  try {
+    const valor = sessionStorage.getItem(CLAVE_ULTIMO_PAGO);
+    return esReferenciaValida(valor) ? valor : null;
+  } catch {
+    return null;
+  }
+}
+
+// Presentación de cada estado del intento. El estado siempre viene del
+// backend; aquí solo se decide el texto y el color.
+export const ESTADOS_PAGO = {
+  PENDIENTE: {
+    titulo: "Pago pendiente",
+    descripcion:
+      "Wompi aún no confirma el resultado. Esta página se actualizará sola.",
+    tono: "pendiente",
+  },
+  APROBADO: {
+    titulo: "Pago aprobado",
+    descripcion: "Wompi confirmó tu pago.",
+    tono: "exito",
+  },
+  RECHAZADO: {
+    titulo: "Pago rechazado",
+    descripcion:
+      "La entidad financiera no aprobó el pago. No se realizó ningún cobro; puedes intentarlo de nuevo.",
+    tono: "error",
+  },
+  ANULADO: {
+    titulo: "Pago anulado",
+    descripcion: "El pago fue anulado después de procesarse.",
+    tono: "error",
+  },
+  ERROR: {
+    titulo: "Error en el pago",
+    descripcion:
+      "Ocurrió un error al procesar el pago en Wompi. Puedes intentarlo de nuevo.",
+    tono: "error",
+  },
+};
+
+export function esEstadoFinal(estado) {
+  return estado in ESTADOS_PAGO && estado !== "PENDIENTE";
+}

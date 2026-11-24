@@ -21,15 +21,35 @@ export const paymentsApi = {
   },
 
   // Registra el intento de pago y devuelve { pago, checkoutUrl }.
-  // Solo se envía la sede: el backend decide el plan y el importe.
-  async startWompiCheckout({ gymSlug = null } = {}) {
+  // Se envían la sede y el importe COP que el usuario confirmó: el backend
+  // decide el plan y el importe, y responde 409 sin crear el intento si el
+  // importe confirmado ya no es el vigente.
+  async startWompiCheckout({ gymSlug = null, montoEnCentavos } = {}) {
     try {
-      return await http.post(
-        "/api/pagos/wompi/checkout",
-        gymSlug ? { gymSlug } : {}
-      );
+      return await http.post("/api/pagos/wompi/checkout", {
+        ...(gymSlug ? { gymSlug } : {}),
+        montoEnCentavos,
+      });
     } catch (err) {
       throw withMessage(err, "No se pudo iniciar el pago.");
+    }
+  },
+
+  // Estado de un intento según el backend: por referencia o, si falta, por
+  // el id de transacción que Wompi añade al volver.
+  async getPaymentStatus({ referencia = null, transaccionId = null } = {}, options) {
+    const params = new URLSearchParams();
+    if (referencia) params.set("referencia", referencia);
+    if (transaccionId) params.set("id", transaccionId);
+    try {
+      const { pago } = await http.get(`/api/pagos/estado?${params}`, {
+        cache: "no-store",
+        ...options,
+      });
+      return pago;
+    } catch (err) {
+      if (err?.name === "AbortError") throw err;
+      throw withMessage(err, "No se pudo consultar el estado del pago.");
     }
   },
 };

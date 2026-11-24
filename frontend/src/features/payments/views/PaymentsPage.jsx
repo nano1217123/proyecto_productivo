@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import { HttpError } from "@/src/lib/api/httpClient";
 import { paymentsApi } from "../api/paymentsApi";
 import {
   esUrlCheckoutWompi,
   formatearCop,
   formatearTasa,
   formatearUsd,
+  guardarUltimaReferencia,
+  leerUltimaReferencia,
   nombrePeriodo,
   nombrePlan,
   nombreSede,
@@ -20,7 +23,9 @@ const cardClass =
 const primaryButton =
   "inline-flex items-center justify-center px-5 py-3 rounded-md border-0 bg-[#b56cff] text-white text-sm font-extrabold cursor-pointer hover:bg-[#a457f2] disabled:opacity-50 disabled:cursor-not-allowed";
 const secondaryButton =
-  "inline-flex items-center justify-center px-5 py-3 rounded-md border border-[#41433f] bg-transparent text-[#a9afa7] text-sm font-bold cursor-pointer hover:text-[#f2f4ef] hover:border-[#6f756b]";
+  "inline-flex items-center justify-center px-5 py-3 rounded-md border border-[#41433f] bg-transparent text-[#a9afa7] text-sm font-bold cursor-pointer hover:text-[#f2f4ef] hover:border-[#6f756b] disabled:opacity-50 disabled:cursor-not-allowed";
+
+const claveOpcion = (opcion) => opcion.gym_slug ?? "personal";
 
 export default function PaymentsPage() {
   const { profile, loading } = useAuth();
@@ -29,9 +34,31 @@ export default function PaymentsPage() {
 
   const [opciones, setOpciones] = useState([]);
   const [cargandoOpciones, setCargandoOpciones] = useState(false);
+  const [recargas, setRecargas] = useState(0);
   const [error, setError] = useState("");
-  const [iniciando, setIniciando] = useState(null);
-  const [checkout, setCheckout] = useState(null);
+  // Opción elegida: se muestra el importe para confirmar. Todavía no existe
+  // ningún intento de pago; Cancelar solo vuelve a la lista.
+  const [seleccion, setSeleccion] = useState(null);
+  const [procesando, setProcesando] = useState(false);
+  const [ultimaReferencia, setUltimaReferencia] = useState(null);
+  // Bloqueo síncrono contra dobles clics: el estado de React se aplica en
+  // el siguiente render; el ref, de inmediato.
+  const enviandoRef = useRef(false);
+
+  useEffect(() => {
+    setUltimaReferencia(leerUltimaReferencia());
+
+    // Al volver desde Wompi con «Atrás», el navegador puede restaurar la
+    // página desde su caché (bfcache) con el botón aún bloqueado.
+    function alRestaurar(evento) {
+      if (!evento.persisted) return;
+      enviandoRef.current = false;
+      setProcesando(false);
+      setUltimaReferencia(leerUltimaReferencia());
+    }
+    window.addEventListener("pageshow", alRestaurar);
+    return () => window.removeEventListener("pageshow", alRestaurar);
+  }, []);
 
   useEffect(() => {
     if (loading || !autorizado) return;
@@ -40,36 +67,67 @@ export default function PaymentsPage() {
     setCargandoOpciones(true);
     paymentsApi
       .getOptions()
-      .then((data) => !cancelado && setOpciones(data))
+      .then((data) => {
+        if (cancelado) return;
+        setOpciones(data);
+        // Conserva la selección con el importe actualizado, si sigue existiendo.
+        setSeleccion((actual) =>
+          actual
+            ? data.find((o) => claveOpcion(o) === claveOpcion(actual) && o.disponible) ?? null
+            : null
+        );
+      })
       .catch((err) => !cancelado && setError(err.message))
       .finally(() => !cancelado && setCargandoOpciones(false));
 
     return () => {
       cancelado = true;
     };
-  }, [loading, autorizado]);
+  }, [loading, autorizado, recargas]);
 
-  async function iniciarPago(opcion) {
+  function elegir(opcion) {
+    if (!opcion.disponible || procesando) return;
     setError("");
-    setIniciando(opcion.gym_slug ?? "personal");
-    try {
-      const data = await paymentsApi.startWompiCheckout({
-        gymSlug: opcion.gym_slug,
-      });
-      setCheckout(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIniciando(null);
-    }
+    setSeleccion(opcion);
   }
 
-  function irAWompi() {
-    if (!checkout || !esUrlCheckoutWompi(checkout.checkoutUrl)) {
-      setError("La dirección de pago no es válida. Intenta de nuevo.");
-      return;
+  function cancelar() {
+    if (enviandoRef.current) return;
+    setError("");
+    setSeleccion(null);
+  }
+
+  // Único punto que crea el intento: el botón final «Pagar con Wompi».
+  async function pagarConWompi() {
+    if (enviandoRef.current || !seleccion?.disponible) return;
+    enviandoRef.current = true;
+    setProcesando(true);
+    setError("");
+
+    try {
+      const { pago, checkoutUrl } = await paymentsApi.startWompiCheckout({
+        gymSlug: seleccion.gym_slug,
+        montoEnCentavos: seleccion.monto_en_centavos,
+      });
+      if (
+        !esUrlCheckoutWompi(checkoutUrl) ||
+        pago?.monto_en_centavos !== seleccion.monto_en_centavos
+      ) {
+        throw new Error("No se pudo preparar el pago. Intenta de nuevo.");
+      }
+      guardarUltimaReferencia(pago.referencia);
+      // El bloqueo se mantiene: el navegador ya está saliendo hacia Wompi.
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      enviandoRef.current = false;
+      setProcesando(false);
+      setError(err.message);
+      // El importe cambió: se recargan las opciones para mostrar el nuevo
+      // valor antes de que el usuario vuelva a confirmar.
+      if (err instanceof HttpError && err.status === 409) {
+        setRecargas((n) => n + 1);
+      }
     }
-    window.location.assign(checkout.checkoutUrl);
   }
 
   return (
@@ -119,49 +177,58 @@ export default function PaymentsPage() {
           </p>
         )}
 
-        {autorizado && checkout && (
+        {autorizado && seleccion && (
           <div className={cardClass} aria-live="polite">
             <p className="m-0 mb-2 text-[11px] font-extrabold tracking-[1.8px] uppercase text-[#b56cff]">
               Confirma el pago
             </p>
             <h2 className="m-0 text-2xl">
-              {nombrePlan(checkout.pago.plan)}
-              {checkout.pago.gym_slug && ` · ${nombreSede(checkout.pago.gym_slug)}`}
+              {nombrePlan(seleccion.plan)}
+              {seleccion.gym_slug && ` · ${nombreSede(seleccion.gym_slug)}`}
             </h2>
+
+            <p className="m-0 mt-5 text-sm text-[#a9afa7]">Valor a pagar</p>
+            <p className="m-0 mt-1 text-[clamp(30px,5vw,40px)] font-extrabold tracking-[-1px] leading-none">
+              {formatearCop(seleccion.monto_en_centavos)}{" "}
+              <span className="text-base font-bold text-[#a9afa7]">
+                {seleccion.moneda}
+              </span>
+            </p>
+
             <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-              <dt className="text-[#a9afa7]">Valor a pagar</dt>
-              <dd className="m-0 text-xl font-extrabold">
-                {formatearCop(checkout.pago.monto_en_centavos)} {checkout.pago.moneda}
+              <dt className="text-[#a9afa7]">Periodo</dt>
+              <dd className="m-0 text-[#c8cbc5] capitalize">{seleccion.periodo}</dd>
+              <dt className="text-[#a9afa7]">Precio del plan</dt>
+              <dd className="m-0 text-[#c8cbc5]">
+                {formatearUsd(seleccion.precio_usd_centavos)} /{" "}
+                {nombrePeriodo(seleccion.periodo)}
               </dd>
-              {checkout.pago.precio_usd_centavos != null && (
-                <>
-                  <dt className="text-[#a9afa7]">Precio del plan</dt>
-                  <dd className="m-0 text-[#c8cbc5]">
-                    {formatearUsd(checkout.pago.precio_usd_centavos)} /{" "}
-                    {nombrePeriodo(checkout.pago.periodo)}
-                  </dd>
-                  <dt className="text-[#a9afa7]">Tasa de prueba</dt>
-                  <dd className="m-0 text-[#c8cbc5]">
-                    1 USD = {formatearTasa(checkout.pago.tasa_usd_cop)} COP
-                  </dd>
-                </>
-              )}
-              <dt className="text-[#a9afa7]">Referencia</dt>
-              <dd className="m-0 font-mono text-xs break-all text-[#c8cbc5]">
-                {checkout.pago.referencia}
+              <dt className="text-[#a9afa7]">Tasa de prueba</dt>
+              <dd className="m-0 text-[#c8cbc5]">
+                1 USD = {formatearTasa(seleccion.tasa_usd_cop)} COP
               </dd>
             </dl>
-            <p className="mt-4 text-xs text-[#a9afa7]">
-              Serás redirigido a Wompi para completar el pago.
+
+            <p className="mt-5 text-xs text-[#a9afa7] leading-[1.5]">
+              Al pulsar «Pagar con Wompi» registraremos el pago y te llevaremos a
+              Wompi para completarlo. JJ GYM no recibe ni guarda los datos de tu
+              tarjeta o cuenta.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <button type="button" className={primaryButton} onClick={irAWompi}>
-                Continuar a Wompi
+              <button
+                type="button"
+                className={primaryButton}
+                onClick={pagarConWompi}
+                disabled={procesando || cargandoOpciones}
+                aria-busy={procesando}
+              >
+                {procesando ? "Conectando con Wompi..." : "Pagar con Wompi"}
               </button>
               <button
                 type="button"
                 className={secondaryButton}
-                onClick={() => setCheckout(null)}
+                onClick={cancelar}
+                disabled={procesando}
               >
                 Cancelar
               </button>
@@ -169,11 +236,11 @@ export default function PaymentsPage() {
           </div>
         )}
 
-        {autorizado && !checkout && cargandoOpciones && (
+        {autorizado && !seleccion && cargandoOpciones && (
           <p className="text-sm text-[#a9afa7]">Cargando opciones de pago...</p>
         )}
 
-        {autorizado && !checkout && !cargandoOpciones && !error && opciones.length === 0 && (
+        {autorizado && !seleccion && !cargandoOpciones && !error && opciones.length === 0 && (
           <div className={cardClass}>
             <p className="m-0 text-[#a9afa7]">
               {rol === "admin"
@@ -184,44 +251,57 @@ export default function PaymentsPage() {
         )}
 
         {autorizado &&
-          !checkout &&
-          opciones.map((opcion) => {
-            const clave = opcion.gym_slug ?? "personal";
-            return (
-              <article
-                key={clave}
-                className={`${cardClass} flex flex-wrap items-center justify-between gap-4`}
-              >
-                <div>
-                  <p className="m-0 mb-1.5 text-[11px] font-extrabold tracking-[1.8px] uppercase text-[#b56cff]">
-                    {nombrePlan(opcion.plan)}
+          !seleccion &&
+          opciones.map((opcion) => (
+            <article
+              key={claveOpcion(opcion)}
+              className={`${cardClass} flex flex-wrap items-center justify-between gap-4`}
+            >
+              <div>
+                <p className="m-0 mb-1.5 text-[11px] font-extrabold tracking-[1.8px] uppercase text-[#b56cff]">
+                  {nombrePlan(opcion.plan)}
+                </p>
+                <h2 className="m-0 text-xl">
+                  {opcion.gym_slug ? nombreSede(opcion.gym_slug) : "Tu cuenta"}
+                </h2>
+                {opcion.disponible ? (
+                  <p className="m-0 mt-2 text-2xl font-extrabold">
+                    {formatearCop(opcion.monto_en_centavos)}{" "}
+                    <span className="text-sm font-bold text-[#a9afa7]">
+                      {opcion.moneda} / {nombrePeriodo(opcion.periodo)}
+                    </span>
                   </p>
-                  <h2 className="m-0 text-xl">
-                    {opcion.gym_slug ? nombreSede(opcion.gym_slug) : "Tu cuenta"}
-                  </h2>
+                ) : (
                   <p className="m-0 mt-1.5 text-sm text-[#c8cbc5]">
                     {formatearUsd(opcion.precio_usd_centavos)} /{" "}
                     {nombrePeriodo(opcion.periodo)}
-                    {opcion.disponible &&
-                      ` · ${formatearCop(opcion.monto_en_centavos)} ${opcion.moneda}`}
                   </p>
-                  <p className="m-0 mt-1 text-xs text-[#a9afa7]">
-                    {opcion.disponible
-                      ? `Tasa de prueba: 1 USD = ${formatearTasa(opcion.tasa_usd_cop)} COP`
-                      : opcion.motivo_no_disponible || "Pago no disponible en este momento."}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className={primaryButton}
-                  disabled={!opcion.disponible || iniciando !== null}
-                  onClick={() => iniciarPago(opcion)}
-                >
-                  {iniciando === clave ? "Preparando..." : "Pagar"}
-                </button>
-              </article>
-            );
-          })}
+                )}
+                <p className="m-0 mt-1 text-xs text-[#a9afa7]">
+                  {opcion.disponible
+                    ? `${formatearUsd(opcion.precio_usd_centavos)} · tasa de prueba 1 USD = ${formatearTasa(opcion.tasa_usd_cop)} COP`
+                    : opcion.motivo_no_disponible || "Pago no disponible en este momento."}
+                </p>
+              </div>
+              <button
+                type="button"
+                className={primaryButton}
+                disabled={!opcion.disponible || cargandoOpciones}
+                onClick={() => elegir(opcion)}
+              >
+                Continuar
+              </button>
+            </article>
+          ))}
+
+        {autorizado && !seleccion && ultimaReferencia && (
+          <Link
+            href={`/dashboard/pagos/resultado?referencia=${encodeURIComponent(ultimaReferencia)}`}
+            className="self-start text-sm text-[#a9afa7] no-underline hover:text-[#f2f4ef]"
+          >
+            ¿Ya pagaste? Ver el estado de tu último pago &rarr;
+          </Link>
+        )}
       </section>
     </main>
   );

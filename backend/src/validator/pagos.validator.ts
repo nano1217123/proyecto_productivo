@@ -1,27 +1,45 @@
 // Validaciones de entrada para el módulo de pagos.
 import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
-import type { EventoWompi, IniciarPagoInput } from "../types/pagos.types.js";
+import type {
+  ConsultaEstadoPagoInput,
+  EventoWompi,
+  IniciarPagoInput,
+} from "../types/pagos.types.js";
 
 // Formato de slug de sede (p. ej. "jj-poblado"). La autorización real se
 // hace en el servicio contra admin_sedes.
 const GYM_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const GYM_SLUG_MAX = 64;
 
-// Solo se acepta gymSlug. Cualquier otro campo (plan, monto, moneda...) se
-// descarta: el backend determina el plan y el importe.
+// Solo se aceptan gymSlug y montoEnCentavos (el importe COP que el usuario
+// confirmó). Cualquier otro campo (plan, moneda...) se descarta: el backend
+// determina el plan y el importe; montoEnCentavos solo sirve para comprobar
+// que el usuario confirmó el importe vigente.
 export function parseIniciarPagoBody(body: unknown): IniciarPagoInput {
   if (body === undefined || body === null) {
-    return { gymSlug: null };
+    return { gymSlug: null, montoEnCentavos: null };
   }
   if (typeof body !== "object" || Array.isArray(body)) {
     throw new AppError(400, "Los datos del pago no son válidos.");
   }
 
-  const { gymSlug } = body as Record<string, unknown>;
+  const { gymSlug, montoEnCentavos } = body as Record<string, unknown>;
+
+  let monto: number | null = null;
+  if (montoEnCentavos !== undefined && montoEnCentavos !== null) {
+    if (
+      typeof montoEnCentavos !== "number" ||
+      !Number.isSafeInteger(montoEnCentavos) ||
+      montoEnCentavos <= 0
+    ) {
+      throw new AppError(400, "El importe indicado no es válido.");
+    }
+    monto = montoEnCentavos;
+  }
 
   if (gymSlug === undefined || gymSlug === null || gymSlug === "") {
-    return { gymSlug: null };
+    return { gymSlug: null, montoEnCentavos: monto };
   }
   if (
     typeof gymSlug !== "string" ||
@@ -30,11 +48,40 @@ export function parseIniciarPagoBody(body: unknown): IniciarPagoInput {
   ) {
     throw new AppError(400, "La sede indicada no es válida.");
   }
-  return { gymSlug };
+  return { gymSlug, montoEnCentavos: monto };
 }
 
 export const validateIniciarPago: RequestHandler = (req, _res, next) => {
   req.body = parseIniciarPagoBody(req.body);
+  next();
+};
+
+// Query de GET /api/pagos/estado: ?referencia=<ref> y/o ?id=<transacción>.
+// Ambos son identificadores opacos: letras, números, guiones y guion bajo.
+const IDENTIFICADOR_REGEX = /^[A-Za-z0-9_-]{1,64}$/;
+
+function leerIdentificador(valor: unknown, mensaje: string): string | null {
+  if (valor === undefined || valor === "") return null;
+  if (typeof valor !== "string" || !IDENTIFICADOR_REGEX.test(valor)) {
+    throw new AppError(400, mensaje);
+  }
+  return valor;
+}
+
+export function parseConsultaEstadoPago(query: unknown): ConsultaEstadoPagoInput {
+  const q = esObjeto(query) ? query : {};
+  const referencia = leerIdentificador(q.referencia, "La referencia del pago no es válida.");
+  const transaccionId = leerIdentificador(q.id, "El identificador de la transacción no es válido.");
+  if (!referencia && !transaccionId) {
+    throw new AppError(400, "Indica la referencia del pago.");
+  }
+  return { referencia, transaccionId };
+}
+
+export const validateConsultaEstadoPago: RequestHandler = (req, res, next) => {
+  // La consulta validada se guarda en res.locals (req.query conserva el
+  // tipo genérico de Express y es de solo lectura en Express 5).
+  res.locals.consultaEstadoPago = parseConsultaEstadoPago(req.query);
   next();
 };
 

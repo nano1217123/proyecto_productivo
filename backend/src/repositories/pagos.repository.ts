@@ -5,10 +5,56 @@ import type {
   AplicarEstadoWompiInput,
   EstadoPago,
   NuevoPagoIntento,
+  PagoIntentoConsultable,
   PagoIntentoWebhook,
   PagoIntentoOutput,
   PlanSuscripcion,
 } from "../types/pagos.types.js";
+
+// Campos del intento que se exponen al cliente.
+const SELECT_SALIDA = {
+  referencia: true,
+  plan: true,
+  periodo: true,
+  gymSlug: true,
+  precioUsdCentavos: true,
+  tasaUsdCop: true,
+  montoEnCentavos: true,
+  moneda: true,
+  estado: true,
+  creadoEn: true,
+  actualizadoEn: true,
+} as const;
+
+type FilaSalida = {
+  referencia: string;
+  plan: string;
+  periodo: string;
+  gymSlug: string | null;
+  precioUsdCentavos: number | null;
+  tasaUsdCop: { toString(): string } | null;
+  montoEnCentavos: number;
+  moneda: string;
+  estado: string;
+  creadoEn: Date;
+  actualizadoEn: Date;
+};
+
+function aSalida(pago: FilaSalida): PagoIntentoOutput {
+  return {
+    referencia: pago.referencia,
+    plan: pago.plan as PlanSuscripcion,
+    periodo: pago.periodo,
+    gym_slug: pago.gymSlug,
+    precio_usd_centavos: pago.precioUsdCentavos,
+    tasa_usd_cop: pago.tasaUsdCop?.toString() ?? null,
+    monto_en_centavos: pago.montoEnCentavos,
+    moneda: pago.moneda,
+    estado: pago.estado,
+    creado_en: pago.creadoEn,
+    actualizado_en: pago.actualizadoEn,
+  };
+}
 
 export function createPagosRepository() {
   return {
@@ -57,35 +103,33 @@ export function createPagosRepository() {
             moneda: input.moneda,
             estado: "PENDIENTE",
           },
-          select: {
-            referencia: true,
-            plan: true,
-            periodo: true,
-            gymSlug: true,
-            precioUsdCentavos: true,
-            tasaUsdCop: true,
-            montoEnCentavos: true,
-            moneda: true,
-            estado: true,
-            creadoEn: true,
-          },
+          select: SELECT_SALIDA,
         });
-
-        return {
-          referencia: pago.referencia,
-          plan: pago.plan as PlanSuscripcion,
-          periodo: pago.periodo,
-          gym_slug: pago.gymSlug,
-          precio_usd_centavos: pago.precioUsdCentavos,
-          tasa_usd_cop: pago.tasaUsdCop?.toString() ?? null,
-          monto_en_centavos: pago.montoEnCentavos,
-          moneda: pago.moneda,
-          estado: pago.estado,
-          creado_en: pago.creadoEn,
-        };
+        return aSalida(pago);
       } catch (error) {
         console.error("Error al guardar el intento de pago:", error);
         throw new AppError(500, "No se pudo registrar el pago.");
+      }
+    },
+
+    // Intento de pago para la consulta de estado: por referencia o, si no
+    // viene, por el id de transacción de Wompi. Incluye el dueño para que
+    // el servicio decida si el usuario puede verlo.
+    async findIntentoConsultable(where: {
+      referencia: string | null;
+      transaccionId: string | null;
+    }): Promise<PagoIntentoConsultable | null> {
+      try {
+        const pago = await prisma.pagoIntento.findUnique({
+          where: where.referencia
+            ? { referencia: where.referencia }
+            : { wompiTransaccionId: where.transaccionId as string },
+          select: { ...SELECT_SALIDA, usuarioId: true },
+        });
+        return pago ? { usuarioId: pago.usuarioId, pago: aSalida(pago) } : null;
+      } catch (error) {
+        console.error("Error al consultar el estado del pago:", error);
+        throw new AppError(500, "Error al consultar la base de datos.");
       }
     },
 

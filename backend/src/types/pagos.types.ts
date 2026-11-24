@@ -91,8 +91,26 @@ export interface ResultadoWebhookWompi {
 }
 
 // Body ya validado de POST /api/pagos/wompi/checkout.
+// montoEnCentavos es el importe COP que el usuario vio y confirmó. Si no
+// coincide con la cotización vigente, no se crea el intento (409).
 export interface IniciarPagoInput {
   gymSlug: string | null;
+  montoEnCentavos: number | null;
+}
+
+// Query ya validada de GET /api/pagos/estado. Identifica el intento por su
+// referencia (la que el backend añade a redirect-url) o, si falta, por el
+// id de transacción que Wompi añade al volver (?id=). Al menos uno viene
+// definido.
+export interface ConsultaEstadoPagoInput {
+  referencia: string | null;
+  transaccionId: string | null;
+}
+
+// Intento con los datos necesarios para decidir quién puede consultarlo.
+export interface PagoIntentoConsultable {
+  usuarioId: string;
+  pago: PagoIntentoOutput;
 }
 
 // Datos que se guardan al crear un intento de pago.
@@ -122,6 +140,7 @@ export interface PagoIntentoOutput {
   moneda: string;
   estado: string;
   creado_en: Date;
+  actualizado_en: Date;
 }
 
 // Opción de pago disponible para el usuario autenticado.

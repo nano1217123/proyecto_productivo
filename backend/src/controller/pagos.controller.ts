@@ -2,7 +2,11 @@ import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
 import { pagosService, type PagosService } from "../service/pagos.service.js";
-import type { EventoWompi, IniciarPagoInput } from "../types/pagos.types.js";
+import type {
+  ConsultaEstadoPagoInput,
+  EventoWompi,
+  IniciarPagoInput,
+} from "../types/pagos.types.js";
 
 export function createPagosController(service: PagosService = pagosService) {
   return {
@@ -29,6 +33,22 @@ export function createPagosController(service: PagosService = pagosService) {
         req.body as IniciarPagoInput
       );
       return res.status(201).json(resultado);
+    }) satisfies RequestHandler,
+
+    // GET /api/pagos/estado?referencia=<ref>&id=<transacción>
+    // Estado del intento según el backend (lo actualiza el webhook).
+    consultarEstado: asyncHandler(async (req, res) => {
+      if (!req.userId) throw new AppError(401, "No autorizado.");
+      if (!req.userRole) throw new AppError(403, "No se pudo verificar tu rol.");
+
+      const pago = await service.consultarEstadoPago(
+        req.userId,
+        req.userRole,
+        res.locals.consultaEstadoPago as ConsultaEstadoPagoInput
+      );
+      // El estado cambia con el webhook: nunca debe servirse desde caché.
+      res.set("Cache-Control", "no-store");
+      return res.status(200).json({ pago });
     }) satisfies RequestHandler,
 
     // POST /api/pagos/wompi/webhook (público, sin sesión)

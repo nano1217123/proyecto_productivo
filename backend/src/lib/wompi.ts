@@ -33,6 +33,46 @@ export function calcularFirmaIntegridad(params: {
   return createHash("sha256").update(cadena, "utf8").digest("hex");
 }
 
+// true si Wompi acepta la URL como redirect-url. El firewall (CloudFront)
+// de checkout.wompi.co responde 403 "Request blocked" cuando redirect-url
+// apunta a localhost, loopback o una red privada, así que esas URL no se
+// envían. También descarta URL inválidas o que no sean http(s).
+export function redirectAdmitidaPorWompi(valor: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(valor);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost")) return false;
+  if (host === "::1" || host === "::" || /^f[cd]|^fe80:/.test(host)) return false;
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+    if (
+      a === 0 || a === 10 || a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// redirect-url propia de cada intento: añade ?referencia=<ref> para que la
+// página de resultado identifique el pago aunque el navegador no lo haya
+// guardado. Wompi añade después su propio ?id=<transacción>. redirect-url
+// no forma parte de la firma de integridad.
+export function redirectConReferencia(base: string, referencia: string): string {
+  const url = new URL(base);
+  url.searchParams.set("referencia", referencia);
+  return url.toString();
+}
+
 // URL del checkout web de Wompi con los parámetros GET documentados.
 export function construirUrlCheckout(params: {
   checkoutUrl: string;
