@@ -1,10 +1,13 @@
 'use client';
+import { useRef } from 'react';
 import Link from 'next/link';
 import { useDailyMetrics } from '../hooks/useDailyMetrics.js';
+import DailyMetricsConflict from '../components/DailyMetricsConflict.jsx';
 
 export default function ParticularDashboardPage() {
+  const formularioRef = useRef(null);
   const { habits, errorCarga, guardando, mensaje, controlesBloqueados, puedeGuardar,
-    editar, recargar, guardarCambios } = useDailyMetrics();
+    editar, recargar, guardarCambios, conflicto, consultarNuevoDia, resolverConflicto } = useDailyMetrics();
 
   return (
     <div className="min-h-screen bg-[#0B0B0C] text-white p-8">
@@ -15,7 +18,7 @@ export default function ParticularDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-[#121214] p-6 rounded-2xl border border-gray-800 relative">
-          <h2 className="text-xl font-semibold mb-6">Tracker de Hoy</h2>
+          <h2 ref={formularioRef} tabIndex={-1} className="text-xl font-semibold mb-6">Tracker de Hoy</h2>
           
           <div className="space-y-4">
             <div className="flex flex-col">
@@ -51,6 +54,14 @@ export default function ParticularDashboardPage() {
             </button>
           </div>
 
+          {conflicto && (
+            <DailyMetricsConflict
+              conflicto={conflicto}
+              consultarNuevoDia={consultarNuevoDia}
+              resolverConflicto={resolverConflicto}
+              formularioRef={formularioRef}
+            />
+          )}
           <button 
             onClick={guardarCambios}
             disabled={guardando || !puedeGuardar}

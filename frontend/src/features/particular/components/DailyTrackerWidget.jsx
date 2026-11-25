@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDailyMetrics } from "../hooks/useDailyMetrics.js";
+import DailyMetricsConflict from "./DailyMetricsConflict.jsx";
 
 export default function DailyTrackerWidget() {
+  const formularioRef = useRef(null);
   const { habits, errorCarga, guardando, mensaje, controlesBloqueados, puedeGuardar,
-    editar, recargar, guardarCambios } = useDailyMetrics();
+    editar, recargar, guardarCambios, conflicto, consultarNuevoDia, resolverConflicto } = useDailyMetrics();
   const [avisoOculto, setAvisoOculto] = useState(null);
   const avisoVisible = mensaje === avisoOculto ? null : mensaje;
 
@@ -43,7 +45,7 @@ export default function DailyTrackerWidget() {
           <span className="inline-block text-[11px] font-extrabold tracking-[2px] uppercase text-[#b56cff] mb-1">
             SEGUIMIENTO RÁPIDO
           </span>
-          <h2 className="m-0 text-2xl font-bold tracking-tight text-[#f2f4ef]">
+          <h2 ref={formularioRef} tabIndex={-1} className="m-0 text-2xl font-bold tracking-tight text-[#f2f4ef]">
             Tracker de Hábitos Diarios
           </h2>
           <p className="m-0 mt-1 text-xs text-[#a9afa7]">
@@ -198,6 +200,14 @@ export default function DailyTrackerWidget() {
       </div>
 
       {/* Pie de acción y feedback */}
+      {conflicto && (
+        <DailyMetricsConflict
+          conflicto={conflicto}
+          consultarNuevoDia={consultarNuevoDia}
+          resolverConflicto={resolverConflicto}
+          formularioRef={formularioRef}
+        />
+      )}
       <footer className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#30332f]">
         <div className="text-xs">
           {avisoVisible ? (
