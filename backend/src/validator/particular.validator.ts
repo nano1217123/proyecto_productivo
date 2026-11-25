@@ -14,14 +14,15 @@ export const guardarMetricasSchema = z.object({
   }),
 });
 export const actualizarMetricasSchema = z.object({
-  body: camposMetricas.partial().refine(
+  body: camposMetricas.partial().extend({ diaEsperado: z.iso.date() }).refine(
     ({ pesoActualKg, vasosAgua, entrenamientoCompletado }) =>
       pesoActualKg !== undefined || vasosAgua !== undefined || entrenamientoCompletado !== undefined,
     { message: 'Envía al menos una métrica.' },
   ),
 });
 export type MetricasValidadas = z.output<typeof guardarMetricasSchema>['body'];
-export type MetricasParciales = z.output<typeof actualizarMetricasSchema>['body'];
+export type ActualizacionDiaria = z.output<typeof actualizarMetricasSchema>['body'];
+export type MetricasParciales = Omit<ActualizacionDiaria, 'diaEsperado'>;
 
 export const validarMetricas = (modoDiario: boolean): RequestHandler => (req, res, next) => {
   const schema = modoDiario ? actualizarMetricasSchema : guardarMetricasSchema;

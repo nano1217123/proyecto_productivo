@@ -8,7 +8,9 @@ import { actualizarMetricasSchema, guardarMetricasSchema } from '../src/validato
 
 const usuarioId = 'usuario-de-sesion';
 const create = mock.fn(async ({ data }: { data: Record<string, unknown> }) => data);
-const findFirst = mock.fn(async (_query: { where: { usuarioId: string } }) => null);
+const findFirst = mock.fn(async (
+  _query: { where: { usuarioId: string; fecha: { gte: Date } } },
+): Promise<Record<string, unknown> | null> => null);
 const queryRaw = mock.fn(async (_sql: TemplateStringsArray, ..._params: unknown[]): Promise<unknown[]> => []);
 const requireAuth: RequestHandler = (req, _res, next) => {
   if (req.get('x-test-session') === 'valid') req.userId = usuarioId;
@@ -23,7 +25,7 @@ mock.module(new URL('../src/middleware/auth.middleware.ts', import.meta.url).hre
 
 delete process.env.PARTICULAR_METRICAS_DIARIAS;
 const { default: router, createParticularRouter } = await import('../src/routes/particular.routes.js');
-const { crearMetrica, guardarMetricaDiaria, obtenerMetricaDiaria } = await import('../src/repositories/particular.repository.js');
+const { crearMetrica } = await import('../src/repositories/particular.repository.js');
 const app = express();
 app.use(express.json());
 app.use('/api/particular', router);
@@ -110,59 +112,115 @@ test('el manejador central devuelve un error genérico si falla Prisma', async (
   assert.deepEqual(await response.json(), { message: 'Ocurrió un error inesperado en el servidor.' });
 });
 
-test('el modo predeterminado nunca consulta dia_local', async () => {
-  const response = await post({});
+test('el modo predeterminado conserva el contrato e ignora diaEsperado', async () => {
+  const response = await post({ diaEsperado: 'inválido' });
   assert.equal(response.status, 201);
-  await response.json();
+  assert.deepEqual(await response.json(), {
+    success: true, data: { usuarioId, vasosAgua: 0, entrenamientoCompletado: false },
+  });
   const consulta = await fetch(`${metricsUrl}/hoy`, { headers: { 'x-test-session': 'valid' } });
   assert.equal(consulta.status, 200);
-  await consulta.json();
+  assert.deepEqual(await consulta.json(), { success: true, data: null });
   assert.equal(queryRaw.mock.callCount(), 0);
 });
 
-test('el esquema parcial conserva la ausencia y admite cero y falso explícitos', () => {
-  assert.deepEqual(actualizarMetricasSchema.parse({ body: { usuarioId, vasosAgua: 0 } }).body, { vasosAgua: 0 });
-  assert.deepEqual(actualizarMetricasSchema.parse({
-    body: { vasosAgua: 0, entrenamientoCompletado: false },
-  }).body, { vasosAgua: 0, entrenamientoCompletado: false });
-  assert.equal(actualizarMetricasSchema.safeParse({ body: { pesoActualKg: null } }).success, false);
+const diaEsperado = '2026-11-25';
+const instante = '2026-11-25T15:00:00.000Z';
+
+test('el GET del modo desactivado devuelve exactamente success y data con una fila existente', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(instante) });
+  const fila = {
+    id: 'metrica-legacy',
+    usuarioId,
+    fecha: instante,
+    pesoActualKg: 70,
+    vasosAgua: 4,
+    entrenamientoCompletado: false,
+  };
+  findFirst.mock.mockImplementationOnce(async () => fila);
+  const consultasSql = queryRaw.mock.callCount();
+
+  const response = await fetch(`${metricsUrl}/hoy`, { headers: { 'x-test-session': 'valid' } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true, data: fila });
+  const inicio = new Date(instante);
+  inicio.setHours(0, 0, 0, 0);
+  assert.deepEqual(findFirst.mock.calls.at(-1)?.arguments, [{ where: { usuarioId, fecha: { gte: inicio } } }]);
+  assert.equal(queryRaw.mock.callCount(), consultasSql);
 });
 
-test('el modo diario mantiene el contrato HTTP y consulta por día de Bogotá', async () => {
+test('un fallo de persistencia del POST diario devuelve solo el error genérico del servidor', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(instante) });
+  const registroError = t.mock.method(console, 'error', () => {});
+  const errorInterno = new Error(
+    'INSERT INTO metricas_diarias falló. Credencial ficticia=prueba-secreta. Detalle interno del repositorio.',
+  );
+  queryRaw.mock.mockImplementationOnce(async () => { throw errorInterno; });
+  const consultasSql = queryRaw.mock.callCount();
+
+  const response = await post({ diaEsperado, vasosAgua: 0 }, true, diarioUrl);
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { message: 'Ocurrió un error inesperado en el servidor.' });
+  assert.equal(queryRaw.mock.callCount(), consultasSql + 1);
+  assert.equal(registroError.mock.calls[0]?.arguments[1], errorInterno);
+});
+
+test('el esquema parcial conserva la ausencia y admite cero y falso explícitos', () => {
+  assert.deepEqual(actualizarMetricasSchema.parse({ body: { usuarioId, diaEsperado, vasosAgua: 0 } }).body,
+    { diaEsperado, vasosAgua: 0 });
+  assert.deepEqual(actualizarMetricasSchema.parse({
+    body: { diaEsperado, vasosAgua: 0, entrenamientoCompletado: false },
+  }).body, { diaEsperado, vasosAgua: 0, entrenamientoCompletado: false });
+  assert.equal(actualizarMetricasSchema.safeParse({ body: { diaEsperado, pesoActualKg: null } }).success, false);
+});
+
+test('el modo diario devuelve metadatos con fila y con data null', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(instante) });
   const fila = { id: 'canonica', usuarioId, pesoActualKg: 70, vasosAgua: 4, entrenamientoCompletado: false };
   queryRaw.mock.mockImplementationOnce(async () => [fila]);
-  const response = await post({ entrenamientoCompletado: false, usuarioId: 'otro' }, true, diarioUrl);
+  const response = await post({ diaEsperado, entrenamientoCompletado: false, usuarioId: 'otro' }, true, diarioUrl);
   assert.equal(response.status, 201);
-  assert.deepEqual(await response.json(), { success: true, data: fila });
+  assert.deepEqual(await response.json(), { success: true, data: fila, diaLocal: diaEsperado });
   const [sql, , propietario, fecha, dia, ...campos] = queryRaw.mock.calls.at(-1)!.arguments;
   assert.equal(propietario, usuarioId);
-  assert.equal(fecha, dia);
+  assert.equal(fecha, instante);
+  assert.equal(dia, diaEsperado);
   assert.match(sql.join('?'), /ON CONFLICT \(usuario_id, dia_local\) DO UPDATE/);
-  assert.match(sql.join('?'), /AT TIME ZONE 'America\/Bogota'/);
   assert.deepEqual(campos, [null, 0, false, false, false, true]);
 
-  const consulta = await fetch(`${diarioUrl}/hoy`, { headers: { 'x-test-session': 'valid' } });
-  assert.equal(consulta.status, 200);
-  assert.deepEqual(await consulta.json(), { success: true, data: null });
-  const [select, usuario] = queryRaw.mock.calls.at(-1)!.arguments;
-  assert.match(select.join('?'), /AND dia_local = .*America\/Bogota/);
-  assert.equal(usuario, usuarioId);
+  queryRaw.mock.mockImplementationOnce(async () => [fila]);
+  for (const data of [fila, null]) {
+    const consulta = await fetch(`${diarioUrl}/hoy`, { headers: { 'x-test-session': 'valid' } });
+    assert.equal(consulta.status, 200);
+    assert.equal(consulta.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await consulta.json(), {
+      success: true, data, capacidades: { actualizacionParcial: true }, diaLocal: diaEsperado,
+    });
+    const [select, usuario, diaConsulta] = queryRaw.mock.calls.at(-1)!.arguments;
+    assert.match(select.join('?'), /AND dia_local = \?::date/);
+    assert.equal(usuario, usuarioId);
+    assert.equal(diaConsulta, diaEsperado);
+  }
 });
 
 test('el modo diario rechaza solicitudes inválidas o sin identidad antes de consultar', async () => {
   const before = queryRaw.mock.callCount();
-  const invalid = await post({ vasosAgua: 21 }, true, diarioUrl);
+  const invalid = await post({ diaEsperado, vasosAgua: 21 }, true, diarioUrl);
   assert.equal(invalid.status, 400);
   await invalid.json();
-  const unauthenticated = await post({ usuarioId, vasosAgua: 0 }, false, diarioUrl);
+  const unauthenticated = await post({ usuarioId, diaEsperado, vasosAgua: 0 }, false, diarioUrl);
   assert.equal(unauthenticated.status, 401);
   await unauthenticated.json();
   assert.equal(queryRaw.mock.callCount(), before);
 });
 
-test('el modo diario devuelve 400 si el cuerpo no contiene ninguna métrica reconocida', async () => {
+test('el modo diario devuelve 400 si falta el día, la fecha no existe o faltan métricas', async () => {
   const before = queryRaw.mock.callCount();
-  for (const body of [{}, { usuarioId: 'otra-cuenta', diaLocal: '2026-11-25' }]) {
+  for (const body of [
+    {}, { diaEsperado }, { diaEsperado, usuarioId: 'otra-cuenta' }, { vasosAgua: 0 },
+    { diaEsperado: '2026-02-29', vasosAgua: 0 }, { diaEsperado: '2026-04-31', vasosAgua: 0 },
+    { diaEsperado: '2026-1-25', vasosAgua: 0 }, { diaEsperado: instante, vasosAgua: 0 },
+  ]) {
     const response = await post(body, true, diarioUrl);
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -173,24 +231,49 @@ test('el modo diario devuelve 400 si el cuerpo no contiene ninguna métrica reco
   assert.equal(queryRaw.mock.callCount(), before);
 });
 
-test('el modo diario acepta cada métrica por separado, incluidos cero y falso', async () => {
+test('el modo diario acepta cada métrica por separado, incluidos cero y falso', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(instante) });
   for (const body of [{ pesoActualKg: 70.5 }, { vasosAgua: 0 }, { entrenamientoCompletado: false }]) {
     const fila = { id: 'canonica', usuarioId, ...body };
     queryRaw.mock.mockImplementationOnce(async () => [fila]);
-    const response = await post(body, true, diarioUrl);
+    const response = await post({ diaEsperado, ...body }, true, diarioUrl);
     assert.equal(response.status, 201);
-    assert.deepEqual(await response.json(), { success: true, data: fila });
+    assert.deepEqual(await response.json(), { success: true, data: fila, diaLocal: diaEsperado });
   }
 });
 
-test('el repositorio parametriza el instante exacto a ambos lados de medianoche en Bogotá', async () => {
-  const anterior = '2026-11-25T04:59:59.999Z';
-  const siguiente = '2026-11-25T05:00:00.000Z';
-  queryRaw.mock.mockImplementationOnce(async () => [{ id: 'canonica' }]);
-  await guardarMetricaDiaria(usuarioId, { vasosAgua: 0 }, new Date(anterior));
-  assert.deepEqual(queryRaw.mock.calls.at(-1)!.arguments.slice(3), [
-    anterior, anterior, null, 0, false, false, true, false,
-  ]);
-  await obtenerMetricaDiaria(usuarioId, new Date(siguiente));
-  assert.deepEqual(queryRaw.mock.calls.at(-1)!.arguments.slice(1), [usuarioId, siguiente]);
+test('medianoche en Bogotá invalida el día anterior sin escribir y conserva la clave de una operación aceptada', async (t) => {
+  const anterior = '2026-12-01T04:59:59.999Z';
+  const siguiente = '2026-12-01T05:00:00.000Z';
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(anterior) });
+  const anteriorGet = await fetch(`${diarioUrl}/hoy`, { headers: { 'x-test-session': 'valid' } });
+  assert.equal((await anteriorGet.json()).diaLocal, '2026-11-30');
+
+  queryRaw.mock.mockImplementationOnce(async () => {
+    t.mock.timers.setTime(Date.parse(siguiente));
+    return [{ id: 'canonica' }];
+  });
+  const aceptada = await post({ diaEsperado: '2026-11-30', vasosAgua: 0 }, true, diarioUrl);
+  assert.equal(aceptada.status, 201);
+  assert.equal((await aceptada.json()).diaLocal, '2026-11-30');
+  assert.deepEqual(queryRaw.mock.calls.at(-1)!.arguments.slice(3, 5), [anterior, '2026-11-30']);
+
+  const antes = queryRaw.mock.callCount();
+  for (const dia of ['2026-11-30', '2026-12-02']) {
+    const conflicto = await post({ diaEsperado: dia, vasosAgua: 0 }, true, diarioUrl);
+    assert.equal(conflicto.status, 409);
+    assert.deepEqual(await conflicto.json(), {
+      success: false,
+      codigo: 'DIA_METRICAS_CAMBIO',
+      message: 'Cambió el día de las métricas. Revisa tus cambios antes de guardar.',
+      diaLocal: '2026-12-01',
+    });
+  }
+  assert.equal(queryRaw.mock.callCount(), antes);
+
+  queryRaw.mock.mockImplementationOnce(async () => [{ id: 'nueva' }]);
+  const vigente = await post({ diaEsperado: '2026-12-01', entrenamientoCompletado: false }, true, diarioUrl);
+  assert.equal(vigente.status, 201);
+  assert.equal((await vigente.json()).diaLocal, '2026-12-01');
+  assert.deepEqual(queryRaw.mock.calls.at(-1)!.arguments.slice(3, 5), [siguiente, '2026-12-01']);
 });

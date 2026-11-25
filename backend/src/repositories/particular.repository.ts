@@ -27,7 +27,7 @@ export const obtenerMetricasHoy = async (usuarioId: string) => {
 
 type Metrica = Awaited<ReturnType<typeof crearMetrica>>;
 
-export async function guardarMetricaDiaria(usuarioId: string, metricas: MetricasParciales, instante: Date) {
+export async function guardarMetricaDiaria(usuarioId: string, metricas: MetricasParciales, instante: Date, diaLocal: string) {
   const { pesoActualKg, vasosAgua, entrenamientoCompletado } = metricas;
   const fecha = instante.toISOString();
   const [metrica] = await prisma.$queryRaw<Metrica[]>`
@@ -36,7 +36,7 @@ export async function guardarMetricaDiaria(usuarioId: string, metricas: Metricas
     )
     VALUES (
       ${generateId()}::uuid, ${usuarioId}::uuid, ${fecha}::timestamptz,
-      (${fecha}::timestamptz AT TIME ZONE 'America/Bogota')::date,
+      ${diaLocal}::date,
       ${pesoActualKg ?? null}::double precision, ${vasosAgua ?? 0}::integer,
       ${entrenamientoCompletado ?? false}::boolean
     )
@@ -54,13 +54,13 @@ export async function guardarMetricaDiaria(usuarioId: string, metricas: Metricas
   return metrica;
 }
 
-export async function obtenerMetricaDiaria(usuarioId: string, instante: Date) {
+export async function obtenerMetricaDiaria(usuarioId: string, diaLocal: string) {
   const [metrica] = await prisma.$queryRaw<Metrica[]>`
     SELECT id, usuario_id AS "usuarioId", fecha, peso_actual_kg AS "pesoActualKg",
       vasos_agua AS "vasosAgua", entrenamiento_completado AS "entrenamientoCompletado"
     FROM metricas_diarias
     WHERE usuario_id = ${usuarioId}::uuid
-      AND dia_local = (${instante.toISOString()}::timestamptz AT TIME ZONE 'America/Bogota')::date
+      AND dia_local = ${diaLocal}::date
   `;
   return metrica ?? null;
 }

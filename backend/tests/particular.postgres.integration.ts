@@ -25,6 +25,7 @@ assert.equal(purpose, 'metricas-integration');
 const usuario = '00000000-0000-4000-8000-000000000001';
 const otroUsuario = '00000000-0000-4000-8000-000000000002';
 const fecha = '2026-11-25T15:00:00.000Z';
+const diaLocal = '2026-11-25';
 
 const psql = (sql: string) => docker([
   'exec', '-i', container, 'psql', '-XqAt', '-v', 'ON_ERROR_STOP=1',
@@ -92,7 +93,7 @@ assert.ok(address && typeof address === 'object');
 const url = `http://127.0.0.1:${address.port}/api/particular/metrics`;
 
 const guardar = (campos: Parameters<typeof guardarMetricaDiaria>[1]) =>
-  guardarMetricaDiaria(usuario, campos, new Date(fecha));
+  guardarMetricaDiaria(usuario, campos, new Date(fecha), diaLocal);
 
 test('crea el registro diario y aplica valores iniciales', async () => {
   const fila = await guardar({ pesoActualKg: 73.5 });
@@ -104,7 +105,7 @@ test('crea el registro diario y aplica valores iniciales', async () => {
 });
 
 test('actualiza el mismo ID varias veces y conserva los campos omitidos', async () => {
-  const original = await obtenerMetricaDiaria(usuario, new Date(fecha));
+  const original = await obtenerMetricaDiaria(usuario, diaLocal);
   assert.ok(original);
   const agua = await guardar({ vasosAgua: 6 });
   const entrenamiento = await guardar({ entrenamientoCompletado: true });
@@ -127,7 +128,7 @@ test('dos POST simultáneos conservan ambos cambios en una sola fila', async () 
     const post = (body: object) => fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ diaEsperado: '2026-11-26', ...body }),
     });
     const responses = await Promise.all([post({ vasosAgua: 8 }), post({ entrenamientoCompletado: true })]);
     const results = await Promise.all(responses.map(async (response) => {
@@ -148,23 +149,41 @@ test('dos POST simultáneos conservan ambos cambios en una sola fila', async () 
 });
 
 test('mantiene separados dos usuarios en el mismo día', async () => {
-  const otra = await guardarMetricaDiaria(otroUsuario, { pesoActualKg: 88 }, new Date(fecha));
-  const primera = await obtenerMetricaDiaria(usuario, new Date(fecha));
+  const otra = await guardarMetricaDiaria(otroUsuario, { pesoActualKg: 88 }, new Date(fecha), diaLocal);
+  const primera = await obtenerMetricaDiaria(usuario, diaLocal);
   assert.equal(otra.usuarioId, otroUsuario);
   assert.notEqual(otra.id, primera?.id);
   assert.equal(primera?.pesoActualKg, 73.5);
   assert.equal(await psql("SELECT count(*) FROM metricas_diarias WHERE dia_local = DATE '2026-11-25';"), '2');
 });
 
-test('cambia de registro exactamente a medianoche de Bogotá', async () => {
+test('cambia de registro exactamente a medianoche de Bogotá y rechaza escrituras del día anterior', async (t) => {
   const antes = new Date('2026-12-01T04:59:59.999Z');
   const despues = new Date('2026-12-01T05:00:00.000Z');
-  const previa = await guardarMetricaDiaria(usuario, { vasosAgua: 7 }, antes);
-  assert.equal(await obtenerMetricaDiaria(usuario, despues), null);
-  const nueva = await guardarMetricaDiaria(usuario, { vasosAgua: 1 }, despues);
+  t.mock.timers.enable({ apis: ['Date'], now: antes });
+  const post = (diaEsperado: string, vasosAgua: number) => fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ diaEsperado, vasosAgua }),
+  });
+  const previoPost = await post('2026-11-30', 7);
+  assert.equal(previoPost.status, 201);
+  const { data: previa } = await previoPost.json();
+  t.mock.timers.setTime(despues.getTime());
+  const get = await fetch(url + '/hoy');
+  assert.deepEqual(await get.json(), {
+    success: true, data: null, capacidades: { actualizacionParcial: true }, diaLocal: '2026-12-01',
+  });
+  const conflicto = await post('2026-11-30', 9);
+  assert.equal(conflicto.status, 409);
+  assert.equal((await conflicto.json()).codigo, 'DIA_METRICAS_CAMBIO');
+  assert.equal(await obtenerMetricaDiaria(usuario, '2026-12-01'), null);
+  const nuevoPost = await post('2026-12-01', 1);
+  assert.equal(nuevoPost.status, 201);
+  const { data: nueva } = await nuevoPost.json();
   assert.notEqual(previa.id, nueva.id);
-  assert.deepEqual(await obtenerMetricaDiaria(usuario, antes), previa);
-  assert.deepEqual(await obtenerMetricaDiaria(usuario, despues), nueva);
+  assert.deepEqual(await obtenerMetricaDiaria(usuario, '2026-11-30'), previa);
+  assert.deepEqual(await obtenerMetricaDiaria(usuario, '2026-12-01'), nueva);
   assert.equal(await psql("SELECT dia_local FROM metricas_diarias WHERE dia_local >= DATE '2026-11-30' ORDER BY dia_local;"),
     '2026-11-30\n2026-12-01');
 });
