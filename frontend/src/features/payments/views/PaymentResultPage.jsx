@@ -7,7 +7,6 @@ import { HttpError } from "@/src/lib/api/httpClient";
 import { paymentsApi } from "../api/paymentsApi";
 import {
   ESTADOS_PAGO,
-  esEstadoFinal,
   esReferenciaValida,
   formatearCop,
   leerUltimaReferencia,
@@ -21,13 +20,52 @@ import {
 //      registró),
 //   3. la última referencia guardada en esta pestaña antes de ir a Wompi.
 // El estado mostrado siempre viene del backend (lo actualiza el webhook).
-// Mientras esté pendiente se consulta de nuevo durante un tiempo limitado.
+//
+// Consultas automáticas: mientras el intento esté PENDIENTE, RECHAZADO o
+// ERROR se vuelve a consultar el estado y, si hay referencia, se pide al
+// backend que lo verifique con Wompi (conciliación): por si el aviso del
+// webhook no llegó, o por si el pagador reintentó y Wompi aprobó otra
+// transacción con la misma referencia.
+//
+// Esas consultas solo ocurren dentro de una ventana fija anclada a la
+// creación del intento (`creado_en`, guardado en el servidor), así que
+// recargar la página o abrirla en otra pestaña no la reinicia. Wompi no
+// expone a la página cuándo empezó el checkout (la hora de la transacción
+// solo se puede leer desde el backend con la llave privada), y `creado_en`
+// es el momento en que el usuario pulsó «Pagar con Wompi», justo antes de
+// ir al checkout. La ventana cubre el tiempo de pagar más los 3 minutos que
+// Wompi da para reintentar tras un rechazo. Fuera de ella solo se lee el
+// estado una vez y se ofrece «Consultar de nuevo».
 
 const INTERVALO_INICIAL_MS = 3000;
 const INTERVALO_LENTO_MS = 6000;
 const PASO_A_LENTO_MS = 30_000;
-const DURACION_MAXIMA_MS = 2 * 60_000;
+const VENTANA_AUTOMATICA_MS = 15 * 60_000;
 const MAX_ERRORES_SEGUIDOS = 3;
+// Primera conciliación tras dar unos segundos al webhook; luego, cada 20 s
+// (el backend tampoco consulta a Wompi más a menudo por intento).
+const PRIMERA_CONCILIACION_MS = 5000;
+const CONCILIAR_CADA_MS = 20_000;
+// Estados que pueden cambiar todavía y que se pueden conciliar.
+const ESTADOS_ABIERTOS = ["PENDIENTE", "RECHAZADO", "ERROR"];
+
+// Ancla de la ventana: `creado_en` del intento. Si aún no se conoce (se busca
+// solo por id y el webhook no lo registró), la primera vez que esta pestaña
+// lo consultó, guardada en sessionStorage para que recargar no la reinicie.
+function anclaVentana(pago, transaccionId) {
+  const creado = pago ? Date.parse(pago.creado_en) : NaN;
+  if (Number.isFinite(creado)) return creado;
+  const clave = `jjgym:pagos:ancla:${transaccionId ?? "sin-id"}`;
+  try {
+    const guardada = Number(sessionStorage.getItem(clave));
+    if (Number.isFinite(guardada) && guardada > 0) return guardada;
+    const ahora = Date.now();
+    sessionStorage.setItem(clave, String(ahora));
+    return ahora;
+  } catch {
+    return Date.now();
+  }
+}
 
 const TONOS = {
   pendiente: "border-[rgba(255,196,87,.45)] bg-[rgba(120,86,20,.2)] text-[#ffcf70]",
@@ -70,6 +108,8 @@ function PaymentResult() {
   const [error, setError] = useState(null); // { tipo, mensaje }
   const [ronda, setRonda] = useState(0);
   const inicioRef = useRef(0);
+  // true cuando la ronda la pidió el usuario con «Consultar de nuevo».
+  const manualRef = useRef(false);
 
   // Sin referencia ni id en la URL: se usa la guardada en esta pestaña y se
   // escribe en la URL para que recargar la página siga funcionando.
@@ -89,24 +129,58 @@ function PaymentResult() {
     setFase("sin-referencia");
   }, [referencia, transaccionId, router]);
 
-  // Consulta el estado; repite mientras esté pendiente, hasta el límite.
+  // Consulta el estado; repite mientras siga abierto y dentro de la ventana.
   useEffect(() => {
     if (fase !== "consultando") return;
     const controlador = new AbortController();
     let temporizador = null;
     let erroresSeguidos = 0;
+    // Una ronda manual concilia en su primera consulta, aunque la ventana
+    // automática ya haya terminado.
+    let forzar = manualRef.current;
+    manualRef.current = false;
     inicioRef.current = Date.now();
+    let ultimaConciliacion = inicioRef.current - CONCILIAR_CADA_MS + PRIMERA_CONCILIACION_MS;
+    let ancla = null;
+
+    // Verificación con Wompi a través del backend. Sus fallos (429, 502...)
+    // no detienen la consulta normal del estado.
+    async function conciliar() {
+      ultimaConciliacion = Date.now();
+      try {
+        const { pago: conciliado } = await paymentsApi.reconcilePayment(referencia, {
+          signal: controlador.signal,
+        });
+        return conciliado ?? null;
+      } catch (err) {
+        if (err?.name === "AbortError") throw err;
+        return null;
+      }
+    }
+
+    const dentroDeVentana = () => Date.now() < ancla + VENTANA_AUTOMATICA_MS;
 
     async function consultar() {
+      const manual = forzar;
+      forzar = false;
       try {
-        const actual = await paymentsApi.getPaymentStatus(
+        let actual = await paymentsApi.getPaymentStatus(
           { referencia, transaccionId },
           { signal: controlador.signal }
         );
+        ancla = anclaVentana(actual, transaccionId);
+        if (
+          ESTADOS_ABIERTOS.includes(actual.estado) &&
+          referencia &&
+          (manual ||
+            (dentroDeVentana() && Date.now() - ultimaConciliacion >= CONCILIAR_CADA_MS))
+        ) {
+          actual = (await conciliar()) ?? actual;
+        }
         erroresSeguidos = 0;
         setPago(actual);
         setError(null);
-        if (esEstadoFinal(actual.estado)) {
+        if (!ESTADOS_ABIERTOS.includes(actual.estado)) {
           setFase("final");
           return;
         }
@@ -132,11 +206,12 @@ function PaymentResult() {
         }
       }
 
-      const transcurrido = Date.now() - inicioRef.current;
-      if (transcurrido >= DURACION_MAXIMA_MS) {
+      if (ancla === null) ancla = anclaVentana(null, transaccionId);
+      if (!dentroDeVentana()) {
         setFase("tiempo-agotado");
         return;
       }
+      const transcurrido = Date.now() - inicioRef.current;
       const espera = transcurrido < PASO_A_LENTO_MS ? INTERVALO_INICIAL_MS : INTERVALO_LENTO_MS;
       temporizador = setTimeout(consultar, espera);
     }
@@ -149,6 +224,7 @@ function PaymentResult() {
   }, [fase, referencia, transaccionId, ronda]);
 
   const consultarDeNuevo = useCallback(() => {
+    manualRef.current = true;
     setError(null);
     setFase("consultando");
     setRonda((n) => n + 1);
@@ -212,7 +288,7 @@ function PaymentResult() {
               {info.titulo}
             </h1>
             <p className="mt-3 text-[#a9afa7] leading-[1.55]">
-              {fase === "tiempo-agotado"
+              {fase === "tiempo-agotado" && pago.estado === "PENDIENTE"
                 ? "Wompi todavía no confirma el resultado. Puede tardar unos minutos más; la confirmación llegará al servidor aunque cierres esta página."
                 : info.descripcion}
             </p>
@@ -236,6 +312,13 @@ function PaymentResult() {
             {consultando && pago.estado === "PENDIENTE" && (
               <p className="mt-4 text-xs text-[#a9afa7]">Actualizando automáticamente...</p>
             )}
+            {["RECHAZADO", "ERROR"].includes(pago.estado) && (
+              <p className="mt-4 text-xs text-[#a9afa7]">
+                {consultando
+                  ? "Si reintentaste el pago en Wompi, lo estamos verificando automáticamente durante unos minutos."
+                  : "Si reintentaste el pago en Wompi, pulsa «Consultar de nuevo» para verificarlo."}
+              </p>
+            )}
             {error && (
               <p role="alert" className="mt-4 text-sm text-[#ff9898]">{error.mensaje}</p>
             )}
@@ -243,7 +326,9 @@ function PaymentResult() {
         )}
 
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-          {(fase === "tiempo-agotado" || (fase === "detenido" && error?.tipo === "red")) && (
+          {(fase === "tiempo-agotado" ||
+            (fase === "detenido" && error?.tipo === "red") ||
+            (pago && ["RECHAZADO", "ERROR"].includes(pago.estado) && fase !== "final")) && (
             <button
               type="button"
               onClick={consultarDeNuevo}

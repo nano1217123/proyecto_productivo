@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 import { ROLES_PAGADORES } from "../service/pagos.service.js";
 import {
+  validateConciliarPago,
   validateConsultaEstadoPago,
   validateEventoWompi,
   validateIniciarPago,
@@ -47,6 +48,18 @@ const estadoLimiter = rateLimit({
   keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? ""),
 });
 
+// Conciliación: cada solicitud puede consultar la API de Wompi. Además de
+// este límite por usuario, el servicio consulta a Wompi como mucho una vez
+// cada ESPERA_CONCILIACION_MS por intento.
+const conciliacionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 6,
+  message: { message: "Demasiadas verificaciones del pago. Espera un momento." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? ""),
+});
+
 interface PagosRouterDeps {
   auth: RequestHandler;
   roles: (...roles: TipoUsuario[]) => RequestHandler;
@@ -54,6 +67,7 @@ interface PagosRouterDeps {
   limiter: RequestHandler;
   webhookLimiter: RequestHandler;
   statusLimiter: RequestHandler;
+  reconcileLimiter: RequestHandler;
 }
 
 export function createPagosRouter({
@@ -63,6 +77,7 @@ export function createPagosRouter({
   limiter = checkoutLimiter,
   webhookLimiter = wompiWebhookLimiter,
   statusLimiter = estadoLimiter,
+  reconcileLimiter = conciliacionLimiter,
 }: Partial<PagosRouterDeps> = {}) {
   const router = Router();
 
@@ -88,6 +103,13 @@ export function createPagosRouter({
     statusLimiter,
     validateConsultaEstadoPago,
     controller.consultarEstado
+  );
+
+  router.post(
+    "/conciliar",
+    reconcileLimiter,
+    validateConciliarPago,
+    controller.conciliarPago
   );
 
   router.post(

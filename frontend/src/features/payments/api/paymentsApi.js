@@ -52,6 +52,18 @@ export const paymentsApi = {
       throw withMessage(err, "No se pudo consultar el estado del pago.");
     }
   },
+
+  // Pide al backend que verifique con Wompi un pago pendiente (por si el
+  // aviso del webhook no llegó). Devuelve { pago, conciliacion }. El backend
+  // limita la frecuencia y solo concilia pagos que el usuario puede ver.
+  async reconcilePayment(referencia, options) {
+    try {
+      return await http.post("/api/pagos/conciliar", { referencia }, options);
+    } catch (err) {
+      if (err?.name === "AbortError") throw err;
+      throw withMessage(err, "No se pudo verificar el pago con Wompi.");
+    }
+  },
 };
 
 export default paymentsApi;

@@ -4,11 +4,13 @@ import {
   ESTADO_POR_STATUS_WOMPI,
   calcularFirmaIntegridad,
   construirUrlCheckout,
+  crearBusquedaTransaccionesWompi,
   crearConsultaTransaccionWompi,
   generarReferenciaPago,
   parseTransaccionWompi,
   redirectConReferencia,
   verificarFirmaEvento,
+  type BuscarTransaccionesWompi,
   type ConsultarTransaccionWompi,
 } from "../lib/wompi.js";
 import {
@@ -22,7 +24,10 @@ import {
 } from "../repositories/pagos.repository.js";
 import {
   MONEDA_PAGOS,
+  type ConciliarPagoInput,
   type ConsultaEstadoPagoInput,
+  type PagoIntentoWebhook,
+  type ResultadoConciliacionPago,
   type EstadoPago,
   type EventoWompi,
   type IniciarPagoInput,
@@ -93,11 +98,29 @@ const ESTADOS_PREVIOS: Record<EstadoPago, readonly EstadoPago[]> = {
   ANULADO: ["PENDIENTE", "APROBADO"],
 };
 
+// Estados desde los que se puede recuperar una aprobación posterior con
+// otra transacción de la misma referencia (reintento de pago en Wompi).
+const ESTADOS_RECUPERABLES = ["RECHAZADO", "ERROR"] as const satisfies readonly EstadoPago[];
+
+function esEstadoRecuperable(estado: EstadoPago): boolean {
+  return (ESTADOS_RECUPERABLES as readonly EstadoPago[]).includes(estado);
+}
+
+// Estados que se pueden conciliar con Wompi: el pendiente, y los fallidos
+// por si el pagador reintentó y Wompi aprobó otra transacción.
+const ESTADOS_CONCILIABLES: readonly EstadoPago[] = ["PENDIENTE", ...ESTADOS_RECUPERABLES];
+
 // Este paso solo admite Sandbox: environment "test" en los eventos.
 const AMBIENTE_WOMPI = "test";
 
 const MSG_WEBHOOK_NO_CONFIGURADO =
   "El webhook de pagos no está configurado.";
+const MSG_CONCILIACION_NO_CONFIGURADA =
+  "No se puede verificar el pago con Wompi en este momento.";
+const MSG_PAGO_NO_ENCONTRADO = "No encontramos ese pago en tu cuenta.";
+
+// Tiempo mínimo entre dos consultas de conciliación a Wompi del mismo intento.
+export const ESPERA_CONCILIACION_MS = 20_000;
 
 export function createPagosService(
   repository: PagosRepository = pagosRepository,
@@ -106,13 +129,186 @@ export function createPagosService(
   consultarTransaccion: ConsultarTransaccionWompi = crearConsultaTransaccionWompi({
     apiUrl: config.apiUrl,
     privateKey: config.privateKey,
-  })
+  }),
+  buscarTransacciones: BuscarTransaccionesWompi = crearBusquedaTransaccionesWompi({
+    apiUrl: config.apiUrl,
+    privateKey: config.privateKey,
+  }),
+  ahora: () => number = Date.now
 ) {
   function exigirRolPagador(rol: TipoUsuario): RolPagador {
     if (!esRolPagador(rol)) {
       throw new AppError(403, "Tu rol no puede realizar pagos de suscripción.");
     }
     return rol;
+  }
+
+  // Intento que el usuario puede consultar:
+  // - usuario_particular: sus propios pagos de suscripción personal.
+  // - admin: pagos de sedes que tiene asignadas hoy.
+  // Si no existe o no le pertenece, 404 (no revela si existe).
+  async function buscarIntentoAutorizado(
+    usuarioId: string,
+    rol: TipoUsuario,
+    consulta: ConsultaEstadoPagoInput
+  ): Promise<PagoIntentoOutput> {
+    const rolPagador = exigirRolPagador(rol);
+    const noEncontrado = () => new AppError(404, MSG_PAGO_NO_ENCONTRADO);
+
+    const encontrado = await repository.findIntentoConsultable(consulta);
+    if (!encontrado) throw noEncontrado();
+    const { pago } = encontrado;
+
+    if (rolPagador === "usuario_particular") {
+      if (pago.plan !== "suscripcion_particular" || encontrado.usuarioId !== usuarioId) {
+        throw noEncontrado();
+      }
+      return pago;
+    }
+
+    if (
+      pago.plan !== "suscripcion_sede" ||
+      !pago.gym_slug ||
+      !(await repository.administraSede(usuarioId, pago.gym_slug))
+    ) {
+      throw noEncontrado();
+    }
+    return pago;
+  }
+
+  // Verifica una transacción con la API de Wompi y aplica su estado al
+  // intento. Lo comparten el webhook y la conciliación:
+  // - la transacción consultada por id debe tener la referencia, la moneda
+  //   y el importe del intento (409);
+  // - el estado que se aplica es el consultado a Wompi, nunca el recibido;
+  // - la actualización es condicional, así que repetir un aviso no repite
+  //   efectos. Ver aplicarTransaccionVerificada.
+  async function verificarYAplicarTransaccion(
+    intento: PagoIntentoWebhook,
+    transaccionId: string,
+    eventoEn: Date,
+    origen: string
+  ): Promise<ResultadoWebhookWompi> {
+    if (!config.privateKey) {
+      console.error(`${origen} rechazado: falta WOMPI_PRIVATE_KEY.`);
+      throw new AppError(503, MSG_WEBHOOK_NO_CONFIGURADO);
+    }
+    let verificada: TransaccionWompi | null;
+    try {
+      verificada = await consultarTransaccion(transaccionId);
+    } catch (error) {
+      console.error("No se pudo verificar la transacción con Wompi:", error);
+      throw new AppError(502, "No se pudo verificar la transacción con Wompi.");
+    }
+    if (
+      !verificada ||
+      verificada.id !== transaccionId ||
+      verificada.reference !== intento.referencia ||
+      verificada.currency !== intento.moneda ||
+      verificada.amountInCents !== intento.montoEnCentavos
+    ) {
+      console.warn(
+        `${origen}: la transacción verificada no coincide (${intento.referencia}).`
+      );
+      throw new AppError(409, "La transacción no coincide con el pago.");
+    }
+
+    return aplicarTransaccionVerificada(intento, verificada, eventoEn, origen, false);
+  }
+
+  // Aplica una transacción ya verificada con Wompi.
+  //
+  // Misma transacción que la guardada (o ninguna guardada): UPDATE
+  // condicional por estados previos, transacción y fecha.
+  //
+  // Transacción distinta de la guardada (Wompi permite reintentar el pago
+  // con la misma referencia: una rechazada y luego otra aprobada):
+  // - intento RECHAZADO o ERROR y la nueva está APPROVED → se recupera la
+  //   aprobación con un UPDATE condicional al estado y al ID previos;
+  // - la nueva no está aprobada (p. ej. el aviso tardío del rechazo
+  //   anterior) → 200 «ignorado», no cambia nada;
+  // - intento ya APROBADO (o ANULADO) y la nueva también APPROVED → posible
+  //   cobro doble: se conserva el ID aprobado, alerta y 409;
+  // - intento PENDIENTE con otra transacción registrada → 409, como antes.
+  //
+  // Si el UPDATE no cambia la fila (otra solicitud ganó la carrera), se
+  // relee el intento y se clasifica de nuevo una sola vez.
+  async function aplicarTransaccionVerificada(
+    intento: PagoIntentoWebhook,
+    verificada: TransaccionWompi,
+    eventoEn: Date,
+    origen: string,
+    esReintento: boolean
+  ): Promise<ResultadoWebhookWompi> {
+    const estado = ESTADO_POR_STATUS_WOMPI[verificada.status];
+    const previa = intento.wompiTransaccionId;
+    let aplicado: boolean;
+
+    if (!previa || previa === verificada.id) {
+      aplicado = await repository.aplicarEstadoWompi({
+        pagoId: intento.id,
+        transaccionId: verificada.id,
+        estado,
+        estadosPrevios: ESTADOS_PREVIOS[estado],
+        eventoEn,
+      });
+    } else if (verificada.status === "APPROVED" && esEstadoRecuperable(intento.estado)) {
+      aplicado = await repository.recuperarAprobacionWompi({
+        pagoId: intento.id,
+        transaccionIdAnterior: previa,
+        estadosPrevios: ESTADOS_RECUPERABLES,
+        transaccionId: verificada.id,
+        eventoEn,
+      });
+      if (aplicado) {
+        console.info(
+          `${origen}: aprobación recuperada para ${intento.referencia} (${intento.estado} con ${previa} → APROBADO con ${verificada.id}).`
+        );
+      }
+    } else if (verificada.status !== "APPROVED" && intento.estado !== "PENDIENTE") {
+      console.info(
+        `${origen}: transacción ${verificada.id} (${verificada.status}) ignorada; ${intento.referencia} sigue ${intento.estado} con ${previa}.`
+      );
+      return { resultado: "ignorado", referencia: intento.referencia, estado: intento.estado };
+    } else if (verificada.status === "APPROVED" && intento.estado !== "PENDIENTE") {
+      console.error(
+        `[ALERTA PAGOS] ${origen}: segunda aprobación ${verificada.id} para ${intento.referencia}, ya ${intento.estado} con ${previa}. Se conserva ${previa}; revisar posible cobro doble.`
+      );
+      throw new AppError(409, "El pago ya está aprobado con otra transacción.");
+    } else {
+      console.warn(`${origen}: transacción distinta para ${intento.referencia}.`);
+      throw new AppError(409, "El pago ya está asociado a otra transacción.");
+    }
+
+    if (aplicado) {
+      return { resultado: "aplicado", referencia: intento.referencia, estado };
+    }
+
+    // Sin cambios: aviso repetido, antiguo, transición no permitida u otra
+    // solicitud que ganó la carrera. Se relee el intento para clasificarlo.
+    const actual = await repository.findIntentoPorReferencia(intento.referencia);
+    if (!actual) throw new AppError(404, "Pago no encontrado.");
+    if (actual.wompiTransaccionId === verificada.id) {
+      return {
+        resultado: actual.estado === estado ? "duplicado" : "ignorado",
+        referencia: intento.referencia,
+        estado: actual.estado,
+      };
+    }
+    if (!esReintento) {
+      return aplicarTransaccionVerificada(actual, verificada, eventoEn, origen, true);
+    }
+    return { resultado: "ignorado", referencia: intento.referencia, estado: actual.estado };
+  }
+
+  // Última consulta de conciliación a Wompi por referencia (en memoria del
+  // proceso). Se limpian las entradas que ya no frenan nada.
+  const ultimaConciliacion = new Map<string, number>();
+  function limpiarConciliacionesAntiguas(momento: number) {
+    if (ultimaConciliacion.size < 1000) return;
+    for (const [referencia, en] of ultimaConciliacion) {
+      if (momento - en >= ESPERA_CONCILIACION_MS) ultimaConciliacion.delete(referencia);
+    }
   }
 
   return {
@@ -235,28 +431,7 @@ export function createPagosService(
       rol: TipoUsuario,
       consulta: ConsultaEstadoPagoInput
     ): Promise<PagoIntentoOutput> {
-      const rolPagador = exigirRolPagador(rol);
-      const noEncontrado = () => new AppError(404, "No encontramos ese pago en tu cuenta.");
-
-      const encontrado = await repository.findIntentoConsultable(consulta);
-      if (!encontrado) throw noEncontrado();
-      const { pago } = encontrado;
-
-      if (rolPagador === "usuario_particular") {
-        if (pago.plan !== "suscripcion_particular" || encontrado.usuarioId !== usuarioId) {
-          throw noEncontrado();
-        }
-        return pago;
-      }
-
-      if (
-        pago.plan !== "suscripcion_sede" ||
-        !pago.gym_slug ||
-        !(await repository.administraSede(usuarioId, pago.gym_slug))
-      ) {
-        throw noEncontrado();
-      }
-      return pago;
+      return buscarIntentoAutorizado(usuarioId, rol, consulta);
     },
 
     // Procesa un evento del webhook de Wompi. Solo actualiza el intento de
@@ -311,63 +486,122 @@ export function createPagosService(
         );
         throw new AppError(409, "El importe o la moneda no coinciden con el pago.");
       }
-      if (intento.wompiTransaccionId && intento.wompiTransaccionId !== delEvento.id) {
-        console.warn(`Webhook de Wompi: transacción distinta para ${intento.referencia}.`);
-        throw new AppError(409, "El pago ya está asociado a otra transacción.");
-      }
 
-      // 5. Verificación del lado del servidor con la API de Wompi.
-      if (!config.privateKey) {
-        console.error("Webhook de Wompi rechazado: falta WOMPI_PRIVATE_KEY.");
-        throw new AppError(503, MSG_WEBHOOK_NO_CONFIGURADO);
-      }
-      let verificada: TransaccionWompi | null;
-      try {
-        verificada = await consultarTransaccion(delEvento.id);
-      } catch (error) {
-        console.error("No se pudo verificar la transacción con Wompi:", error);
-        throw new AppError(502, "No se pudo verificar la transacción con Wompi.");
-      }
-      if (
-        !verificada ||
-        verificada.id !== delEvento.id ||
-        verificada.reference !== intento.referencia ||
-        verificada.currency !== intento.moneda ||
-        verificada.amountInCents !== intento.montoEnCentavos
-      ) {
-        console.warn(
-          `Webhook de Wompi: la transacción verificada no coincide (${intento.referencia}).`
-        );
-        throw new AppError(409, "La transacción no coincide con el pago.");
-      }
+      // 5 y 6. Verificación con la API de Wompi y actualización condicional.
+      return verificarYAplicarTransaccion(
+        intento,
+        delEvento.id,
+        new Date(evento.timestamp * 1000),
+        "Webhook de Wompi"
+      );
+    },
 
-      // 6. Se aplica el estado consultado a Wompi, no el del evento.
-      const estado = ESTADO_POR_STATUS_WOMPI[verificada.status];
-      const aplicado = await repository.aplicarEstadoWompi({
-        pagoId: intento.id,
-        transaccionId: verificada.id,
-        estado,
-        estadosPrevios: ESTADOS_PREVIOS[estado],
-        eventoEn: new Date(evento.timestamp * 1000),
+    // Concilia un intento PENDIENTE, RECHAZADO o ERROR consultando a Wompi:
+    // para cuando el evento del webhook no llegó, o cuando el pagador
+    // reintentó y Wompi aprobó otra transacción con la misma referencia.
+    // APROBADO y ANULADO no se concilian. Solo puede pedirla quien puede consultar
+    // el intento (mismas reglas que consultarEstadoPago). Busca las
+    // transacciones de la referencia, elige la que corresponde y la
+    // verifica y aplica por el mismo camino que el webhook: repetirla, o
+    // recibir después el evento, no produce efectos duplicados.
+    async conciliarPago(
+      usuarioId: string,
+      rol: TipoUsuario,
+      input: ConciliarPagoInput
+    ): Promise<ResultadoConciliacionPago> {
+      const consultable = await buscarIntentoAutorizado(usuarioId, rol, {
+        referencia: input.referencia,
+        transaccionId: null,
       });
-      if (aplicado) {
-        return { resultado: "aplicado", referencia: intento.referencia, estado };
+      if (!ESTADOS_CONCILIABLES.includes(consultable.estado as EstadoPago)) {
+        return { pago: consultable, conciliacion: "no_necesaria" };
       }
 
-      // Sin cambios: evento repetido, antiguo o transición no permitida.
-      // Se relee el estado para distinguir el duplicado.
-      const actual = await repository.findIntentoPorReferencia(intento.referencia);
-      if (actual?.wompiTransaccionId && actual.wompiTransaccionId !== verificada.id) {
-        throw new AppError(409, "El pago ya está asociado a otra transacción.");
+      if (!config.privateKey) {
+        console.error("Conciliación de Wompi no disponible: falta WOMPI_PRIVATE_KEY.");
+        throw new AppError(503, MSG_CONCILIACION_NO_CONFIGURADA);
       }
-      const duplicado = actual?.estado === estado;
-      return {
-        resultado: duplicado ? "duplicado" : "ignorado",
+
+      // Una consulta a Wompi por intento cada ESPERA_CONCILIACION_MS, sin
+      // importar cuántas pestañas o usuarios la pidan.
+      const momento = ahora();
+      const anterior = ultimaConciliacion.get(consultable.referencia);
+      if (anterior !== undefined && momento - anterior < ESPERA_CONCILIACION_MS) {
+        return { pago: consultable, conciliacion: "en_espera" };
+      }
+      ultimaConciliacion.set(consultable.referencia, momento);
+      limpiarConciliacionesAntiguas(momento);
+
+      const intento = await repository.findIntentoPorReferencia(consultable.referencia);
+      if (!intento) throw new AppError(404, MSG_PAGO_NO_ENCONTRADO);
+
+      let transacciones: TransaccionWompi[];
+      try {
+        transacciones = await buscarTransacciones(intento.referencia);
+      } catch (error) {
+        console.error("No se pudieron buscar las transacciones en Wompi:", error);
+        throw new AppError(502, "No se pudo consultar el pago con Wompi. Inténtalo más tarde.");
+      }
+
+      const elegida = elegirTransaccionParaConciliar(intento, transacciones);
+      if (!elegida) {
+        return { pago: consultable, conciliacion: "sin_cambios" };
+      }
+
+      const resultado = await verificarYAplicarTransaccion(
+        intento,
+        elegida.id,
+        elegida.finalizadaEn ?? new Date(momento),
+        "Conciliación de Wompi"
+      );
+      if (resultado.resultado === "aplicado") {
+        console.info(
+          `Conciliación de Wompi: ${intento.referencia} → ${resultado.estado} (transacción ${elegida.id}).`
+        );
+      }
+
+      const actualizado = await buscarIntentoAutorizado(usuarioId, rol, {
         referencia: intento.referencia,
-        estado: actual?.estado,
+        transaccionId: null,
+      });
+      return {
+        pago: actualizado,
+        conciliacion: resultado.resultado === "aplicado" ? "aplicado" : "sin_cambios",
       };
     },
   };
+}
+
+// Elige la transacción de Wompi con la que conciliar un intento:
+// - solo las de su referencia, moneda e importe (las demás se registran);
+// - intento RECHAZADO o ERROR: solo una APPROVED (la del reintento de pago,
+//   con otro ID); si no hay, no hay nada que conciliar;
+// - intento PENDIENTE con transacción asociada: solo esa;
+// - se prefiere una APPROVED; si no hay, la última finalizada
+//   (DECLINED, VOIDED, ERROR). Las PENDING no cambian nada.
+function elegirTransaccionParaConciliar(
+  intento: PagoIntentoWebhook,
+  transacciones: TransaccionWompi[]
+): TransaccionWompi | null {
+  const recuperable = esEstadoRecuperable(intento.estado);
+  const candidatas = transacciones.filter((t) => {
+    if (t.reference !== intento.referencia) return false;
+    if (t.currency !== intento.moneda || t.amountInCents !== intento.montoEnCentavos) {
+      console.warn(
+        `Conciliación de Wompi: transacción ${t.id} con importe o moneda distintos (${intento.referencia}).`
+      );
+      return false;
+    }
+    if (recuperable) return t.status === "APPROVED";
+    return !intento.wompiTransaccionId || t.id === intento.wompiTransaccionId;
+  });
+  const aprobada = candidatas.find((t) => t.status === "APPROVED");
+  if (aprobada) return aprobada;
+  if (recuperable) return null;
+  const finalizadas = candidatas
+    .filter((t) => t.status !== "PENDING")
+    .sort((a, b) => (b.finalizadaEn?.getTime() ?? 0) - (a.finalizadaEn?.getTime() ?? 0));
+  return finalizadas[0] ?? null;
 }
 
 export type PagosService = ReturnType<typeof createPagosService>;

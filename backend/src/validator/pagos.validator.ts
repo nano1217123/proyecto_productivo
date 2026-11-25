@@ -2,6 +2,7 @@
 import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import type {
+  ConciliarPagoInput,
   ConsultaEstadoPagoInput,
   EventoWompi,
   IniciarPagoInput,
@@ -82,6 +83,19 @@ export const validateConsultaEstadoPago: RequestHandler = (req, res, next) => {
   // La consulta validada se guarda en res.locals (req.query conserva el
   // tipo genérico de Express y es de solo lectura en Express 5).
   res.locals.consultaEstadoPago = parseConsultaEstadoPago(req.query);
+  next();
+};
+
+// Body de POST /api/pagos/conciliar: solo la referencia del intento.
+export function parseConciliarPago(body: unknown): ConciliarPagoInput {
+  const b = esObjeto(body) ? body : {};
+  const referencia = leerIdentificador(b.referencia, "La referencia del pago no es válida.");
+  if (!referencia) throw new AppError(400, "Indica la referencia del pago.");
+  return { referencia };
+}
+
+export const validateConciliarPago: RequestHandler = (req, _res, next) => {
+  req.body = parseConciliarPago(req.body);
   next();
 };
 

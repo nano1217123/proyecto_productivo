@@ -3,6 +3,7 @@ import { AppError } from "../errors/AppError.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
 import { pagosService, type PagosService } from "../service/pagos.service.js";
 import type {
+  ConciliarPagoInput,
   ConsultaEstadoPagoInput,
   EventoWompi,
   IniciarPagoInput,
@@ -49,6 +50,22 @@ export function createPagosController(service: PagosService = pagosService) {
       // El estado cambia con el webhook: nunca debe servirse desde caché.
       res.set("Cache-Control", "no-store");
       return res.status(200).json({ pago });
+    }) satisfies RequestHandler,
+
+    // POST /api/pagos/conciliar  { referencia }
+    // Consulta a Wompi un intento pendiente y aplica el estado verificado
+    // (por si el evento del webhook no llegó). Devuelve { pago, conciliacion }.
+    conciliarPago: asyncHandler(async (req, res) => {
+      if (!req.userId) throw new AppError(401, "No autorizado.");
+      if (!req.userRole) throw new AppError(403, "No se pudo verificar tu rol.");
+
+      const resultado = await service.conciliarPago(
+        req.userId,
+        req.userRole,
+        req.body as ConciliarPagoInput
+      );
+      res.set("Cache-Control", "no-store");
+      return res.status(200).json(resultado);
     }) satisfies RequestHandler,
 
     // POST /api/pagos/wompi/webhook (público, sin sesión)

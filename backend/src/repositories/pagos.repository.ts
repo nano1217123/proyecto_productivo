@@ -9,6 +9,7 @@ import type {
   PagoIntentoWebhook,
   PagoIntentoOutput,
   PlanSuscripcion,
+  RecuperarAprobacionWompiInput,
 } from "../types/pagos.types.js";
 
 // Campos del intento que se exponen al cliente.
@@ -198,6 +199,36 @@ export function createPagosRepository() {
           throw new AppError(409, "La transacción ya está asociada a otro pago.");
         }
         console.error("Error al actualizar el estado del pago:", error);
+        throw new AppError(500, "Error al actualizar el pago.");
+      }
+    },
+
+    // Recupera una aprobación con otra transacción de la misma referencia
+    // (reintento de pago en Wompi). Un único UPDATE condicional al estado
+    // previo (RECHAZADO o ERROR) y al ID de la transacción guardada: si otra
+    // solicitud cambió la fila antes, no hace nada. No se compara la fecha:
+    // la aprobación verificada prevalece sobre el rechazo anterior.
+    // Devuelve true si la fila cambió.
+    async recuperarAprobacionWompi(input: RecuperarAprobacionWompiInput): Promise<boolean> {
+      try {
+        const { count } = await prisma.pagoIntento.updateMany({
+          where: {
+            id: input.pagoId,
+            estado: { in: [...input.estadosPrevios] },
+            wompiTransaccionId: input.transaccionIdAnterior,
+          },
+          data: {
+            estado: "APROBADO",
+            wompiTransaccionId: input.transaccionId,
+            wompiEventoEn: input.eventoEn,
+          },
+        });
+        return count === 1;
+      } catch (error) {
+        if ((error as { code?: string })?.code === "P2002") {
+          throw new AppError(409, "La transacción ya está asociada a otro pago.");
+        }
+        console.error("Error al recuperar la aprobación del pago:", error);
         throw new AppError(500, "Error al actualizar el pago.");
       }
     },

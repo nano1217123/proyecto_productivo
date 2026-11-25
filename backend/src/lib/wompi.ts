@@ -195,13 +195,19 @@ export function parseTransaccionWompi(valor: unknown): TransaccionWompi | null {
   ) {
     return null;
   }
-  return {
+  const transaccion: TransaccionWompi = {
     id,
     reference,
     status: status as StatusTransaccionWompi,
     amountInCents: monto,
     currency,
   };
+  const finalizada = (valor as Record<string, unknown>).finalized_at;
+  if (typeof finalizada === "string") {
+    const fecha = new Date(finalizada);
+    if (!Number.isNaN(fecha.getTime())) transaccion.finalizadaEn = fecha;
+  }
+  return transaccion;
 }
 
 // Consulta una transacción en la API de Wompi (GET /v1/transactions/{id})
@@ -235,5 +241,41 @@ export function crearConsultaTransaccionWompi(params: {
       throw new Error("La respuesta de Wompi no tiene el formato esperado.");
     }
     return transaccion;
+  };
+}
+
+// Busca las transacciones de una referencia en la API de Wompi
+// (GET /v1/transactions?reference=…) con la llave privada. Sirve para
+// conciliar un intento cuyo evento no llegó. Descarta las entradas con
+// formato inesperado o de otra referencia y lanza un error ante fallos de
+// red o respuestas no exitosas.
+export type BuscarTransaccionesWompi = (referencia: string) => Promise<TransaccionWompi[]>;
+
+export function crearBusquedaTransaccionesWompi(params: {
+  apiUrl: string;
+  privateKey: string;
+  timeoutMs?: number;
+}): BuscarTransaccionesWompi {
+  return async (referencia) => {
+    const respuesta = await fetch(
+      `${params.apiUrl}/transactions?reference=${encodeURIComponent(referencia)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${params.privateKey}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(params.timeoutMs ?? 10_000),
+      }
+    );
+    if (!respuesta.ok) {
+      throw new Error(`Wompi respondió ${respuesta.status} al buscar transacciones.`);
+    }
+    const cuerpo = (await respuesta.json()) as { data?: unknown } | null;
+    if (!Array.isArray(cuerpo?.data)) {
+      throw new Error("La respuesta de Wompi no tiene el formato esperado.");
+    }
+    return cuerpo.data
+      .map(parseTransaccionWompi)
+      .filter((t): t is TransaccionWompi => t !== null && t.reference === referencia);
   };
 }

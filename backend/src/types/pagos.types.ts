@@ -41,12 +41,14 @@ export type StatusTransaccionWompi = (typeof STATUS_TRANSACCION_WOMPI)[number];
 
 // Campos de una transacción de Wompi que usa el webhook, tanto los del
 // evento como los de la consulta GET /v1/transactions/{id}.
+// finalizadaEn (finalized_at) solo viene cuando la transacción terminó.
 export interface TransaccionWompi {
   id: string;
   reference: string;
   status: StatusTransaccionWompi;
   amountInCents: number;
   currency: string;
+  finalizadaEn?: Date;
 }
 
 // Evento con la forma validada (la firma se verifica aparte).
@@ -79,6 +81,17 @@ export interface AplicarEstadoWompiInput {
   eventoEn: Date;
 }
 
+// Aprobación posterior con otra transacción de la misma referencia
+// (reintento de pago): solo se aplica si el intento sigue en uno de
+// `estadosPrevios` con `transaccionIdAnterior`.
+export interface RecuperarAprobacionWompiInput {
+  pagoId: string;
+  transaccionIdAnterior: string;
+  estadosPrevios: readonly EstadoPago[];
+  transaccionId: string;
+  eventoEn: Date;
+}
+
 // Respuesta del webhook cuando el evento se acepta (HTTP 200):
 // - aplicado:  el intento cambió de estado.
 // - duplicado: el intento ya tenía ese estado y esa transacción.
@@ -105,6 +118,22 @@ export interface IniciarPagoInput {
 export interface ConsultaEstadoPagoInput {
   referencia: string | null;
   transaccionId: string | null;
+}
+
+// Body ya validado de POST /api/pagos/conciliar.
+export interface ConciliarPagoInput {
+  referencia: string;
+}
+
+// Resultado de la conciliación con la API de Wompi:
+// - aplicado:     el intento cambió de estado con la transacción verificada.
+// - sin_cambios:  se consultó a Wompi y no había nada nuevo que aplicar
+//                 (sin transacción final, o el estado ya estaba guardado).
+// - no_necesaria: el intento ya tenía un estado final; no se consultó.
+// - en_espera:    se consultó hace muy poco; no se volvió a consultar.
+export interface ResultadoConciliacionPago {
+  pago: PagoIntentoOutput;
+  conciliacion: "aplicado" | "sin_cambios" | "no_necesaria" | "en_espera";
 }
 
 // Intento con los datos necesarios para decidir quién puede consultarlo.
