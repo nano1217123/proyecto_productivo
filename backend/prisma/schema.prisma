@@ -30,6 +30,14 @@ model Usuario {
   verificationCodes         VerificationCode[]
   resenas                   Resena[]
   metricasDiarias           MetricaDiaria[]
+  adminSedes                AdminSede[]
+  pagosIntentos             PagoIntento[]
+  // Sede a la que pertenece un cliente (una sola) y vínculos que asignó.
+  miembroSede               MiembroSede?         @relation("MiembroSedeUsuario")
+  miembrosAsignados         MiembroSede[]        @relation("MiembroSedeAsignador")
+  // Cambios de rol o de sede que recibió o que hizo esta cuenta.
+  auditoriaRoles            AuditoriaRol[]       @relation("AuditoriaRolUsuario")
+  auditoriaAcciones         AuditoriaRol[]       @relation("AuditoriaRolActor")
 
   @@map("usuarios")
 }
@@ -181,4 +189,100 @@ model MetricaDiaria {
   usuario                 Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
   @@map("metricas_diarias")
+}
+
+// Sedes que administra cada usuario con rol "admin".
+// Es la fuente verificada del backend para autorizar acciones sobre una sede
+// (por ejemplo, pagar su suscripción).
+model AdminSede {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  gymSlug   String   @map("gym_slug") @db.VarChar(64)
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@unique([usuarioId, gymSlug])
+  @@index([gymSlug])
+  @@map("admin_sedes")
+}
+
+// Intento de pago iniciado en una pasarela (por ahora Wompi).
+// - plan "suscripcion_sede": titular = la sede (gymSlug); usuarioId = admin que paga.
+// - plan "suscripcion_particular": titular = usuarioId; gymSlug = null.
+// El estado arranca en PENDIENTE y lo actualiza el webhook de Wompi.
+model PagoIntento {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  referencia      String   @unique @db.VarChar(64)
+  proveedor       String   @default("wompi") @db.VarChar(20)
+  plan            String   @db.VarChar(40)
+  periodo         String   @default("mensual") @db.VarChar(20)
+  usuarioId       String   @map("usuario_id") @db.Uuid
+  gymSlug         String?  @map("gym_slug") @db.VarChar(64)
+  // Precio de referencia en centavos USD y tasa USD→COP aplicados al crear
+  // el intento. Son null en intentos creados con importes fijos en COP.
+  precioUsdCentavos Int?     @map("precio_usd_centavos")
+  tasaUsdCop        Decimal? @map("tasa_usd_cop") @db.Decimal(12, 4)
+  // Importe final cobrado; nunca se recalcula.
+  montoEnCentavos Int      @map("monto_en_centavos")
+  moneda          String   @default("COP") @db.VarChar(3)
+  // PENDIENTE | APROBADO | RECHAZADO | ANULADO | ERROR. Lo actualiza el
+  // webhook de Wompi tras verificar la transacción con la API.
+  estado          String   @default("PENDIENTE") @db.VarChar(20)
+  // Transacción de Wompi asociada y marca de tiempo del último evento
+  // aplicado (descarta eventos antiguos).
+  wompiTransaccionId String?   @unique @map("wompi_transaccion_id") @db.VarChar(64)
+  wompiEventoEn      DateTime? @map("wompi_evento_en") @db.Timestamptz(6)
+  creadoEn        DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn   DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+
+  // Restrict: un registro de pago no debe desaparecer al borrar un usuario.
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Restrict)
+
+  @@index([usuarioId])
+  @@index([gymSlug])
+  @@map("pagos_intentos")
+}
+
+// Sede a la que pertenece un cliente. Es la fuente del servidor para la
+// pertenencia (reemplaza ?gym= como origen de permisos). Cada cliente
+// pertenece a una sola sede (usuario_id único). La asignan el admin de la
+// sede o un super_admin; al desvincular, la cuenta vuelve a usuario_particular.
+model MiembroSede {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  usuarioId   String   @unique @map("usuario_id") @db.Uuid
+  gymSlug     String   @map("gym_slug") @db.VarChar(64)
+  // Cuenta que hizo la vinculación (null si esa cuenta ya no existe).
+  asignadoPor String?  @map("asignado_por") @db.Uuid
+  creadoEn    DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario   Usuario  @relation("MiembroSedeUsuario", fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  asignador Usuario? @relation("MiembroSedeAsignador", fields: [asignadoPor], references: [idusuario], onDelete: SetNull)
+
+  @@index([gymSlug])
+  @@map("miembros_sede")
+}
+
+// Registro de solo inserción de cada cambio de rol o de sede:
+// - accion: vincular_cliente | desvincular_cliente | asignar_admin | asignar_super_admin
+// - origen: "api" (panel, con actor) o "cli" (script del servidor, actor null)
+// Restrict en usuario_id: el registro no debe desaparecer al borrar la cuenta.
+model AuditoriaRol {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  actorId     String?  @map("actor_id") @db.Uuid
+  accion      String   @db.VarChar(40)
+  rolAnterior String   @map("rol_anterior") @db.VarChar(20)
+  rolNuevo    String   @map("rol_nuevo") @db.VarChar(20)
+  gymSlugs    String[] @map("gym_slugs") @db.VarChar(64)
+  origen      String   @db.VarChar(10)
+  motivo      String?
+  creadoEn    DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario Usuario  @relation("AuditoriaRolUsuario", fields: [usuarioId], references: [idusuario], onDelete: Restrict)
+  actor   Usuario? @relation("AuditoriaRolActor", fields: [actorId], references: [idusuario], onDelete: SetNull)
+
+  @@index([usuarioId])
+  @@index([creadoEn])
+  @@map("auditoria_roles")
 }

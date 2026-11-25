@@ -11,6 +11,8 @@ const PERFIL_SELECT = {
   tipoUsuario: true,
   tiempoRegistrado: true,
   tiempoDuracionInscripcion: true,
+  miembroSede: { select: { gymSlug: true } },
+  adminSedes: { select: { gymSlug: true }, orderBy: { gymSlug: "asc" } },
 } as const;
 
 export function createUsuariosRepository() {
@@ -47,63 +49,12 @@ export function createUsuariosRepository() {
           tipo_usuario: user.tipoUsuario as TipoUsuario,
           tiempo_registrado: user.tiempoRegistrado,
           tiempo_duracion_inscripcion: user.tiempoDuracionInscripcion,
+          sede: user.miembroSede?.gymSlug ?? null,
+          sedes_administradas: user.adminSedes.map((s) => s.gymSlug),
         };
       } catch (error) {
         console.error("Error al obtener el perfil:", error);
         throw new AppError(500, "Error al consultar la base de datos.");
-      }
-    },
-
-    // AÑADIDO: Buscar por email para ascender a admin
-    async findByEmail(correo: string) {
-      try {
-        return await prisma.usuario.findUnique({
-          where: { correo },
-        });
-      } catch (error) {
-        console.error("Error al buscar por email:", error);
-        throw new AppError(500, "Error al consultar la base de datos.");
-      }
-    },
-
-    // AÑADIDO: Actualizar el rol de un usuario
-    async updateRole(idusuario: string, tipoUsuario: string) {
-      try {
-        return await prisma.usuario.update({
-          where: { idusuario },
-          data: { tipoUsuario },
-        });
-      } catch (error) {
-        console.error("Error al actualizar el rol:", error);
-        throw new AppError(500, "Error al actualizar el rol en la base de datos.");
-      }
-    },
-
-    // AÑADIDO: Crear administrador directamente (si no existe)
-    async createAdmin(data: {
-      nombres: string;
-      apellidos: string;
-      email: string;
-      passwordHash: string;
-      tipoUsuario: string;
-    }) {
-      try {
-        const user = await prisma.usuario.create({
-          data: {
-            idusuario: crypto.randomUUID(),
-            nombres: data.nombres,
-            apellidos: data.apellidos,
-            correo: data.email,
-            passwordHash: data.passwordHash,
-            tipoUsuario: data.tipoUsuario,
-            emailVerified: false, // Se verifica luego con OTP
-          },
-          select: { idusuario: true }
-        });
-        return user.idusuario;
-      } catch (error) {
-        console.error("Error al crear admin:", error);
-        throw new AppError(500, "Error al crear el administrador en la base de datos.");
       }
     },
   };

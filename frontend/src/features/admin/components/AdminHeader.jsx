@@ -12,9 +12,11 @@ export default function AdminHeader({ gymSeleccionado, setGymSeleccionado, gimna
         <label htmlFor="select-gym">Sede actual:</label>
         <select
           id="select-gym"
-          value={gymSeleccionado}
+          value={gymSeleccionado ?? ""}
+          disabled={gimnasios.length === 0}
           onChange={(e) => setGymSeleccionado(e.target.value)}
         >
+        {gimnasios.length === 0 && <option value="">Sin sedes asignadas</option>}
         {gimnasios.map((g) => (
             <option key={g.id} value={g.id}>
               {g.nombre}

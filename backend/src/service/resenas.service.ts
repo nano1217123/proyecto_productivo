@@ -8,8 +8,14 @@ import type {
   ResenaOutput,
 } from "../types/resenas.types.js";
 import type { TipoUsuario } from "../types/usuario.types.js";
+import { gestionRepository } from "../repositories/gestion.repository.js";
+
+// Sede registrada de un cliente (miembros_sede), o null.
+type BuscarSedeCliente = (usuarioId: string) => Promise<string | null>;
+
 export function createResenasService(
-  repository: ResenasRepository = resenasRepository
+  repository: ResenasRepository = resenasRepository,
+  buscarSedeCliente: BuscarSedeCliente = gestionRepository.findSedeDeCliente
 ) {
   return {
     // Permite que un cliente o un usuario particular publique una reseña.
@@ -23,6 +29,16 @@ export function createResenasService(
           403,
           "Solo los clientes pueden publicar reseñas."
         );
+      }
+      // El cliente solo reseña la sede a la que pertenece según el servidor.
+      if (rol === "cliente") {
+        const sede = await buscarSedeCliente(usuarioId);
+        if (!sede) {
+          throw new AppError(403, "Tu cuenta aún no tiene una sede asignada.");
+        }
+        if (input.gymSlug !== sede) {
+          throw new AppError(403, "Solo puedes reseñar la sede a la que perteneces.");
+        }
       }
       return repository.create(usuarioId, input);
     },

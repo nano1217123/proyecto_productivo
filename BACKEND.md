@@ -105,7 +105,13 @@ routes → controller → service → repository → Prisma → Neon
 | POST | `/api/auth/login` | loginLimiter, validateLogin, verifyRecaptcha("login") | Login, setea cookies httpOnly. |
 | POST | `/api/auth/refresh` | refreshLimiter | Rota refresh token. |
 | POST | `/api/auth/logout` | refreshLimiter | Revoca refresh token. |
-| POST | `/api/auth/create-admin` | authLimiter, requireAuth, requireRole, validateCreateAdmin | super_admin crea admins. |
+| POST | `/api/auth/create-admin` | authLimiter, requireAuth, requireRole("super_admin"), validateAsignarAdmin | super_admin asigna el rol admin y sus sedes a una cuenta existente y verificada. No crea cuentas. |
+| GET | `/api/sedes` | — | Catálogo público de sedes. |
+| GET | `/api/sedes/:slug/clientes` | requireAuth, requireRole("admin","super_admin") | Clientes de la sede (admin de esa sede o super_admin). |
+| POST | `/api/sedes/:slug/clientes` | requireAuth, requireRole("admin","super_admin") | Vincula una cuenta confirmada `{ usuarioId, correo }` como cliente. |
+| DELETE | `/api/sedes/:slug/clientes/:usuarioId` | requireAuth, requireRole("admin","super_admin") | Desvincula; la cuenta vuelve a usuario_particular. |
+| GET | `/api/gestion/cuentas?correo=` | requireAuth, requireRole("admin","super_admin") | Vista previa de una cuenta por correo exacto. |
+| GET | `/api/gestion/clientes-sin-sede` | requireAuth, requireRole("super_admin") | Clientes que aún no tienen sede registrada. |
 | GET | `/api/perfil` | perfilLimiter, requireAuth | Devuelve el perfil. |
 
 ## 6. Flujo de autenticación
@@ -233,23 +239,22 @@ EMAIL_FROM=GymPlataforma <noreply@gymplataform.lat>
 
 ## 11. Bootstrap del primer super_admin
 
-Como `/create-admin` requiere ser super_admin, el primero se crea
-manualmente:
+La API nunca asigna ni modifica el rol `super_admin`. El primero (y
+cualquier otro) se asigna con un script del servidor sobre una cuenta real
+ya registrada y verificada, que conserva sus credenciales (correo o Google):
 
-1. Registrar el usuario con `/register`.
-2. Verificar su correo con `/verify-email`.
-3. Generar el hash bcrypt de la contraseña con un script temporal.
-4. Ejecutar en Neon:
-   ```sql
-   UPDATE usuarios
-   SET tipo_usuario = 'super_admin',
-       email_verified = true,
-       password_hash = '<HASH_BCRYPT>'
-   WHERE correo = '<email>';
-   ```
-5. Borrar el script temporal.
+```bash
+# 1. Ver la cuenta sin cambiar nada
+npx tsx scripts/asignar-super-admin.ts --correo persona@ejemplo.com
+# 2. Confirmar con el id exacto que mostró el paso 1
+npx tsx scripts/asignar-super-admin.ts --correo persona@ejemplo.com   --confirmar <usuarioId> --motivo "Primer super_admin del proyecto"
+```
 
-A partir de ese usuario, se pueden crear otros admins desde la API.
+- Lo autoriza y ejecuta quien administra el servidor y la base.
+- Valida el destino antes de escribir: por ahora solo acepta la base local
+  `jjgym_pagos` (127.0.0.1:55432) y lo comprueba también con la conexión.
+- Si ya existe un super_admin, exige `--adicional`.
+- Queda registrado en `auditoria_roles` (origen `cli`, motivo, rol anterior).
 
 ## 12. Comandos útiles
 
@@ -292,3 +297,44 @@ npx prisma studio
 4. Despliega el frontend con la clave pública y activa después la verificación en el backend. Con la clave secreta configurada, `POST /api/auth/login` y `POST /api/auth/register` exigen un token válido para su acción respectiva (`login` o `register`) en cada intento. Sin la clave secreta, la verificación queda desactivada.
 
 La integración cubre el acceso con correo y contraseña y el registro público. El acceso con Google usa su flujo OAuth. En un entorno con las claves configuradas, comprueba que puedas iniciar sesión y que el registro exitoso y el acceso con un correo pendiente de confirmar lleven a la pantalla del código de verificación.
+
+## 14. Roles, sedes y cuentas reales
+
+Todas las cuentas se registran por el flujo público (correo o Google) como
+`usuario_particular`. Los demás roles se asignan sobre esa misma cuenta, que
+conserva sus credenciales; el rol se lee de la base en cada petición
+(`requireRole`), así que un cambio aplica desde la siguiente petición.
+
+| Rol | Quién lo asigna | Sede |
+|---|---|---|
+| `usuario_particular` | Registro público | — |
+| `cliente` | Admin de la sede o super_admin (`POST /api/sedes/:slug/clientes`) | Una sola, en `miembros_sede` |
+| `admin` | super_admin (`POST /api/auth/create-admin`) | Una o más, en `admin_sedes` |
+| `super_admin` | Script `scripts/asignar-super-admin.ts` | — |
+
+- Toda asignación confirma la cuenta con `usuarioId` y correo, exige correo
+  verificado, impide cambiar la propia cuenta y deja registro en
+  `auditoria_roles` en la misma transacción.
+- Desvincular a un cliente lo devuelve a `usuario_particular`.
+- La sede del cliente sale de `miembros_sede` (perfil, panel y reseñas); el
+  parámetro `?gym=` ya no define pertenencia.
+- Los intentos y el historial de pagos se conservan en cualquier cambio.
+- Clientes sin sede (por ejemplo, creados antes de `miembros_sede`):
+  conservan el rol, el panel les indica que no tienen sede, no pueden
+  reseñar y aparecen en `GET /api/gestion/clientes-sin-sede` para que un
+  admin o un super_admin les asigne una.
+
+### Cambio de rol y suscripciones personales (pendiente)
+
+Hoy no existe un mecanismo que determine si una suscripción personal está
+activa: el webhook de Wompi solo actualiza el intento de pago y la
+activación o renovación de suscripciones aún no está implementada. Por eso
+vincular a un particular como cliente, o asignarle admin, **no se bloquea**.
+La vista previa de la cuenta muestra `pagos_personales_aprobados` para que
+quien asigna lo vea.
+
+Antes de habilitar este flujo en una base compartida (Neon) hay que
+decidir qué pasa con una suscripción personal vigente al cambiar de rol
+(bloquear el cambio, conservarla hasta su vencimiento o reembolsar) e
+implementarlo cuando exista la activación de suscripciones.
+

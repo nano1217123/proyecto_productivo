@@ -1,0 +1,85 @@
+import type { RequestHandler } from "express";
+import { AppError } from "../errors/AppError.js";
+import { asyncHandler } from "../middleware/error.middleware.js";
+import { pagosService, type PagosService } from "../service/pagos.service.js";
+import type {
+  ConciliarPagoInput,
+  ConsultaEstadoPagoInput,
+  EventoWompi,
+  IniciarPagoInput,
+} from "../types/pagos.types.js";
+
+export function createPagosController(service: PagosService = pagosService) {
+  return {
+    // GET /api/pagos/opciones
+    // Planes y sedes que el usuario autenticado puede pagar.
+    listarOpciones: asyncHandler(async (req, res) => {
+      if (!req.userId) throw new AppError(401, "No autorizado.");
+      if (!req.userRole) throw new AppError(403, "No se pudo verificar tu rol.");
+
+      const opciones = await service.listarOpciones(req.userId, req.userRole);
+      return res.status(200).json({ opciones });
+    }) satisfies RequestHandler,
+
+    // POST /api/pagos/wompi/checkout
+    // Registra el intento de pago y devuelve la URL firmada del checkout.
+    iniciarCheckoutWompi: asyncHandler(async (req, res) => {
+      if (!req.userId) throw new AppError(401, "No autorizado.");
+      if (!req.userRole) throw new AppError(403, "No se pudo verificar tu rol.");
+
+      const resultado = await service.iniciarCheckoutWompi(
+        req.userId,
+        req.userEmail,
+        req.userRole,
+        req.body as IniciarPagoInput
+      );
+      return res.status(201).json(resultado);
+    }) satisfies RequestHandler,
+
+    // GET /api/pagos/estado?referencia=<ref>&id=<transacción>
+    // Estado del intento según el backend (lo actualiza el webhook).
+    consultarEstado: asyncHandler(async (req, res) => {
+      if (!req.userId) throw new AppError(401, "No autorizado.");
+      if (!req.userRole) throw new AppError(403, "No se pudo verificar tu rol.");
+
+      const pago = await service.consultarEstadoPago(
+        req.userId,
+        req.userRole,
+        res.locals.consultaEstadoPago as ConsultaEstadoPagoInput
+      );
+      // El estado cambia con el webhook: nunca debe servirse desde caché.
+      res.set("Cache-Control", "no-store");
+      return res.status(200).json({ pago });
+    }) satisfies RequestHandler,
+
+    // POST /api/pagos/conciliar  { referencia }
+    // Consulta a Wompi un intento pendiente y aplica el estado verificado
+    // (por si el evento del webhook no llegó). Devuelve { pago, conciliacion }.
+    conciliarPago: asyncHandler(async (req, res) => {
+      if (!req.userId) throw new AppError(401, "No autorizado.");
+      if (!req.userRole) throw new AppError(403, "No se pudo verificar tu rol.");
+
+      const resultado = await service.conciliarPago(
+        req.userId,
+        req.userRole,
+        req.body as ConciliarPagoInput
+      );
+      res.set("Cache-Control", "no-store");
+      return res.status(200).json(resultado);
+    }) satisfies RequestHandler,
+
+    // POST /api/pagos/wompi/webhook (público, sin sesión)
+    // Recibe los eventos de Wompi. El body ya pasó por parseEventoWompi.
+    // Wompi solo considera entregado un evento si recibe HTTP 200.
+    webhookWompi: asyncHandler(async (req, res) => {
+      const cabecera = req.get("x-event-checksum")?.trim() || undefined;
+      const resultado = await service.procesarEventoWompi(
+        req.body as EventoWompi,
+        cabecera
+      );
+      return res.status(200).json(resultado);
+    }) satisfies RequestHandler,
+  };
+}
+
+export type PagosController = ReturnType<typeof createPagosController>;

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useAuth } from "@/src/features/auth/context/AuthContext";
 import AdminHeader from "../components/AdminHeader";
 import AdminTabs from "../components/AdminTabs";
 import MembersTab from "../components/MembersTab";
@@ -7,17 +9,29 @@ import ImagesTab from "../components/ImagesTab";
 import CommunicationTab from "../components/CommunicationTab";
 import ConfigTab from "../components/ConfigTab";
 import CreateAdminTab from "../components/CreateAdminTab";
+import ClientesSedeTab from "../components/ClientesSedeTab";
+import { useEffect } from "react";
+import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { useMembersFilter } from "../hooks/useMembersFilter";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
 
-const GIMNASIOS = [
-  { id: "jj-poblado", nombre: "JJ GYM El Poblado" },
-  { id: "power-laureles", nombre: "Power Laureles" },
-  { id: "fit-belen", nombre: "Fit Lab Belén" },
-];
-
 export default function AdminDashboardPage() {
   const dashboard = useAdminDashboard();
+  const { profile } = useAuth();
+  const { sedes, nombreSede } = useSedes();
+  // Sedes del panel según el servidor: las del admin (admin_sedes) o todo
+  // el catálogo para el super_admin.
+  const gimnasios = (dashboard.esSuperAdmin
+    ? sedes.map((s) => s.slug)
+    : profile?.sedes_administradas ?? []
+  ).map((slug) => ({ id: slug, nombre: nombreSede(slug) }));
+  const idsSedes = gimnasios.map((g) => g.id).join(",");
+  const { gymSeleccionado, setGymSeleccionado } = dashboard;
+
+  useEffect(() => {
+    const ids = idsSedes ? idsSedes.split(",") : [];
+    if (!ids.includes(gymSeleccionado)) setGymSeleccionado(ids[0] ?? null);
+  }, [idsSedes, gymSeleccionado, setGymSeleccionado]);
   const { miembrosFiltrados, proximosAVencer, busqueda, setBusqueda, filtroEstado, setFiltroEstado } = useMembersFilter(dashboard.miembros);
 
   return (
@@ -25,9 +39,19 @@ export default function AdminDashboardPage() {
       <AdminHeader 
         gymSeleccionado={dashboard.gymSeleccionado} 
         setGymSeleccionado={dashboard.setGymSeleccionado} 
-        gimnasios={GIMNASIOS} 
+        gimnasios={gimnasios} 
         logout={dashboard.logout} 
       />
+
+      {/* Pagos: solo el admin de sede paga su suscripción (no super_admin). */}
+      {profile?.tipo_usuario === "admin" && (
+        <Link
+          href="/dashboard/pagos"
+          className="inline-block mb-6 px-3.5 py-2 rounded-md border border-[#b56cff] text-[#d7adff] text-sm font-bold no-underline hover:bg-[rgba(181,108,255,.12)]"
+        >
+          Pagar suscripción de la sede
+        </Link>
+      )}
 
       <AdminTabs 
         tabActiva={dashboard.tabActiva} 
@@ -80,13 +104,11 @@ export default function AdminDashboardPage() {
         />
       )}
 
-      {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && (
-        <CreateAdminTab
-          errorCrearAdmin={dashboard.errorCrearAdmin} exitoCrearAdmin={dashboard.exitoCrearAdmin}
-          nuevoAdmin={dashboard.nuevoAdmin} setNuevoAdmin={dashboard.setNuevoAdmin}
-          crearAdministrador={dashboard.crearAdministrador} creandoAdmin={dashboard.creandoAdmin}
-        />
+      {dashboard.tabActiva === "clientes" && (
+        <ClientesSedeTab gymSlug={gymSeleccionado} esSuperAdmin={dashboard.esSuperAdmin} />
       )}
+
+      {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && <CreateAdminTab />}
     </div>
   );
 }

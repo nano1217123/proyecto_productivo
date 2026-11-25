@@ -15,17 +15,14 @@ import { http } from "@/src/lib/api/httpClient";
 
 export const adminApi = {
   /**
-   * Crea un nuevo administrador. El backend envía un código de verificación
-   * por correo; el admin debe verificarlo antes de poder iniciar sesión.
+   * Asigna el rol admin y sus sedes a una cuenta existente y verificada.
+   * La cuenta se confirma con su id y su correo (los de la vista previa).
+   * No crea cuentas: la persona se registra antes por correo o Google.
    *
-   * @param {{ nombres: string, apellidos: string, email: string, password: string, tipoUsuario?: string }} data
-   * @returns {Promise<object>}
+   * @param {{ usuarioId: string, correo: string, gymSlugs: string[] }} data
    */
-  createAdmin(data) {
-    return http.post("/api/auth/create-admin", {
-      tipoUsuario: "admin",
-      ...data,
-    });
+  asignarAdmin({ usuarioId, correo, gymSlugs }) {
+    return http.post("/api/auth/create-admin", { usuarioId, correo, gymSlugs });
   },
 
   /**

@@ -10,6 +10,8 @@ import imagenesRoutes from "./imagenes.routes.js";
 import resenasRoutes from "./resenas.routes.js";
 
 import particularRoutes from "./particular.routes.js"; 
+import pagosRoutes from "./pagos.routes.js";
+import { gestionRouter, sedesRouter } from "./gestion.routes.js";
 
 const router = Router();
 
@@ -23,5 +25,8 @@ router.use("/imagenes", imagenesRoutes);
 router.use("/resenas", resenasRoutes);
 
 router.use("/particular", particularRoutes);
+router.use("/pagos", pagosRoutes);
+router.use("/sedes", sedesRouter);
+router.use("/gestion", gestionRouter);
 
 export default router;

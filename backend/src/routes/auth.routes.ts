@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { googleStart, googleCallback } from "../controller/oauth.controller.js";
 import {
-  createAdmin,
   forgotPassword,     
   login,
   logout,
@@ -22,9 +21,10 @@ import {
   verifyLimiter,
 } from "../middleware/rateLimit.middleware.js";
 import { verifyRecaptcha } from "../middleware/recaptcha.middleware.js";
+import { gestionController } from "../controller/gestion.controller.js";
+import { validateAsignarAdmin } from "../validator/gestion.validator.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
 import {
-  validateCreateAdmin,
   validateForgotPassword,  
   validateLogin,
   validateRegister,
@@ -35,13 +35,16 @@ import {
 
 const router = Router();
 
+// Asigna el rol admin y sus sedes a una cuenta existente y verificada
+// (confirmada por id y correo), en una transacción auditada. No crea
+// cuentas ni modifica cuentas super_admin.
 router.post(
   "/create-admin",
   authLimiter,
   requireAuth,
   requireRole("super_admin"),
-  validateCreateAdmin,
-  createAdmin
+  validateAsignarAdmin,
+  gestionController.asignarAdmin
 );
 
 router.post(

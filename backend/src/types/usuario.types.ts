@@ -15,4 +15,9 @@ export interface PerfilUsuario {
   tipo_usuario: TipoUsuario;
   tiempo_registrado: unknown;
   tiempo_duracion_inscripcion: unknown;
+  // Sede registrada del cliente (miembros_sede); null en otros roles o si
+  // el cliente aún no tiene sede asignada.
+  sede: string | null;
+  // Sedes que administra (admin_sedes); vacío en otros roles.
+  sedes_administradas: string[];
 }
