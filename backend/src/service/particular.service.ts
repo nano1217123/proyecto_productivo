@@ -1,5 +1,7 @@
-import * as particularRepo from '../repositories/particular.repository.js'; // 👈 Agregamos el .js
-export const registrarProgreso = async (usuarioId: string, data: any) => {
+import * as particularRepo from '../repositories/particular.repository.js';
+import type { MetricasValidadas } from '../validator/particular.validator.js';
+
+export const registrarProgreso = async (usuarioId: string, data: MetricasValidadas) => {
   return await particularRepo.crearMetrica(usuarioId, data);
 };
 

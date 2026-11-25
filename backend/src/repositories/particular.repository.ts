@@ -1,19 +1,13 @@
-import { PrismaClient } from '../generated/prisma/client.js';
-import { PrismaNeon } from '@prisma/adapter-neon';
-import { env } from '../config/env.js';
+import { prisma } from '../lib/prisma.js';
+import type { MetricasValidadas } from '../validator/particular.validator.js';
 
-// Nueva forma correcta en Prisma 7: pasar la configuración directamente
-const adapter = new PrismaNeon({
-  connectionString: env.databaseUrl,
-});
-
-const prisma = new PrismaClient({ adapter });
-
-export const crearMetrica = async (usuarioId: string, data: any) => {
+export const crearMetrica = async (usuarioId: string, data: MetricasValidadas) => {
   return await prisma.metricaDiaria.create({
     data: {
       usuarioId,
-      ...data
+      pesoActualKg: data.pesoActualKg,
+      vasosAgua: data.vasosAgua,
+      entrenamientoCompletado: data.entrenamientoCompletado,
     }
   });
 };
