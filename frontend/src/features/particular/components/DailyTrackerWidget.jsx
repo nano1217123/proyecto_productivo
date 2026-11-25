@@ -1,82 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { guardarMetricasHoy, obtenerMetricasHoy } from "@/src/features/particular/api/particularApi";
+import { useEffect, useState } from "react";
+import { useDailyMetrics } from "../hooks/useDailyMetrics.js";
 
 export default function DailyTrackerWidget() {
-  const [habits, setHabits] = useState({
-    weight: "",
-    water: 0,
-    workoutDone: false,
-  });
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const [mensaje, setMensaje] = useState(null);
+  const { habits, errorCarga, guardando, mensaje, controlesBloqueados, puedeGuardar,
+    editar, recargar, guardarCambios } = useDailyMetrics();
+  const [avisoOculto, setAvisoOculto] = useState(null);
+  const avisoVisible = mensaje === avisoOculto ? null : mensaje;
 
   useEffect(() => {
-    let montado = true;
-    const cargarDatos = async () => {
-      try {
-        const res = await obtenerMetricasHoy();
-        const data = res?.data !== undefined ? res.data : res;
-        if (montado && data) {
-          setHabits({
-            weight: data.pesoActualKg !== null && data.pesoActualKg !== undefined
-              ? String(data.pesoActualKg)
-              : "",
-            water: Number(data.vasosAgua) || 0,
-            workoutDone: Boolean(data.entrenamientoCompletado),
-          });
-        }
-      } catch (error) {
-        // Silencioso si no hay registros previos hoy
-        console.log("Aún no hay métricas para hoy");
-      } finally {
-        if (montado) setCargando(false);
-      }
-    };
+    if (mensaje?.tipo !== "exito") return;
 
-    cargarDatos();
-    return () => {
-      montado = false;
-    };
-  }, []);
+    const temporizador = setTimeout(() => setAvisoOculto(mensaje), 4000);
+    return () => clearTimeout(temporizador);
+  }, [mensaje]);
 
   const handleWaterChange = (delta) => {
-    setHabits((prev) => {
-      const nuevo = Math.max(0, Math.min(12, (prev.water || 0) + delta));
-      return { ...prev, water: nuevo };
-    });
-  };
-
-  const handleSave = async (e) => {
-    if (e) e.preventDefault();
-    setGuardando(true);
-    setMensaje(null);
-
-    try {
-      await guardarMetricasHoy({
-        pesoActualKg: habits.weight !== "" ? Number(habits.weight) : undefined,
-        vasosAgua: Number(habits.water) || 0,
-        entrenamientoCompletado: Boolean(habits.workoutDone),
-      });
-
-      setMensaje({
-        tipo: "exito",
-        texto: "Progreso diario guardado correctamente.",
-      });
-
-      setTimeout(() => {
-        setMensaje(null);
-      }, 4000);
-    } catch (error) {
-      setMensaje({
-        tipo: "error",
-        texto: error?.message || "No se pudo guardar el progreso. Intenta nuevamente.",
-      });
-    } finally {
-      setGuardando(false);
-    }
+    editar("water", (water) => Math.max(0, Math.min(12, water + delta)));
   };
 
   // Cálculo del porcentaje de cumplimiento de hábitos (0 a 3)
@@ -140,9 +81,9 @@ export default function DailyTrackerWidget() {
               min="20"
               max="300"
               value={habits.weight}
-              onChange={(e) => setHabits({ ...habits, weight: e.target.value })}
+              onChange={(e) => editar("weight", e.target.value)}
               placeholder="Ej. 75.5"
-              disabled={cargando}
+              disabled={controlesBloqueados}
               className="w-full bg-[#212320] border border-[#41433f] rounded-lg py-2.5 px-3 pr-10 text-white font-medium text-lg placeholder-[#6f756b] outline-none focus:border-[#b56cff] transition"
             />
             <span className="absolute right-3 text-xs font-bold text-[#a9afa7] pointer-events-none">
@@ -197,7 +138,7 @@ export default function DailyTrackerWidget() {
             <button
               type="button"
               onClick={() => handleWaterChange(-1)}
-              disabled={habits.water <= 0 || cargando}
+              disabled={habits.water <= 0 || controlesBloqueados}
               className="flex-1 py-1.5 px-2 bg-[#212320] hover:bg-[#2d302c] disabled:opacity-30 disabled:pointer-events-none border border-[#41433f] rounded-lg text-xs font-bold text-[#c8cbc5] transition active:scale-95"
               aria-label="Restar un vaso de agua"
             >
@@ -206,7 +147,7 @@ export default function DailyTrackerWidget() {
             <button
               type="button"
               onClick={() => handleWaterChange(1)}
-              disabled={cargando}
+              disabled={controlesBloqueados}
               className="flex-1 py-1.5 px-2 bg-[#b56cff]/20 hover:bg-[#b56cff]/30 border border-[#b56cff]/50 rounded-lg text-xs font-bold text-[#f2f4ef] transition active:scale-95"
               aria-label="Sumar un vaso de agua"
             >
@@ -228,13 +169,8 @@ export default function DailyTrackerWidget() {
 
           <button
             type="button"
-            onClick={() =>
-              setHabits((prev) => ({
-                ...prev,
-                workoutDone: !prev.workoutDone,
-              }))
-            }
-            disabled={cargando}
+            onClick={() => editar("workoutDone", (completado) => !completado)}
+            disabled={controlesBloqueados}
             className={`w-full py-3 px-3 rounded-lg border font-semibold text-sm flex items-center justify-between transition active:scale-[0.98] ${
               habits.workoutDone
                 ? "border-[#b56cff] bg-[#b56cff]/15 text-white shadow-md shadow-[#b56cff]/10"
@@ -264,26 +200,31 @@ export default function DailyTrackerWidget() {
       {/* Pie de acción y feedback */}
       <footer className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#30332f]">
         <div className="text-xs">
-          {mensaje ? (
+          {avisoVisible ? (
             <span
               className={`inline-flex items-center gap-1.5 font-medium ${
-                mensaje.tipo === "exito" ? "text-[#75dfa2]" : "text-[#ff9898]"
+                avisoVisible.tipo === "exito" ? "text-[#75dfa2]" : "text-[#ff9898]"
               }`}
             >
-              <span>{mensaje.tipo === "exito" ? "✓" : "⚠"}</span>
-              {mensaje.texto}
+              <span>{avisoVisible.tipo === "exito" ? "✓" : "⚠"}</span>
+              {avisoVisible.texto}
             </span>
           ) : (
             <span className="text-[#6f756b]">
               Los datos se sincronizan con tu historial en la nube.
             </span>
           )}
+          {errorCarga && (
+            <button type="button" onClick={recargar} className="ml-2 underline">
+              Reintentar
+            </button>
+          )}
         </div>
 
         <button
           type="button"
-          onClick={handleSave}
-          disabled={guardando || cargando}
+          onClick={guardarCambios}
+          disabled={guardando || !puedeGuardar}
           className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#b56cff] hover:bg-[#a24eed] active:scale-[0.98] disabled:opacity-50 text-white font-extrabold text-sm tracking-wide transition shadow-lg shadow-[#b56cff]/20 cursor-pointer"
         >
           {guardando ? "Guardando..." : "Guardar Hábitos"}
