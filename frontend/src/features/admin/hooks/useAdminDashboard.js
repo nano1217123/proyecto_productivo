@@ -6,14 +6,20 @@ import { MIEMBROS_MOCK } from "../lib/mockData";
 const CLAVE_PESTANA = "jjgym:admin:pestana";
 const PESTANAS = ["miembros", "clientes", "imagenes", "comunicacion", "configuracion"];
 
-// "crear-admin" solo para super_admin; el backend vuelve a comprobarlo.
-function pestanaPermitida(tab, esSuperAdmin) {
-  return PESTANAS.includes(tab) || (tab === "crear-admin" && esSuperAdmin);
+// "crear-admin" solo para super_admin y "suscripcion" solo para admin de
+// sede (super_admin y cliente no pagan); el backend vuelve a comprobarlo.
+function pestanaPermitida(tab, { esSuperAdmin, esAdmin }) {
+  return (
+    PESTANAS.includes(tab) ||
+    (tab === "crear-admin" && esSuperAdmin) ||
+    (tab === "suscripcion" && esAdmin)
+  );
 }
 
 export function useAdminDashboard() {
   const { logout, profile } = useAuth();
   const esSuperAdmin = profile?.tipo_usuario === "super_admin";
+  const esAdmin = profile?.tipo_usuario === "admin";
   
   // Navegación. La pestaña activa se conserva si el panel se vuelve a montar
   // o se recarga la página, siempre que el rol actual pueda verla.
@@ -25,9 +31,9 @@ export function useAdminDashboard() {
   useEffect(() => {
     let guardada = null;
     try { guardada = sessionStorage.getItem(CLAVE_PESTANA); } catch { /* sin almacenamiento */ }
-    if (guardada && pestanaPermitida(guardada, esSuperAdmin)) setTabActivaEstado(guardada);
+    if (guardada && pestanaPermitida(guardada, { esSuperAdmin, esAdmin })) setTabActivaEstado(guardada);
     else if (guardada) setTabActivaEstado("miembros");
-  }, [esSuperAdmin]);
+  }, [esSuperAdmin, esAdmin]);
   // Sede elegida en el panel. Las opciones salen del servidor: las sedes
   // del admin (admin_sedes) o el catálogo completo para el super_admin.
   const [gymSeleccionado, setGymSeleccionado] = useState(null);
