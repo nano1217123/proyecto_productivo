@@ -4,15 +4,14 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
-import { getSubscriptionStatus } from "../lib/subscription";
 import { MemberDashboardSkeleton } from "@/src/components/ui/Skeleton";
 import ModeBadge from "@/src/components/ui/ModeBadge";
 import DailyTrackerWidget from "@/src/features/particular/components/DailyTrackerWidget";
+import SubscriptionCard from "@/src/features/payments/components/SubscriptionCard";
 
 function MemberDashboard() {
   const { profile, loading, logout } = useAuth();
   const { sede: datosSede } = useSedes();
-  const subscription = getSubscriptionStatus(profile);
 
   // La sede del cliente es la registrada en el servidor (miembros_sede),
   // nunca un parámetro de la URL.
@@ -94,27 +93,16 @@ function MemberDashboard() {
         </p>
         <div className="flex flex-wrap items-center gap-2.5 mt-[22px]">
           <ModeBadge casa={esParticular} />
-          {subscription && (
-            <span
-              className={`inline-block px-2.5 py-1.5 border rounded text-xs font-bold ${
-                subscription.active
-                  ? "border-[rgba(91,212,143,.45)] bg-[rgba(38,112,69,.18)] text-[#75dfa2]"
-                  : "border-[rgba(255,121,121,.42)] bg-[rgba(120,42,42,.18)] text-[#ff9898]"
-              }`}
-            >
-              {subscription.active ? "Suscripcion activa" : "Suscripcion vencida"}
-            </span>
-          )}
-          {esParticular && (
-            <Link
-              href="/dashboard/pagos"
-              className="inline-block px-2.5 py-1.5 rounded border border-[#b56cff] text-[#d7adff] text-xs font-bold no-underline hover:bg-[rgba(181,108,255,.12)]"
-            >
-              Pagar suscripcion
-            </Link>
-          )}
         </div>
       </section>
+
+      {/* El estado de la suscripción no se calcula desde la fecha de registro:
+          el backend aún no registra su vigencia. */}
+      {esParticular && (
+        <section className="w-full max-w-[1060px] mx-auto mb-[28px]">
+          <SubscriptionCard />
+        </section>
+      )}
 
       {clienteSinSede && (
         <p

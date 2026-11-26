@@ -108,6 +108,9 @@ function PaymentResult() {
   const [error, setError] = useState(null); // { tipo, mensaje }
   const [ronda, setRonda] = useState(0);
   const inicioRef = useRef(0);
+  // Zona del estado: recibe el foco al pulsar «Consultar de nuevo», porque
+  // ese botón puede desaparecer mientras se consulta.
+  const estadoRef = useRef(null);
   // true cuando la ronda la pidió el usuario con «Consultar de nuevo».
   const manualRef = useRef(false);
 
@@ -225,6 +228,7 @@ function PaymentResult() {
 
   const consultarDeNuevo = useCallback(() => {
     manualRef.current = true;
+    estadoRef.current?.focus();
     setError(null);
     setFase("consultando");
     setRonda((n) => n + 1);
@@ -240,6 +244,7 @@ function PaymentResult() {
           PAGOS · SANDBOX
         </p>
 
+        <div ref={estadoRef} tabIndex={-1} className="outline-none">
         {(fase === "resolviendo" || (consultando && !pago && !error)) && (
           <>
             <h1 className="m-0 text-3xl tracking-[-1px]">Consultando tu pago...</h1>
@@ -324,6 +329,7 @@ function PaymentResult() {
             )}
           </>
         )}
+        </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
           {(fase === "tiempo-agotado" ||
@@ -332,24 +338,24 @@ function PaymentResult() {
             <button
               type="button"
               onClick={consultarDeNuevo}
-              className="px-4 py-2.5 rounded-md border-0 bg-[#b56cff] text-white text-sm font-extrabold cursor-pointer hover:bg-[#a457f2]"
+              className="px-4 py-2.5 rounded-md border-0 bg-[#b56cff] text-white text-sm font-extrabold cursor-pointer hover:bg-[#a457f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]"
             >
               Consultar de nuevo
             </button>
           )}
           {error?.tipo === "sesion" && (
-            <Link href="/login" className="text-sm font-extrabold text-[#d7adff] no-underline">
+            <Link href="/login" className="text-sm font-extrabold text-[#d7adff] no-underline rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
               Iniciar sesión &rarr;
             </Link>
           )}
           {(fase === "sin-referencia" ||
             error?.tipo === "no-encontrado" ||
             (pago && ["RECHAZADO", "ANULADO", "ERROR"].includes(pago.estado))) && (
-            <Link href="/dashboard/pagos" className="text-sm font-extrabold text-[#d7adff] no-underline hover:text-[#f2f4ef]">
+            <Link href="/dashboard/pagos" className="text-sm font-extrabold text-[#d7adff] no-underline hover:text-[#f2f4ef] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
               Ir a pagos &rarr;
             </Link>
           )}
-          <Link href="/dashboard" className="text-sm font-extrabold text-[#f2f4ef] no-underline hover:text-[#d7adff]">
+          <Link href="/dashboard" className="text-sm font-extrabold text-[#f2f4ef] no-underline hover:text-[#d7adff] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
             Volver al panel &rarr;
           </Link>
         </div>
