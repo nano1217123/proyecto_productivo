@@ -3,8 +3,16 @@ import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/AppError.js";
 import type {
   CreateResenaInput,
+  FilaReporteResenas,
+  ReporteResenasInput,
   ResenaOutput,
 } from "../types/resenas.types.js";
+
+type EstadoReporte = "ok" | "sin_permiso" | "limite_filas" | "limite_bytes";
+type FilaConsultaReporte = { estado: EstadoReporte } & (
+  | ({ fila_id: string } & FilaReporteResenas)
+  | { fila_id: null; gym_slug: null; creado_en: null; calificacion: null; comentario: null }
+);
 // Convierte los datos de Prisma al formato de salida de la API.
 function mapResena(resena: {
   id: string;
@@ -23,6 +31,63 @@ function mapResena(resena: {
 }
 export function createResenasRepository(db: typeof prisma = prisma) {
   return {
+    async findForReport(
+      { gymSlug, desde, hasta }: ReporteResenasInput,
+      adminId: string | null,
+      maxFilas: number,
+      maxBytes: number
+    ) {
+      // La asignación y las filas se leen con la misma instantánea de PostgreSQL.
+      // Los candidatos solo materializan IDs, fechas y tamaños.
+      const resultado = await db.$queryRaw<FilaConsultaReporte[]>`
+        WITH parametros AS (
+          SELECT ${gymSlug}::text AS sede, ${adminId}::uuid AS admin_id,
+                 ${desde ?? null}::date AS desde, ${hasta ?? null}::date AS hasta
+        ), permiso AS (
+          SELECT p.*, (p.admin_id IS NULL OR EXISTS (
+            SELECT 1 FROM admin_sedes a
+            WHERE a.usuario_id = p.admin_id AND a.gym_slug = p.sede
+          )) AS autorizado
+          FROM parametros p
+        ), candidatas AS MATERIALIZED (
+          SELECT r.id, r.creado_en, octet_length(r.comentario) AS bytes
+          FROM resenas r CROSS JOIN permiso p
+          WHERE p.autorizado AND r.gym_slug = p.sede
+            AND r.calificacion BETWEEN 1 AND 5
+            AND (p.desde IS NULL
+              OR r.creado_en >= (p.desde::timestamp AT TIME ZONE 'America/Bogota'))
+            AND (p.hasta IS NULL
+              OR r.creado_en < ((p.hasta + 1)::timestamp AT TIME ZONE 'America/Bogota'))
+          ORDER BY r.creado_en DESC, r.id DESC
+          LIMIT ${maxFilas + 1}::integer
+        ), resumen AS (
+          SELECT count(*) AS cantidad, coalesce(sum(bytes), 0) AS bytes
+          FROM candidatas
+        ), estado AS (
+          SELECT CASE
+            WHEN NOT p.autorizado THEN 'sin_permiso'
+            WHEN r.cantidad > ${maxFilas}::integer THEN 'limite_filas'
+            WHEN r.bytes > ${maxBytes}::integer THEN 'limite_bytes'
+            ELSE 'ok'
+          END AS valor
+          FROM permiso p CROSS JOIN resumen r
+        ), elegibles AS MATERIALIZED (
+          SELECT c.id, c.creado_en
+          FROM candidatas c CROSS JOIN estado e
+          WHERE e.valor = 'ok'
+        )
+        SELECT e.valor AS estado, c.id AS fila_id, r.gym_slug, r.creado_en, r.calificacion, r.comentario
+        FROM estado e
+        LEFT JOIN elegibles c ON true
+        LEFT JOIN resenas r ON r.id = c.id
+        ORDER BY c.creado_en DESC, c.id DESC
+      `;
+      const estado = resultado[0]?.estado;
+      if (!estado) throw new Error("La consulta del reporte no devolvió su estado.");
+      if (estado !== "ok") return { estado };
+      const filas = resultado.flatMap((fila) => fila.fila_id === null ? [] : [fila]);
+      return { estado, filas } as const;
+    },
     // Guarda una nueva reseña asociada al usuario autenticado.
     async create(
       usuarioId: string,

@@ -13,3 +13,16 @@ export interface ResenaOutput {
   comentario: string | null;
   creado_en: string;
 }
+
+export interface ReporteResenasInput {
+  gymSlug: string;
+  desde?: string;
+  hasta?: string;
+}
+
+export interface FilaReporteResenas {
+  gym_slug: string;
+  creado_en: Date;
+  calificacion: number;
+  comentario: string | null;
+}

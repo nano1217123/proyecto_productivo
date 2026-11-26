@@ -1,12 +1,13 @@
 ﻿// Validaciones de entrada para el módulo de reseñas.
 import type { RequestHandler } from "express";
+import { z } from "zod";
 import { AppError } from "../errors/AppError.js";
 import {
   sanitizeString,
   containsSuspiciousPatterns,
 } from "../lib/sanitize.js";
 import type { CreateResenaInput } from "../types/resenas.types.js";
-import { SLUGS_SEDES } from "../lib/sedes.js";
+import { esSedeValida, SLUGS_SEDES } from "../lib/sedes.js";
 // Gimnasios disponibles en la plataforma (catálogo central del backend).
 const GIMNASIOS_VALIDOS = SLUGS_SEDES;
 const COMENTARIO_MAX = 1000;
@@ -66,5 +67,27 @@ export const validateCreateResena: RequestHandler = (
   next
 ) => {
   req.body = parseCreateResenaBody(req.body);
+  next();
+};
+
+const fechaReporte = z.iso.date().refine((fecha) => !fecha.startsWith("0000-"));
+const filtrosReporte = z.strictObject({
+  desde: fechaReporte.optional(),
+  hasta: fechaReporte.optional(),
+});
+
+export const validateReporteResenas: RequestHandler = (req, res, next) => {
+  const gymSlug = req.params.gymSlug;
+  if (!esSedeValida(gymSlug)) throw new AppError(404, "Sede no encontrada.");
+
+  const filtros = filtrosReporte.safeParse(req.query);
+  if (!filtros.success) {
+    throw new AppError(400, "Usa fechas válidas en formato YYYY-MM-DD para desde y hasta.");
+  }
+  const { desde, hasta } = filtros.data;
+  if (desde && hasta && desde > hasta) {
+    throw new AppError(400, "La fecha inicial debe ser anterior o igual a la fecha final.");
+  }
+  res.locals.reporteResenas = { gymSlug, desde, hasta };
   next();
 };

@@ -5,10 +5,16 @@ import {
 } from "../repositories/resenas.repository.js";
 import type {
   CreateResenaInput,
+  ReporteResenasInput,
   ResenaOutput,
 } from "../types/resenas.types.js";
 import type { TipoUsuario } from "../types/usuario.types.js";
 import { gestionRepository } from "../repositories/gestion.repository.js";
+import { generarCsvResenas } from "../lib/resenasCsv.js";
+
+const MAX_FILAS_REPORTE = 5000;
+const MAX_BYTES_REPORTE = 8 * 1024 * 1024;
+const SIN_PERMISO_REPORTE = "No tienes permiso para descargar las reseñas de esta sede.";
 
 // Sede registrada de un cliente (miembros_sede), o null.
 type BuscarSedeCliente = (usuarioId: string) => Promise<string | null>;
@@ -18,6 +24,25 @@ export function createResenasService(
   buscarSedeCliente: BuscarSedeCliente = gestionRepository.findSedeDeCliente
 ) {
   return {
+    async exportarCsv(usuarioId: string, rol: TipoUsuario, input: ReporteResenasInput) {
+      if (rol !== "super_admin" &&
+          (rol !== "admin" || !(await gestionRepository.administraSede(usuarioId, input.gymSlug)))) {
+        throw new AppError(403, SIN_PERMISO_REPORTE);
+      }
+
+      const reporte = await repository.findForReport(
+        input, rol === "admin" ? usuarioId : null, MAX_FILAS_REPORTE, MAX_BYTES_REPORTE
+      );
+      if (reporte.estado === "sin_permiso") throw new AppError(403, SIN_PERMISO_REPORTE);
+      if (reporte.estado === "limite_filas") {
+        throw new AppError(422, "El reporte supera las 5000 reseñas. Acota el rango de fechas.");
+      }
+      const csv = reporte.estado === "ok" ? generarCsvResenas(reporte.filas, MAX_BYTES_REPORTE) : null;
+      if (csv === null) {
+        throw new AppError(422, "El reporte supera los 8 MiB. Acota el rango de fechas.");
+      }
+      return csv;
+    },
     // Permite que un cliente o un usuario particular publique una reseña.
     async create(
       usuarioId: string,
