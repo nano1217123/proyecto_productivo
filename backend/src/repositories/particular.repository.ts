@@ -2,6 +2,15 @@ import { prisma } from '../lib/prisma.js';
 import { generateId } from '../lib/uuid.js';
 import type { MetricasParciales, MetricasValidadas } from '../validator/particular.validator.js';
 
+const metricaPublica = {
+  id: true,
+  usuarioId: true,
+  fecha: true,
+  pesoActualKg: true,
+  vasosAgua: true,
+  entrenamientoCompletado: true,
+} as const;
+
 export const crearMetrica = async (usuarioId: string, data: MetricasValidadas) => {
   return await prisma.metricaDiaria.create({
     data: {
@@ -9,7 +18,8 @@ export const crearMetrica = async (usuarioId: string, data: MetricasValidadas) =
       pesoActualKg: data.pesoActualKg,
       vasosAgua: data.vasosAgua,
       entrenamientoCompletado: data.entrenamientoCompletado,
-    }
+    },
+    select: metricaPublica,
   });
 };
 
@@ -21,7 +31,8 @@ export const obtenerMetricasHoy = async (usuarioId: string) => {
     where: {
       usuarioId,
       fecha: { gte: hoy }
-    }
+    },
+    select: metricaPublica,
   });
 };
 

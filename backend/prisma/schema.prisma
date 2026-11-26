@@ -182,6 +182,7 @@ model MetricaDiaria {
   id                      String   @id @default(uuid(7)) @db.Uuid
   usuarioId               String   @map("usuario_id") @db.Uuid
   fecha                   DateTime @default(now()) @db.Timestamptz(6)
+  diaLocal                DateTime? @map("dia_local") @db.Date
   pesoActualKg            Float?   @map("peso_actual_kg")
   vasosAgua               Int      @default(0) @map("vasos_agua")
   entrenamientoCompletado Boolean  @default(false) @map("entrenamiento_completado")

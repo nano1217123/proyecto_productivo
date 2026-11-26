@@ -7,6 +7,9 @@ import { errorHandler } from '../src/middleware/error.middleware.js';
 import { actualizarMetricasSchema, guardarMetricasSchema } from '../src/validator/particular.validator.js';
 
 const usuarioId = 'usuario-de-sesion';
+const proyeccionPublica = {
+  id: true, usuarioId: true, fecha: true, pesoActualKg: true, vasosAgua: true, entrenamientoCompletado: true,
+};
 const create = mock.fn(async ({ data }: { data: Record<string, unknown> }) => data);
 const findFirst = mock.fn(async (
   _query: { where: { usuarioId: string; fecha: { gte: Date } } },
@@ -59,7 +62,7 @@ test('valida y aplica defaults sin persistir campos administrados por el servido
   assert.equal(response.status, 201);
   const data = { usuarioId, ...metricas };
   assert.deepEqual(await response.json(), { success: true, data });
-  assert.deepEqual(create.mock.calls.at(-1)?.arguments, [{ data }]);
+  assert.deepEqual(create.mock.calls.at(-1)?.arguments, [{ data, select: proyeccionPublica }]);
 });
 
 test('el repositorio protege los campos de servidor aun si el objeto contiene campos adicionales', async () => {
@@ -74,6 +77,7 @@ test('el repositorio protege los campos de servidor aun si el objeto contiene ca
   await crearMetrica(usuarioId, input);
   assert.deepEqual(create.mock.calls.at(-1)?.arguments, [{
     data: { usuarioId, pesoActualKg: 72, vasosAgua: 3, entrenamientoCompletado: true },
+    select: proyeccionPublica,
   }]);
 });
 
@@ -145,7 +149,9 @@ test('el GET del modo desactivado devuelve exactamente success y data con una fi
   assert.deepEqual(await response.json(), { success: true, data: fila });
   const inicio = new Date(instante);
   inicio.setHours(0, 0, 0, 0);
-  assert.deepEqual(findFirst.mock.calls.at(-1)?.arguments, [{ where: { usuarioId, fecha: { gte: inicio } } }]);
+  assert.deepEqual(findFirst.mock.calls.at(-1)?.arguments, [
+    { where: { usuarioId, fecha: { gte: inicio } }, select: proyeccionPublica },
+  ]);
   assert.equal(queryRaw.mock.callCount(), consultasSql);
 });
 
