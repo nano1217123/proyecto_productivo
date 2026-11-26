@@ -112,7 +112,8 @@ export const ESTADOS_PAGO = {
   },
   APROBADO: {
     titulo: "Pago aprobado",
-    descripcion: "Wompi confirmó tu pago.",
+    // Solo el estado del pago: no sugiere que el plan se activó o renovó.
+    descripcion: "Wompi confirmó este pago.",
     tono: "exito",
   },
   RECHAZADO: {

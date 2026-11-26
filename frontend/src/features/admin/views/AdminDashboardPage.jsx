@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import AdminHeader from "../components/AdminHeader";
 import AdminTabs from "../components/AdminTabs";
@@ -10,6 +9,7 @@ import CommunicationTab from "../components/CommunicationTab";
 import ConfigTab from "../components/ConfigTab";
 import CreateAdminTab from "../components/CreateAdminTab";
 import ClientesSedeTab from "../components/ClientesSedeTab";
+import SubscriptionTab from "../components/SubscriptionTab";
 import { useEffect } from "react";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { useMembersFilter } from "../hooks/useMembersFilter";
@@ -18,6 +18,7 @@ import { useAdminDashboard } from "../hooks/useAdminDashboard";
 export default function AdminDashboardPage() {
   const dashboard = useAdminDashboard();
   const { profile } = useAuth();
+  const esAdmin = profile?.tipo_usuario === "admin";
   const { sedes, nombreSede } = useSedes();
   // Sedes del panel según el servidor: las del admin (admin_sedes) o todo
   // el catálogo para el super_admin.
@@ -43,20 +44,11 @@ export default function AdminDashboardPage() {
         logout={dashboard.logout} 
       />
 
-      {/* Pagos: solo el admin de sede paga su suscripción (no super_admin). */}
-      {profile?.tipo_usuario === "admin" && (
-        <Link
-          href="/dashboard/pagos"
-          className="inline-block mb-6 px-3.5 py-2 rounded-md border border-[#b56cff] text-[#d7adff] text-sm font-bold no-underline hover:bg-[rgba(181,108,255,.12)]"
-        >
-          Pagar suscripción de la sede
-        </Link>
-      )}
-
       <AdminTabs 
         tabActiva={dashboard.tabActiva} 
         setTabActiva={dashboard.setTabActiva} 
         esSuperAdmin={dashboard.esSuperAdmin} 
+        esAdmin={esAdmin}
       />
 
       {dashboard.tabActiva === "miembros" && (
@@ -109,6 +101,8 @@ export default function AdminDashboardPage() {
       )}
 
       {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && <CreateAdminTab />}
+
+      {dashboard.tabActiva === "suscripcion" && esAdmin && <SubscriptionTab />}
     </div>
   );
 }
