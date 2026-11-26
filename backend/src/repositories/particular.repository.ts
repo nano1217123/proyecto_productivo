@@ -1,20 +1,25 @@
-import { PrismaClient } from '../generated/prisma/client.js';
-import { PrismaNeon } from '@prisma/adapter-neon';
-import { env } from '../config/env.js';
+import { prisma } from '../lib/prisma.js';
+import { generateId } from '../lib/uuid.js';
+import type { MetricasParciales, MetricasValidadas } from '../validator/particular.validator.js';
 
-// Nueva forma correcta en Prisma 7: pasar la configuración directamente
-const adapter = new PrismaNeon({
-  connectionString: env.databaseUrl,
-});
+const metricaPublica = {
+  id: true,
+  usuarioId: true,
+  fecha: true,
+  pesoActualKg: true,
+  vasosAgua: true,
+  entrenamientoCompletado: true,
+} as const;
 
-const prisma = new PrismaClient({ adapter });
-
-export const crearMetrica = async (usuarioId: string, data: any) => {
+export const crearMetrica = async (usuarioId: string, data: MetricasValidadas) => {
   return await prisma.metricaDiaria.create({
     data: {
       usuarioId,
-      ...data
-    }
+      pesoActualKg: data.pesoActualKg,
+      vasosAgua: data.vasosAgua,
+      entrenamientoCompletado: data.entrenamientoCompletado,
+    },
+    select: metricaPublica,
   });
 };
 
@@ -26,6 +31,47 @@ export const obtenerMetricasHoy = async (usuarioId: string) => {
     where: {
       usuarioId,
       fecha: { gte: hoy }
-    }
+    },
+    select: metricaPublica,
   });
 };
+
+type Metrica = Awaited<ReturnType<typeof crearMetrica>>;
+
+export async function guardarMetricaDiaria(usuarioId: string, metricas: MetricasParciales, instante: Date, diaLocal: string) {
+  const { pesoActualKg, vasosAgua, entrenamientoCompletado } = metricas;
+  const fecha = instante.toISOString();
+  const [metrica] = await prisma.$queryRaw<Metrica[]>`
+    INSERT INTO metricas_diarias AS actual (
+      id, usuario_id, fecha, dia_local, peso_actual_kg, vasos_agua, entrenamiento_completado
+    )
+    VALUES (
+      ${generateId()}::uuid, ${usuarioId}::uuid, ${fecha}::timestamptz,
+      ${diaLocal}::date,
+      ${pesoActualKg ?? null}::double precision, ${vasosAgua ?? 0}::integer,
+      ${entrenamientoCompletado ?? false}::boolean
+    )
+    ON CONFLICT (usuario_id, dia_local) DO UPDATE SET
+      peso_actual_kg = CASE WHEN ${pesoActualKg !== undefined}::boolean
+        THEN EXCLUDED.peso_actual_kg ELSE actual.peso_actual_kg END,
+      vasos_agua = CASE WHEN ${vasosAgua !== undefined}::boolean
+        THEN EXCLUDED.vasos_agua ELSE actual.vasos_agua END,
+      entrenamiento_completado = CASE WHEN ${entrenamientoCompletado !== undefined}::boolean
+        THEN EXCLUDED.entrenamiento_completado ELSE actual.entrenamiento_completado END
+    RETURNING id, usuario_id AS "usuarioId", fecha, peso_actual_kg AS "pesoActualKg",
+      vasos_agua AS "vasosAgua", entrenamiento_completado AS "entrenamientoCompletado"
+  `;
+  if (!metrica) throw new Error('El guardado diario no devolvió una métrica.');
+  return metrica;
+}
+
+export async function obtenerMetricaDiaria(usuarioId: string, diaLocal: string) {
+  const [metrica] = await prisma.$queryRaw<Metrica[]>`
+    SELECT id, usuario_id AS "usuarioId", fecha, peso_actual_kg AS "pesoActualKg",
+      vasos_agua AS "vasosAgua", entrenamiento_completado AS "entrenamientoCompletado"
+    FROM metricas_diarias
+    WHERE usuario_id = ${usuarioId}::uuid
+      AND dia_local = ${diaLocal}::date
+  `;
+  return metrica ?? null;
+}

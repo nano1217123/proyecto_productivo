@@ -1,27 +1,47 @@
-import { Request, Response } from 'express';
-import * as particularService from '../service/particular.service.js'; // 👈 Agregamos el .js
-export const guardarMetricas = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).userId || (req as any).user?.idusuario; // Viene del middleware requireAuth
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'No autorizado. Falta el token o usuario.' });
-    }
-    const result = await particularService.registrarProgreso(userId, req.body);
-    res.status(201).json({ success: true, data: result });
-  } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
+import { asyncHandler } from '../middleware/error.middleware.js';
+import * as particularService from '../service/particular.service.js';
+import type { MetricasValidadas } from '../validator/particular.validator.js';
 
-export const getMetricasHoy = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).userId || (req as any).user?.idusuario;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'No autorizado. Falta el token o usuario.' });
-    }
-    const result = await particularService.consultarProgresoHoy(userId);
-    res.status(200).json({ success: true, data: result });
-  } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
+export function createParticularController(modoDiario: boolean) {
+  return {
+    guardarMetricas: asyncHandler(async (req, res) => {
+      if (!req.userId) {
+        return res.status(401).json({ success: false, message: 'No autorizado. Falta el token o usuario.' });
+      }
+
+      if (modoDiario) {
+        const resultado = await particularService.guardarProgresoDiario(req.userId, res.locals.metricas);
+        if (resultado.conflicto) {
+          return res.status(409).json({
+            success: false,
+            codigo: 'DIA_METRICAS_CAMBIO',
+            message: 'Cambió el día de las métricas. Revisa tus cambios antes de guardar.',
+            diaLocal: resultado.diaLocal,
+          });
+        }
+        return res.status(201).json({ success: true, data: resultado.data, diaLocal: resultado.diaLocal });
+      }
+
+      const result = await particularService.registrarProgreso(req.userId, res.locals.metricas as MetricasValidadas);
+      res.status(201).json({ success: true, data: result });
+    }),
+    getMetricasHoy: asyncHandler(async (req, res) => {
+      if (!req.userId) {
+        return res.status(401).json({ success: false, message: 'No autorizado. Falta el token o usuario.' });
+      }
+
+      if (modoDiario) {
+        const { data, diaLocal } = await particularService.consultarProgresoDiario(req.userId);
+        return res.set('Cache-Control', 'no-store').status(200).json({
+          success: true,
+          data,
+          capacidades: { actualizacionParcial: true },
+          diaLocal,
+        });
+      }
+
+      const result = await particularService.consultarProgresoHoy(req.userId);
+      res.status(200).json({ success: true, data: result });
+    }),
+  };
+}

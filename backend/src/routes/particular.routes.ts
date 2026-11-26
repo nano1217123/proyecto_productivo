@@ -1,15 +1,19 @@
 import { Router } from 'express';
-import * as particularController from '../controller/particular.controller.js';
+import { createParticularController } from '../controller/particular.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
-// import { validate } from '../middleware/validate.middleware';
-// import { guardarMetricasSchema } from '../validator/particular.validator';
+import { validarMetricas } from '../validator/particular.validator.js';
 
-const router = Router();
+export function createParticularRouter(
+  modoDiario = process.env.PARTICULAR_METRICAS_DIARIAS === 'true',
+) {
+  const router = Router();
+  const controller = createParticularController(modoDiario);
 
-router.use(requireAuth);
+  router.use(requireAuth);
+  router.post('/metrics', validarMetricas(modoDiario), controller.guardarMetricas);
+  router.get('/metrics/hoy', controller.getMetricasHoy);
 
-// router.post('/metrics', validate(guardarMetricasSchema), particularController.guardarMetricas);
-router.post('/metrics', particularController.guardarMetricas); 
-router.get('/metrics/hoy', particularController.getMetricasHoy);
+  return router;
+}
 
-export default router;
+export default createParticularRouter();
