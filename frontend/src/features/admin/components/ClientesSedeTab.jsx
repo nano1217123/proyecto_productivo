@@ -136,7 +136,12 @@ export default function ClientesSedeTab({ gymSlug, esSuperAdmin }) {
       </section>
 
       <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
-        <h2 className="text-xl mt-0 mb-4">Clientes de {nombreSede(gymSlug)}</h2>
+        <h2 className="text-xl mt-0 mb-2">Clientes de {nombreSede(gymSlug)}</h2>
+        {/* RN-014: la membresía del alumno se paga fuera de la plataforma.
+            La pestaña «Suscripción» es otra cosa: el pago del admin a J&JGym. */}
+        <p className="text-sm text-[#a9afa7] mb-4">
+          Cada cliente paga su membresía directamente a su gimnasio.
+        </p>
         {cargando && <p className="text-sm text-[#a9afa7]">Cargando clientes...</p>}
         {!cargando && clientes.length === 0 && (
           <p className="text-sm text-[#a9afa7]">Esta sede aún no tiene clientes vinculados.</p>
