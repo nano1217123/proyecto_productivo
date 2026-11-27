@@ -14,15 +14,23 @@ excluyen nutrición, hidratación, identificadores de usuarios y notas libres.
 `desde` y `hasta` son fechas ISO opcionales e inclusivas. Para marcas de tiempo
 se aplica America/Bogota. La fecha de entrenamiento ya es una fecha calendario.
 Las rutinas se filtran por creación. El progreso usa la fecha histórica de cada
-métrica y funciona sin `dia_local`. Un período vacío devuelve un archivo válido.
+métrica y funciona sin `dia_local`. Si no hay registros para el período, tanto
+CSV como PDF responden `422` con un mensaje explicativo y sin adjunto.
+
+El historial incluye una vista previa interactiva con Recharts. Muestra el peso
+máximo por día del ejercicio seleccionado. Es una vista del progreso de carga
+del entrenamiento. El archivo de progreso físico exporta las métricas corporales
+del rango elegido en el formulario de descarga.
 
 Cuota de diez solicitudes por minuto y titular por instancia. CSV admite 5.000
 filas y 8 MiB. PDF admite 500 filas, 1 MiB de texto, 100 páginas y 4 MiB, con
 hasta dos generaciones concurrentes por instancia. Los campos de texto con más
-de 4 KiB se rechazan con 422, igual que los reportes que superan los demás
-límites de contenido. Los CSV usan BOM y neutralizan fórmulas. El PDF representa
+de 4 KiB se rechazan con 422 y un mensaje específico. PostgreSQL comprueba la
+cantidad de filas y el total de bytes de texto antes de enviar las celdas. El
+servicio comprueba además los límites del archivo serializado. Los CSV usan
+BOM y neutralizan fórmulas. El PDF representa
 como códigos Unicode los caracteres fuera de la cobertura de la fuente.
 
-La implementación interpreta ALC-07, RF-014, HU-019 y RN-013 como reportes del
-titular sobre los datos ya registrados. El texto de esos requisitos debe
-cotejarse con el documento funcional del equipo. No se requieren migraciones.
+El alcance de este módulo es el reporte personal sobre datos ya registrados.
+La exportación de membresías de ALC-07 y el registro durable de DAT-15 quedan
+pendientes. El flujo personal actual no requiere migraciones.

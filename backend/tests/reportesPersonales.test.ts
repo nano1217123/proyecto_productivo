@@ -5,15 +5,18 @@ import express from "express";
 import { parse } from "csv-parse/sync";
 
 const id = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
-let filas: { celdas: (string | null)[]; exceso: boolean }[] = [];
+let filas: { estado: string; celdas: (string | null)[] | null }[] = [
+  { estado: "ok", celdas: ["2026-01-01", "Sentadilla", "1"] },
+];
 const consultar = mock.fn(async (_sql: { text: string; values: unknown[] }) => filas);
 mock.module(new URL("../src/lib/prisma.ts", import.meta.url).href, {
   namedExports: { prisma: { $queryRaw: consultar } },
 });
 mock.module(new URL("../src/middleware/auth.middleware.ts", import.meta.url).href, {
   namedExports: { requireAuth: (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (req.get("x-fixture") !== "titular") return res.sendStatus(401);
-    req.userId = id;
+    const fixture = req.get("x-fixture");
+    if (fixture !== "titular" && fixture !== "limites") return res.sendStatus(401);
+    req.userId = fixture === "titular" ? id : "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
     next();
   } },
 });
@@ -25,8 +28,8 @@ after(() => server.close());
 await once(server, "listening");
 const address = server.address();
 assert.ok(address && typeof address !== "string");
-const get = (path: string, auth = true) => fetch(`http://127.0.0.1:${address.port}/${path}`, {
-  headers: auth ? { "x-fixture": "titular" } : {},
+const get = (path: string, auth = true, fixture = "titular") => fetch(`http://127.0.0.1:${address.port}/${path}`, {
+  headers: auth ? { "x-fixture": fixture } : {},
 });
 
 test("exige sesión y rechaza identidad, sede y fechas manipuladas antes de consultar", async () => {
@@ -53,7 +56,7 @@ test("parametriza el titular y las fechas en los tres reportes", async () => {
 });
 
 test("exporta texto seguro y un PDF completo, sin entregar adjuntos fuera de límite", async () => {
-  filas = [{ celdas: ["2026-01-01", "=1+1", null, "1", "Sentadilla"], exceso: false }];
+  filas = [{ estado: "ok", celdas: ["2026-01-01", "=1+1", null, "1", "Sentadilla"] }];
   const csv = await get("rutinas.csv");
   assert.equal(parse(await csv.text())[1][1], "[texto] =1+1");
   const pdf = await get("rutinas.pdf");
@@ -62,8 +65,29 @@ test("exporta texto seguro y un PDF completo, sin entregar adjuntos fuera de lí
   const bytes = Buffer.from(await pdf.arrayBuffer());
   assert.equal(bytes.subarray(0, 5).toString(), "%PDF-");
   assert.match(bytes.subarray(-32).toString(), /%%EOF/);
-  filas[0].exceso = true;
+  filas = [{ estado: "campo", celdas: null }];
   const res = await get("rutinas.pdf");
   assert.equal(res.status, 422);
   assert.equal(res.headers.get("content-disposition"), null);
+  assert.match((await res.json()).message, /Un campo/);
+});
+
+test("aplica presupuestos en SQL y distingue filas, bytes y falta de datos sin enviar un adjunto", async () => {
+  for (const [estado, formato, mensaje] of [
+    ["filas", "csv", /cantidad máxima de filas/],
+    ["bytes", "pdf", /conjunto de datos/],
+    ["sin_datos", "csv", /No hay datos suficientes/],
+    ["sin_datos", "pdf", /No hay datos suficientes/],
+  ] as const) {
+    filas = [{ estado, celdas: null }];
+    const respuesta = await get(`progreso.${formato}`, true, "limites");
+    assert.equal(respuesta.status, 422);
+    assert.equal(respuesta.headers.get("content-disposition"), null);
+    assert.match((await respuesta.json()).message, mensaje);
+    const { text, values } = consultar.mock.calls.at(-1)!.arguments[0];
+    assert.match(text, /octet_length\(valor\)/);
+    assert.match(text, /LEFT JOIN candidatas c ON r.estado = 'ok'/);
+    const maxFilas = formato === "pdf" ? 500 : 5000;
+    assert.deepEqual(values.slice(-3), [maxFilas + 1, maxFilas, (formato === "pdf" ? 1 : 8) * 1024 * 1024]);
+  }
 });
