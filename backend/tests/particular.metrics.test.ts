@@ -12,7 +12,7 @@ const proyeccionPublica = {
 };
 const create = mock.fn(async ({ data }: { data: Record<string, unknown> }) => data);
 const findFirst = mock.fn(async (
-  _query: { where: { usuarioId: string; fecha: { gte: Date } } },
+  _query: { where: { usuarioId: string; fecha: { gte: Date; lt: Date } } },
 ): Promise<Record<string, unknown> | null> => null);
 const queryRaw = mock.fn(async (_sql: TemplateStringsArray, ..._params: unknown[]): Promise<unknown[]> => []);
 const requireAuth: RequestHandler = (req, _res, next) => {
@@ -149,8 +149,14 @@ test('el GET del modo desactivado devuelve exactamente success y data con una fi
   assert.deepEqual(await response.json(), { success: true, data: fila });
   const inicio = new Date(instante);
   inicio.setHours(0, 0, 0, 0);
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + 1);
   assert.deepEqual(findFirst.mock.calls.at(-1)?.arguments, [
-    { where: { usuarioId, fecha: { gte: inicio } }, select: proyeccionPublica },
+    {
+      where: { usuarioId, fecha: { gte: inicio, lt: fin } },
+      orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
+      select: proyeccionPublica,
+    },
   ]);
   assert.equal(queryRaw.mock.callCount(), consultasSql);
 });
