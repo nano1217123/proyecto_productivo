@@ -5,6 +5,8 @@ import RoutineExercisePicker from "../components/RoutineExercisePicker";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useRoutineForm } from "../hooks/useRoutineForm";
 
+const orderButtonClass = "min-h-10 px-2.5 py-1 border border-[#41463f] rounded-md text-[#a9afa7] text-xs cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] focus-visible:outline-2 focus-visible:outline-[#b56cff] disabled:opacity-40 disabled:cursor-not-allowed";
+
 export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
   const { loading, logout } = useAuth();
   const {
@@ -25,27 +27,24 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
   }
 
   return (
-    <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
+    <main className="min-h-screen px-4 pb-[72px] sm:px-6 bg-[#171817]">
       <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span>
-          <span>{esEdicion ? "Editar rutina" : "Nueva rutina"}</span>
+        <Link className="text-sm font-bold text-[#a9afa7] no-underline hover:text-[#b56cff] focus-visible:outline-2 focus-visible:outline-[#b56cff]" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>
+          Volver a rutinas
         </Link>
         <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-          Cerrar sesion
+          Cerrar sesión
         </button>
       </header>
 
-      <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
-        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>&larr; Rutinas</Link>
-        <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">ENTRENAMIENTO</p>
+      <section className="w-full max-w-[1060px] mx-auto pt-8 pb-6">
         <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">{esEdicion ? "Editar rutina" : "Nueva rutina"}</h1>
       </section>
 
-      {error && <div className="w-full max-w-[1060px] mx-auto mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
+      {error && <div role="alert" className="w-full max-w-[1060px] mx-auto mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
 
       <section className="w-full max-w-[1060px] mx-auto pb-10">
-        <form onSubmit={guardarRutina} className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
+        <form onSubmit={guardarRutina} className="p-4 sm:p-6 border border-[#41433f] rounded-xl bg-[#212320]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-[15px] mb-6">
             <label className="text-xs font-bold text-[#c0c7bd]">
               Nombre de la rutina
@@ -72,22 +71,31 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
             </label>
           </div>
 
-          <RoutineExercisePicker catalogo={catalogo} agregarEjercicio={agregarEjercicio} />
+          <div className="mb-6 grid items-start gap-5 lg:grid-cols-2">
+            <RoutineExercisePicker catalogo={catalogo} agregarEjercicio={agregarEjercicio} />
 
-          <div className="grid gap-2 mb-6">
-            {seleccionados.length === 0 && (
-              <p className="text-sm text-[#a9afa7]">Todavía no agregas ningún ejercicio.</p>
-            )}
-            {seleccionados.map((ej, idx) => (
-              <div key={`${ej.ejercicio_id}-${idx}`} className="flex items-center justify-between gap-3 p-3 border border-[#30332f] rounded-lg bg-[#171817]">
-                <span className="text-[13.5px] text-[#f2f4ef]"><strong className="text-[#b56cff] mr-2">{idx + 1}.</strong>{ej.nombre}</span>
-                <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => moverEjercicio(idx, -1)} disabled={idx === 0} className="px-2.5 py-1 border border-[#41463f] rounded-md text-[#a9afa7] text-xs cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] disabled:opacity-30 disabled:cursor-not-allowed">↑</button>
-                  <button type="button" onClick={() => moverEjercicio(idx, 1)} disabled={idx === seleccionados.length - 1} className="px-2.5 py-1 border border-[#41463f] rounded-md text-[#a9afa7] text-xs cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] disabled:opacity-30 disabled:cursor-not-allowed">↓</button>
-                  <button type="button" onClick={() => quitarEjercicio(idx)} className="px-2.5 py-1 border border-[rgba(255,121,121,.4)] rounded-md text-[#ff7979] text-xs cursor-pointer hover:bg-[#351b1b]">Quitar</button>
-                </div>
-              </div>
-            ))}
+            <section aria-labelledby="ejercicios-rutina" className="min-w-0 rounded-xl border border-[#41433f] bg-[#171817] p-4">
+              <h2 id="ejercicios-rutina" className="mb-3 text-base font-bold text-[#f2f4ef]">
+                Ejercicios de la rutina ({seleccionados.length})
+              </h2>
+              {seleccionados.length === 0 && (
+                <p className="text-sm text-[#a9afa7]">Todavía no has agregado ningún ejercicio.</p>
+              )}
+              <ol className="grid gap-2">
+                {seleccionados.map((ej, idx) => (
+                  <li key={`${ej.ejercicio_id}-${idx}`} className="grid gap-2 rounded-lg border border-[#30332f] bg-[#212320] p-3">
+                    <p className="break-words text-sm text-[#f2f4ef]">
+                      <strong className="mr-2 text-[#b56cff]">{idx + 1}.</strong>{ej.nombre}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => moverEjercicio(idx, -1)} disabled={idx === 0} aria-label={`Subir ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Subir</button>
+                      <button type="button" onClick={() => moverEjercicio(idx, 1)} disabled={idx === seleccionados.length - 1} aria-label={`Bajar ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Bajar</button>
+                      <button type="button" onClick={() => quitarEjercicio(idx)} aria-label={`Quitar ${ej.nombre}, ejercicio ${idx + 1}`} className={`${orderButtonClass} border-[rgba(255,121,121,.4)] text-[#ff7979] hover:bg-[#351b1b]`}>Quitar</button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
           </div>
 
           <button
