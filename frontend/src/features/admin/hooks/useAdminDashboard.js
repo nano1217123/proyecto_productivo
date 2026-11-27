@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
-import { adminApi } from "../api/adminApi";
 import { PESTANA_INICIAL, restaurarPestana } from "../lib/adminTabs.js";
 
 const CLAVE_PESTANA = "jjgym:admin:pestana";
@@ -29,50 +28,9 @@ export function useAdminDashboard() {
   // del admin (admin_sedes) o el catálogo completo para el super_admin.
   const [gymSeleccionado, setGymSeleccionado] = useState(null);
   
-  // Imágenes
-  const [imagenFile, setImagenFile] = useState(null);
-  const [subiendoImagen, setSubiendoImagen] = useState(false);
-  const [urlImagen, setUrlImagen] = useState("");
-  const [errorImagen, setErrorImagen] = useState("");
-  const [ejercicioId, setEjercicioId] = useState("");
-  const [mensajeAsignacion, setMensajeAsignacion] = useState("");
-
-  const subirImagen = async (e) => {
-    e.preventDefault();
-    if (!imagenFile) return;
-    setErrorImagen("");
-    setUrlImagen("");
-    setSubiendoImagen(true);
-
-    try {
-      const data = await adminApi.uploadImage(imagenFile);
-      setUrlImagen(data.url);
-      setImagenFile(null);
-    } catch (err) {
-      setErrorImagen(err.message);
-    } finally {
-      setSubiendoImagen(false);
-    }
-  };
-
-  const asignarImagenAEjercicio = async (e) => {
-    e.preventDefault();
-    if (!urlImagen || !ejercicioId) return;
-    setMensajeAsignacion("");
-
-    try {
-      await adminApi.assignImageToExercise(ejercicioId, urlImagen);
-      setMensajeAsignacion("Imagen asignada al ejercicio correctamente.");
-      setEjercicioId("");
-    } catch (err) {
-      setErrorImagen(err.message);
-    }
-  };
-
   return {
     logout, esSuperAdmin,
     tabActiva, setTabActiva,
     gymSeleccionado, setGymSeleccionado,
-    imagenFile, setImagenFile, subiendoImagen, urlImagen, errorImagen, ejercicioId, setEjercicioId, mensajeAsignacion, subirImagen, asignarImagenAEjercicio
   };
 }

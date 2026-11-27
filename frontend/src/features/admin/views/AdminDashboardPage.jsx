@@ -54,14 +54,8 @@ export default function AdminDashboardPage() {
       />
 
       {dashboard.tabActiva === "imagenes" && (
-        <ImagesTab
-          errorImagen={dashboard.errorImagen} urlImagen={dashboard.urlImagen}
-          subirImagen={dashboard.subirImagen} setImagenFile={dashboard.setImagenFile}
-          subiendoImagen={dashboard.subiendoImagen} imagenFile={dashboard.imagenFile}
-          asignarImagenAEjercicio={dashboard.asignarImagenAEjercicio}
-          ejercicioId={dashboard.ejercicioId} setEjercicioId={dashboard.setEjercicioId}
-          mensajeAsignacion={dashboard.mensajeAsignacion}
-        />
+        // El catálogo de imágenes es compartido: no depende de la sede elegida.
+        <ImagesTab />
       )}
 
       {dashboard.tabActiva === "comunicacion" && (
