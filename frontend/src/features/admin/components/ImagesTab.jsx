@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { muscleGroupBySlug } from "@/src/features/exercises/lib/muscleGroups";
-import { etiquetasEjercicios, useImageAssignment } from "../hooks/useImageAssignment";
+import { etiquetasEjercicios, filtrarOpciones, useImageAssignment } from "../hooks/useImageAssignment";
 
 const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
 const ESTILO_CAMPO = `w-full p-2.5 bg-[#151714] border border-[#41463f] rounded-[10px] text-[#f2f4ef] text-sm focus:border-[#b56cff] disabled:opacity-60 disabled:cursor-not-allowed ${ESTILO_FOCO}`;
@@ -28,8 +28,13 @@ export default function ImagesTab() {
     fase, errorEnvio, destinoEnvio, enviando,
     recargarCatalogo, seleccionarGrupo, seleccionarEjercicio, seleccionarArchivo, enviar, reintentarAsignacion,
   } = useImageAssignment();
-  const ids = { grupo: useId(), ejercicio: useId(), archivo: useId(), ayudaArchivo: useId() };
+  const ids = {
+    grupo: useId(), busqueda: useId(), estadoBusqueda: useId(), ejercicio: useId(), archivo: useId(), ayudaArchivo: useId(),
+  };
   const archivoRef = useRef(null);
+  const busquedaRef = useRef(null);
+  // Filtro local sobre el catálogo ya cargado: no consulta la API ni cambia el destino.
+  const [busqueda, setBusqueda] = useState("");
   const resultadoRef = useRef(null);
   const reintentarRef = useRef(null);
   const [vistaPrevia, setVistaPrevia] = useState("");
@@ -39,6 +44,9 @@ export default function ImagesTab() {
   const opciones = useMemo(() => etiquetasEjercicios(ejercicios), [ejercicios]);
   const ejercicio = ejercicios.find((e) => String(e.id) === ejercicioId) || null;
   const etiquetaEjercicio = opciones.find((o) => String(o.id) === ejercicioId)?.etiqueta || ejercicio?.nombre;
+  const filtro = useMemo(() => filtrarOpciones(opciones, busqueda, ejercicioId), [opciones, busqueda, ejercicioId]);
+  const buscando = busqueda.trim() !== "";
+  const sinCoincidencias = buscando && filtro.coincidencias === 0;
   const catalogoListo = estadoCatalogo === "listo";
   // La vista del grupo solo existe para los grupos de la lista estática. Con
   // el slug de la API abre directamente el ejercicio; si no hay slug, el grupo.
@@ -64,6 +72,18 @@ export default function ImagesTab() {
     if (fase === "exito") resultadoRef.current?.focus();
     if (fase === "error-asignacion") reintentarRef.current?.focus();
   }, [fase]);
+
+  // Cambiar de grupo limpia la búsqueda; el hook limpia el ejercicio y
+  // descarta cualquier operación pendiente.
+  function cambiarGrupo(slug) {
+    setBusqueda("");
+    seleccionarGrupo(slug);
+  }
+
+  function limpiarBusqueda() {
+    setBusqueda("");
+    busquedaRef.current?.focus();
+  }
 
   function alEnviar(evento) {
     evento.preventDefault();
@@ -110,7 +130,7 @@ export default function ImagesTab() {
               <select
                 id={ids.grupo}
                 value={grupoSlug}
-                onChange={(e) => seleccionarGrupo(e.target.value)}
+                onChange={(e) => cambiarGrupo(e.target.value)}
                 disabled={enviando}
                 className={ESTILO_CAMPO}
               >
@@ -119,17 +139,61 @@ export default function ImagesTab() {
               </select>
             </div>
 
+            {grupo && ejercicios.length === 0 && (
+              <p role="status" className="m-0 text-[13px] text-[#a9afa7]">Este grupo no tiene ejercicios todavía.</p>
+            )}
+
+            {grupo && ejercicios.length > 0 && (
+              <div>
+                <label htmlFor={ids.busqueda} className={ESTILO_ETIQUETA}>Buscar ejercicio</label>
+                <input
+                  id={ids.busqueda}
+                  ref={busquedaRef}
+                  type="search"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  // Enter no debe enviar el formulario (subiría la imagen).
+                  onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                  disabled={enviando}
+                  placeholder="Nombre o equipo, p. ej. press o mancuerna"
+                  autoComplete="off"
+                  aria-controls={ids.ejercicio}
+                  aria-describedby={ids.estadoBusqueda}
+                  className={ESTILO_CAMPO}
+                />
+                <div id={ids.estadoBusqueda} aria-live="polite" className="mt-1.5 text-[12px] text-[#a9afa7]">
+                  {sinCoincidencias ? (
+                    <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="text-[#ffcf70]">No se encontraron ejercicios</span>
+                      <button type="button" onClick={limpiarBusqueda} disabled={enviando} className={`underline text-[#d7adff] rounded-sm ${ESTILO_FOCO}`}>
+                        Limpiar búsqueda
+                      </button>
+                    </p>
+                  ) : buscando ? (
+                    <p className="m-0">{filtro.coincidencias} de {ejercicios.length} ejercicios coinciden.</p>
+                  ) : (
+                    <p className="m-0">{ejercicios.length} ejercicios en {grupo.nombre}.</p>
+                  )}
+                  {filtro.seleccionFuera && (
+                    <p className="m-0 mt-1">Tu selección actual se mantiene como destino hasta que elijas otro ejercicio.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div>
               <label htmlFor={ids.ejercicio} className={ESTILO_ETIQUETA}>Ejercicio</label>
               <select
                 id={ids.ejercicio}
                 value={ejercicioId}
                 onChange={(e) => seleccionarEjercicio(e.target.value)}
-                disabled={enviando || !grupo}
+                disabled={enviando || !grupo || ejercicios.length === 0}
                 className={ESTILO_CAMPO}
               >
-                <option value="">{grupo ? "Selecciona un ejercicio" : "Primero elige un grupo"}</option>
-                {opciones.map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
+                <option value="">
+                  {!grupo ? "Primero elige un grupo" : sinCoincidencias ? "Sin coincidencias" : "Selecciona un ejercicio"}
+                </option>
+                {filtro.visibles.map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
               </select>
             </div>
 

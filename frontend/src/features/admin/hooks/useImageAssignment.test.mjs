@@ -8,7 +8,7 @@ mock.module(new URL("../../exercises/api/exercisesApi.js", import.meta.url).href
   namedExports: { exercisesApi: { getExerciseCatalog: () => { throw new Error("Usa el catálogo simulado."); } } },
 });
 
-const { createImageAssignmentState, etiquetasEjercicios, validarArchivoImagen, TAMANO_MAXIMO_IMAGEN } = await import("./useImageAssignment.js");
+const { createImageAssignmentState, etiquetasEjercicios, filtrarOpciones, normalizarBusqueda, validarArchivoImagen, TAMANO_MAXIMO_IMAGEN } = await import("./useImageAssignment.js");
 
 const GRUPOS = [
   { slug: "pecho", nombre: "Pecho", ejercicios: [{ id: 1, nombre: "Press banca", imagen_url: "https://img.test/vieja.jpg" }, { id: 2, nombre: "Aperturas", imagen_url: null }] },
@@ -187,4 +187,54 @@ test("los nombres repetidos se distinguen por equipo y el destino confirmado usa
   await c.enviar();
   assert.equal(c.getSnapshot().destinoEnvio.ejercicioNombre, "Remo (Mancuerna) · ID 6");
   assert.deepEqual(asignar.mock.calls[0].arguments, [6, "https://img.test/r.jpg"]);
+});
+
+test("la búsqueda ignora mayúsculas y tildes y encuentra por equipo en homónimos", () => {
+  const opciones = etiquetasEjercicios([
+    { id: 1, nombre: "Curl de muñeca", equipo: "Mancuerna" },
+    { id: 2, nombre: "Press inclinado", equipo: "Barra" },
+    { id: 3, nombre: "Press inclinado", equipo: "Mancuerna" },
+    { id: 4, nombre: "Sentadilla", equipo: "Barra" },
+  ]);
+  assert.equal(normalizarBusqueda("  MUÑECA "), "muneca");
+  assert.deepEqual(filtrarOpciones(opciones, "muneca").visibles.map((o) => o.id), [1]);
+  assert.deepEqual(filtrarOpciones(opciones, "PRESS INCLINADO").visibles.map((o) => o.id), [2, 3]);
+  // El equipo forma parte de la etiqueta solo en los homónimos.
+  assert.deepEqual(filtrarOpciones(opciones, "mancuerna").visibles.map((o) => o.id), [3]);
+  assert.deepEqual(filtrarOpciones(opciones, "barra").visibles.map((o) => o.id), [2]);
+  const vacio = filtrarOpciones(opciones, "zzz");
+  assert.equal(vacio.coincidencias, 0);
+  assert.deepEqual(vacio.visibles, []);
+  assert.equal(filtrarOpciones(opciones, "").visibles.length, 4);
+});
+
+test("filtrar conserva la selección actual y nunca elige otro ejercicio", () => {
+  const opciones = etiquetasEjercicios([
+    { id: 1, nombre: "Press de banca" }, { id: 7, nombre: "Sentadilla" }, { id: 8, nombre: "Zancadas" },
+  ]);
+  const r = filtrarOpciones(opciones, "zanc", "1");
+  assert.deepEqual(r.visibles.map((o) => o.id), [1, 8]);
+  assert.equal(r.coincidencias, 1);
+  assert.equal(r.seleccionFuera, true);
+  const sinNada = filtrarOpciones(opciones, "zzz", "1");
+  assert.deepEqual(sinNada.visibles.map((o) => o.id), [1]);
+  assert.equal(sinNada.coincidencias, 0);
+  assert.equal(filtrarOpciones(opciones, "press", "1").seleccionFuera, false);
+});
+
+test("filtrar no toca el destino ni invalida el reintento pendiente", async () => {
+  const asignar = mock.fn(async () => { throw new Error("fallo"); });
+  const { c, subir } = await preparado({ asignar });
+  c.seleccionarGrupo("pecho");
+  c.seleccionarEjercicio("2");
+  c.seleccionarArchivo(archivo());
+  await c.enviar();
+  const antes = c.getSnapshot();
+  // La búsqueda es un cálculo puro sobre el catálogo cargado.
+  filtrarOpciones(etiquetasEjercicios(antes.grupos[0].ejercicios), "press", antes.ejercicioId);
+  assert.equal(c.getSnapshot(), antes);
+  asignar.mock.mockImplementation(async () => ({}));
+  await c.reintentarAsignacion();
+  assert.equal(subir.mock.callCount(), 1);
+  assert.deepEqual(asignar.mock.calls.map((x) => x.arguments[0]), [2, 2]);
 });

@@ -28,6 +28,28 @@ export function etiquetasEjercicios(ejercicios) {
   });
 }
 
+// Minúsculas y sin tildes, para buscar «press inclinado» o «muneca».
+export function normalizarBusqueda(texto) {
+  return String(texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+// Filtra las opciones del grupo por su etiqueta (que incluye el equipo
+// cuando distingue homónimos). Solo filtra: nunca elige un ejercicio. El
+// ejercicio ya seleccionado se conserva visible aunque no coincida, para
+// que el selector siga mostrando el destino confirmado.
+export function filtrarOpciones(opciones, termino, idSeleccionado = "") {
+  const buscado = normalizarBusqueda(termino);
+  if (!buscado) return { visibles: opciones, coincidencias: opciones.length, seleccionFuera: false };
+  const coinciden = opciones.filter((o) => normalizarBusqueda(o.etiqueta).includes(buscado));
+  const seleccionada = opciones.find((o) => String(o.id) === String(idSeleccionado));
+  const seleccionFuera = Boolean(seleccionada) && !coinciden.includes(seleccionada);
+  return {
+    visibles: seleccionFuera ? [seleccionada, ...coinciden] : coinciden,
+    coincidencias: coinciden.length,
+    seleccionFuera,
+  };
+}
+
 const ENVIANDO = new Set(["subiendo", "asignando"]);
 
 /**
