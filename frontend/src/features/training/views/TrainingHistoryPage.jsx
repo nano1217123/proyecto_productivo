@@ -1,29 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
-import { trainingApi } from "../api/trainingApi";
 import ReportesPersonales from "../components/ReportesPersonales";
+import { useTrainingHistory } from "../hooks/useTrainingHistory";
+
+const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
+const ESTILO_REINTENTO = `px-4 py-2.5 border-0 rounded-lg bg-[#b56cff] text-[#10110f] text-[13px] font-extrabold cursor-pointer transition hover:bg-[#d7adff] aria-disabled:opacity-60 aria-disabled:cursor-wait ${ESTILO_FOCO}`;
+const ESTILO_ERROR = "p-4 border border-[rgba(255,121,121,0.32)] rounded-xl bg-[#351b1b]";
 
 export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
+  const {
+    sesiones, estadoHistorial, errorHistorial,
+    ejercicioId: ejercicioSeleccionado, progreso, estadoProgreso, errorProgreso,
+    recargarHistorial, seleccionarEjercicio, reintentarProgreso,
+  } = useTrainingHistory();
+  const selectorId = useId();
+  const selectorRef = useRef(null);
+  // Tras un reintento exitoso su botón desaparece: el foco pasa al selector.
+  const reintentoRef = useRef(false);
 
-  const [sesiones, setSesiones] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState("");
-
-  const [ejercicioSeleccionado, setEjercicioSeleccionado] = useState("");
-  const [progreso, setProgreso] = useState([]);
-  const [cargandoProgreso, setCargandoProgreso] = useState(false);
+  const historialListo = estadoHistorial === "listo";
+  const cargandoHistorial = estadoHistorial === "cargando";
+  const cargandoProgreso = estadoProgreso === "cargando";
+  const progresoListo = estadoProgreso === "listo";
 
   useEffect(() => {
-    trainingApi.getTrainingHistory()
-      .then(setSesiones)
-      .catch((err) => setError(err.message))
-      .finally(() => setCargando(false));
-  }, []);
+    if (!reintentoRef.current || cargandoHistorial || cargandoProgreso) return;
+    reintentoRef.current = false;
+    // Solo recupera el foco que se perdió con el botón; si el usuario pasó
+    // a otro control mientras cargaba, no se lo quita.
+    const activo = document.activeElement;
+    const focoPerdido = !activo || activo === document.body;
+    if (!errorHistorial && !errorProgreso && focoPerdido) selectorRef.current?.focus();
+  }, [cargandoHistorial, cargandoProgreso, errorHistorial, errorProgreso]);
+
+  function reintentar(accion) {
+    reintentoRef.current = true;
+    accion();
+  }
 
   // Lista única de ejercicios que el usuario ya entrenó, extraída del
   // propio historial (no hace falta volver a cargar el catálogo completo).
@@ -39,19 +57,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
     return Array.from(mapa.entries()).map(([id, nombre]) => ({ id, nombre }));
   }, [sesiones]);
 
-  useEffect(() => {
-    if (!ejercicioSeleccionado) {
-      setProgreso([]);
-      return;
-    }
-    setCargandoProgreso(true);
-    trainingApi.getExerciseHistory(Number(ejercicioSeleccionado))
-      .then(setProgreso)
-      .catch((err) => setError(err.message))
-      .finally(() => setCargandoProgreso(false));
-  }, [ejercicioSeleccionado]);
-
-  if (loading || cargando) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
         <p className="text-sm text-[#a9afa7]">Cargando...</p>
@@ -83,12 +89,28 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
         <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Tu historial</h1>
       </section>
 
-      {error && <div className="w-full max-w-[1060px] mx-auto mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
-
       <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-[18px] pb-10 items-start">
         {/* Columna izquierda: lista de sesiones */}
-        <div className="grid gap-3">
-          {sesiones.length === 0 && (
+        <div className="grid gap-3" aria-busy={cargandoHistorial}>
+          {errorHistorial && (
+            <div className={ESTILO_ERROR}>
+              <p role="alert" className="m-0 mb-3 text-[13px] text-[#ff7979]">{errorHistorial}</p>
+              <button
+                type="button"
+                onClick={() => !cargandoHistorial && reintentar(recargarHistorial)}
+                aria-disabled={cargandoHistorial}
+                className={ESTILO_REINTENTO}
+              >
+                {cargandoHistorial ? "Cargando historial..." : "Reintentar historial"}
+              </button>
+            </div>
+          )}
+          {cargandoHistorial && !errorHistorial && (
+            <p role="status" className="p-5 border border-[#41433f] rounded-xl bg-[#212320] text-sm text-[#a9afa7]">
+              Cargando historial...
+            </p>
+          )}
+          {historialListo && sesiones.length === 0 && (
             <p className="p-5 border border-[#41433f] rounded-xl bg-[#212320] text-sm text-[#a9afa7]">
               Todavía no registras ningún entrenamiento.
             </p>
@@ -118,10 +140,16 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <h2 id="vista-previa-progreso" tabIndex={-1} className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Progreso por ejercicio</h2>
 
+          <label htmlFor={selectorId} className="block mb-2 text-xs font-bold text-[#c0c7bd]">
+            Ejercicio
+          </label>
           <select
+            id={selectorId}
+            ref={selectorRef}
             value={ejercicioSeleccionado}
-            onChange={(e) => setEjercicioSeleccionado(e.target.value)}
-            className="w-full mb-5 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff]"
+            onChange={(e) => seleccionarEjercicio(e.target.value)}
+            disabled={!historialListo}
+            className={`w-full mb-5 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff] disabled:opacity-60 disabled:cursor-not-allowed ${ESTILO_FOCO}`}
           >
             <option value="">Selecciona un ejercicio entrenado</option>
             {ejerciciosEntrenados.map((ej) => (
@@ -129,19 +157,37 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
             ))}
           </select>
 
-          {!ejercicioSeleccionado && (
+          {!historialListo && (
+            <p className="text-sm text-[#a9afa7]">El selector estará disponible cuando cargue tu historial.</p>
+          )}
+
+          {historialListo && !ejercicioSeleccionado && (
             <p className="text-sm text-[#a9afa7]">Elige un ejercicio para ver cómo ha evolucionado tu peso.</p>
           )}
 
-          {ejercicioSeleccionado && cargandoProgreso && (
-            <p className="text-sm text-[#a9afa7]">Cargando progreso...</p>
+          {ejercicioSeleccionado && errorProgreso && (
+            <div className={`${ESTILO_ERROR} mb-5`}>
+              <p role="alert" className="m-0 mb-3 text-[13px] text-[#ff7979]">{errorProgreso}</p>
+              <button
+                type="button"
+                onClick={() => !cargandoProgreso && reintentar(reintentarProgreso)}
+                aria-disabled={cargandoProgreso}
+                className={ESTILO_REINTENTO}
+              >
+                {cargandoProgreso ? "Cargando progreso..." : "Reintentar progreso"}
+              </button>
+            </div>
           )}
 
-          {ejercicioSeleccionado && !cargandoProgreso && progreso.length === 0 && (
+          {ejercicioSeleccionado && cargandoProgreso && !errorProgreso && (
+            <p role="status" className="text-sm text-[#a9afa7]">Cargando progreso...</p>
+          )}
+
+          {ejercicioSeleccionado && progresoListo && progreso.length === 0 && (
             <p className="text-sm text-[#a9afa7]">Todavía no hay suficientes registros de este ejercicio.</p>
           )}
 
-          {ejercicioSeleccionado && !cargandoProgreso && progreso.length > 0 && (
+          {ejercicioSeleccionado && progresoListo && progreso.length > 0 && (
             <div style={{ width: "100%", height: 260 }}>
               <ResponsiveContainer>
                 <LineChart data={progreso} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
