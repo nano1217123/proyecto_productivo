@@ -1,17 +1,9 @@
 "use client";
 
-// Pestañas del panel. «Suscripción» solo para admin de sede (paga a J&JGym
-// por sus sedes) y «Asignar administrador» solo para super_admin; el
-// backend vuelve a comprobar ambos permisos.
+import { pestanasAdmin } from "../lib/adminTabs.js";
+
 export default function AdminTabs({ tabActiva, setTabActiva, esSuperAdmin, esAdmin }) {
-  const pestanas = [
-    { id: "clientes", etiqueta: "👥 Clientes de la sede" },
-    { id: "imagenes", etiqueta: "📸 Subir imágenes" },
-    { id: "comunicacion", etiqueta: "📢 Anuncios (correo)", pronto: true },
-    { id: "configuracion", etiqueta: "⚙️ Perfil de sede" },
-    esAdmin && { id: "suscripcion", etiqueta: "💳 Suscripción" },
-    esSuperAdmin && { id: "crear-admin", etiqueta: "🛡️ Asignar administrador" },
-  ].filter(Boolean);
+  const pestanas = pestanasAdmin({ esAdmin, esSuperAdmin });
 
   return (
     <nav aria-label="Secciones del panel" className="flex flex-wrap gap-2.5 mb-6 border-b border-[#30332f] pb-3">
