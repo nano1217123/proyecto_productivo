@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
 import { trainingApi } from "../api/trainingApi";
@@ -8,6 +8,11 @@ export function useTrainingSession() {
   
   const [catalogo, setCatalogo] = useState([]);
   const [cargandoCatalogo, setCargandoCatalogo] = useState(true);
+  const [errorCatalogo, setErrorCatalogo] = useState("");
+  // Identifica la solicitud vigente del catálogo para descartar respuestas
+  // obsoletas, y evita lanzar otra mientras hay una en curso.
+  const solicitudCatalogoRef = useRef(0);
+  const catalogoEnCursoRef = useRef(false);
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [notas, setNotas] = useState("");
   const [filas, setFilas] = useState(() => {
@@ -31,20 +36,38 @@ export function useTrainingSession() {
     };
   }
 
-  useEffect(() => {
+  // Solo consulta el catálogo: no toca fecha, notas ni filas en memoria.
+  const cargarCatalogo = useCallback(() => {
+    if (catalogoEnCursoRef.current) return;
+    catalogoEnCursoRef.current = true;
+    const solicitud = ++solicitudCatalogoRef.current;
+    setCargandoCatalogo(true);
+
     exercisesApi.getExerciseCatalog()
-      .then(setCatalogo)
-      .catch((err) => setError(err.message))
-      .finally(() => setCargandoCatalogo(false));
+      .then((grupos) => {
+        if (solicitud !== solicitudCatalogoRef.current) return;
+        setCatalogo(grupos);
+        setErrorCatalogo("");
+      })
+      .catch((err) => {
+        if (solicitud !== solicitudCatalogoRef.current) return;
+        setErrorCatalogo(err.message || "No se pudo cargar el catálogo de ejercicios.");
+      })
+      .finally(() => {
+        if (solicitud !== solicitudCatalogoRef.current) return;
+        catalogoEnCursoRef.current = false;
+        setCargandoCatalogo(false);
+      });
   }, []);
 
-  const nombrePorId = useMemo(() => {
-    const mapa = new Map();
-    for (const grupo of catalogo) {
-      for (const ej of grupo.ejercicios) mapa.set(String(ej.id), ej.nombre);
-    }
-    return mapa;
-  }, [catalogo]);
+  useEffect(() => {
+    cargarCatalogo();
+    return () => {
+      // Invalida la solicitud en curso al desmontar.
+      solicitudCatalogoRef.current += 1;
+      catalogoEnCursoRef.current = false;
+    };
+  }, [cargarCatalogo]);
 
   function actualizarFila(id, campo, valor) {
     setFilas((prev) => prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
@@ -95,11 +118,10 @@ export function useTrainingSession() {
   }
 
   return {
-    catalogo, cargandoCatalogo,
+    catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
     notas, setNotas,
     filas, guardando, error, exito,
-    nombrePorId,
     actualizarFila, agregarFila, quitarFila,
     guardarEntrenamiento
   };
