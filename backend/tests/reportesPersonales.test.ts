@@ -10,7 +10,7 @@ let filas: { estado: string; celdas: (string | null)[] | null }[] = [
 ];
 const consultar = mock.fn(async (_sql: { text: string; values: unknown[] }) => filas);
 mock.module(new URL("../src/lib/prisma.ts", import.meta.url).href, {
-  namedExports: { prisma: { $queryRaw: consultar } },
+  namedExports: { prisma: { $queryRaw: consultar, $executeRaw: async () => 1 } },
 });
 mock.module(new URL("../src/middleware/auth.middleware.ts", import.meta.url).href, {
   namedExports: { requireAuth: (req: express.Request, res: express.Response, next: express.NextFunction) => {

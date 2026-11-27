@@ -20,7 +20,7 @@ const consulta = mock.fn(async (sql: {text: string; values: unknown[]}) => {
   return [{estado:"ok",sede:null,alta:null,nombre:null}];
 });
 mock.module(new URL("../src/lib/prisma.ts",import.meta.url).href,{
-  namedExports:{prisma:{$queryRaw:consulta,usuario:{findUnique:async ({where}: {where:{idusuario:string}}) =>
+  namedExports:{prisma:{$queryRaw:consulta,$executeRaw:async()=>1,usuario:{findUnique:async ({where}: {where:{idusuario:string}}) =>
     ({tipoUsuario:roles.get(where.idusuario)})}}},
 });
 mock.module(new URL("../src/middleware/auth.middleware.ts",import.meta.url).href,{

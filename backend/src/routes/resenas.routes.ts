@@ -7,6 +7,7 @@ import {
 } from "../controller/resenas.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/requireRole.middleware.js";
+import { auditarReporte } from "../middleware/auditoriaReportes.middleware.js";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { validateCreateResena, validateReporteResenas } from "../validator/resenas.validator.js";
 
@@ -43,6 +44,7 @@ router.get(
 for (const formato of ["csv", "pdf"] as const) {
   router.get(
     `/gimnasio/:gymSlug/reporte.${formato}`,
+    auditarReporte("resenas", formato),
     reporteLimiter,
     requireRole("admin", "super_admin"),
     validateReporteResenas("sede"),
@@ -50,6 +52,7 @@ for (const formato of ["csv", "pdf"] as const) {
   );
   router.get(
     `/reportes/consolidado.${formato}`,
+    auditarReporte("resenas", formato),
     reporteLimiter,
     requireRole("super_admin"),
     validateReporteResenas("consolidado"),
