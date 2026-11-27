@@ -16,7 +16,7 @@ function fechaValida(valor) {
   return Number.isFinite(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
 }
 
-function nombreSeguro(cabecera, gymSlug) {
+function nombreSeguro(cabecera, destino, formato) {
   const extendido = /(?:^|;)\s*filename\*\s*=\s*UTF-8'[^']*'([^;]+)/i.exec(cabecera)?.[1];
   const simple = /(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;\s]+))/i.exec(cabecera);
   let decodificado;
@@ -24,15 +24,21 @@ function nombreSeguro(cabecera, gymSlug) {
     try { decodificado = decodeURIComponent(extendido.trim()); } catch { /* nombre inválido */ }
   }
   for (const nombre of [decodificado, simple?.[1] ?? simple?.[2]]) {
-    if (nombre && nombre === nombre.trim() && /^[a-z0-9][a-z0-9_-]{0,119}\.csv$/i.test(nombre)
-      && !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])\.csv$/i.test(nombre)) return nombre;
+    if (nombre && nombre === nombre.trim() && /^[a-z0-9][a-z0-9_-]{0,119}\.(csv|pdf)$/i.test(nombre)
+      && nombre.toLowerCase().endsWith("." + formato)
+      && !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])\./i.test(nombre)) return nombre;
   }
-  const sede = gymSlug.replace(/[^a-z0-9-]/gi, "-").slice(0, 80);
-  return `resenas-${sede || "sede"}.csv`;
+  const sede = destino.replace(/[^a-z0-9-]/gi, "-").slice(0, 80);
+  return `resenas-${sede || "sede"}.${formato}`;
 }
 
-export async function obtenerReporteResenas({ gymSlug, desde = "", hasta = "", signal }) {
-  if (!gymSlug) throw new HttpError("Selecciona una sede para descargar el reporte.");
+export async function obtenerReporteResenas({
+  gymSlug, alcance = "sede", formato = "csv", desde = "", hasta = "", signal,
+}) {
+  if (!["sede", "consolidado"].includes(alcance) || !["csv", "pdf"].includes(formato)) {
+    throw new HttpError("Selecciona un alcance y formato válidos.");
+  }
+  if (alcance === "sede" && !gymSlug) throw new HttpError("Selecciona una sede para descargar el reporte.");
   if (!fechaValida(desde) || !fechaValida(hasta)) {
     throw new HttpError("Ingresa fechas válidas en formato AAAA-MM-DD.", { status: 400 });
   }
@@ -44,21 +50,34 @@ export async function obtenerReporteResenas({ gymSlug, desde = "", hasta = "", s
   if (desde) filtros.set("desde", desde);
   if (hasta) filtros.set("hasta", hasta);
   const query = filtros.toString();
-  const url = `/api/resenas/gimnasio/${encodeURIComponent(gymSlug)}/reporte.csv${query ? "?" + query : ""}`;
+  const consolidado = alcance === "consolidado";
+  const ruta = consolidado ? "/api/resenas/reportes/consolidado"
+    : `/api/resenas/gimnasio/${encodeURIComponent(gymSlug)}/reporte`;
+  const url = `${ruta}.${formato}${query ? "?" + query : ""}`;
+  const mime = formato === "pdf" ? "application/pdf" : "text/csv";
   let respuesta;
   try {
-    respuesta = await fetch(url, { credentials: "include", signal, headers: { Accept: "text/csv" } });
-    if (!respuesta.ok) {
-      const body = await respuesta.json().catch(() => null);
+    respuesta = await fetch(url, { credentials: "include", signal, headers: { Accept: mime } });
+    if (respuesta.status !== 200) {
+      const body = respuesta.ok ? null : await respuesta.json().catch(() => null);
+      if (respuesta.ok) await respuesta.body?.cancel();
       throw new HttpError(mensajes[respuesta.status] ?? "No se pudo descargar el reporte. Intenta de nuevo.",
         { status: respuesta.status, body, url });
     }
-    if (respuesta.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "text/csv") {
-      throw new HttpError("El servidor no devolvió un archivo CSV.", { status: respuesta.status, url });
+    if (respuesta.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== mime) {
+      throw new HttpError(`El servidor no devolvió un archivo ${formato.toUpperCase()}.`, { status: respuesta.status, url });
+    }
+    const datos = await respuesta.arrayBuffer();
+    signal?.throwIfAborted();
+    if (datos.byteLength === 0 ||
+      (formato === "pdf" && new TextDecoder().decode(datos.slice(0, 5)) !== "%PDF-")) {
+      throw new HttpError(`El servidor no devolvió un archivo ${formato.toUpperCase()} válido.`,
+        { status: respuesta.status, url });
     }
     return {
-      blob: await respuesta.blob(),
-      nombre: nombreSeguro(respuesta.headers.get("content-disposition") ?? "", gymSlug),
+      blob: new Blob([datos], { type: respuesta.headers.get("content-type") }),
+      nombre: nombreSeguro(respuesta.headers.get("content-disposition") ?? "",
+        consolidado ? "consolidado" : gymSlug, formato),
     };
   } catch (error) {
     if (signal?.aborted || error?.name === "AbortError" || error instanceof HttpError) throw error;
@@ -97,7 +116,7 @@ export function crearDescargaResenas({ obtener = obtenerReporteResenas, guardar 
         const archivo = await obtener({ ...filtros, signal: solicitud.signal });
         if (activa !== solicitud) return;
         guardar(archivo);
-        actualizar({ estado: "exito", mensaje: "Descarga del CSV iniciada." });
+        actualizar({ estado: "exito", mensaje: `Descarga del ${(filtros.formato ?? "csv").toUpperCase()} iniciada.` });
       } catch (error) {
         if (activa === solicitud) {
           actualizar({ estado: "error", mensaje: error?.message || "No se pudo descargar el reporte." });

@@ -27,6 +27,7 @@ test("renderiza Reportes y conserva las acciones administrativas de cada rol", (
 
 test("muestra la sede recibida y deja inactiva la descarga cuando falta", () => {
   const sinSede = renderToStaticMarkup(React.createElement(ReviewsReportTab));
+  assert.doesNotMatch(sinSede, /option value="consolidado"/);
   assert.match(sinSede, /No hay una sede disponible/);
   assert.match(sinSede, /<button[^>]*disabled=""[^>]*>Descargar CSV/);
   for (const sede of [{ id: "jj-poblado", nombre: "El Poblado" }, { id: "power-laureles", nombre: "Laureles" }]) {
@@ -35,5 +36,17 @@ test("muestra la sede recibida y deja inactiva la descarga cuando falta", () => 
     assert.match(vista, /<label for="[^"]+-desde"[^>]*>Fecha inicial/);
     assert.match(vista, /<label for="[^"]+-hasta"[^>]*>Fecha final/);
     assert.doesNotMatch(vista, /<button[^>]*disabled=""[^>]*>Descargar CSV/);
+  }
+});
+
+test("solo el superadministrador puede elegir el consolidado y descargar ambos formatos sin sede", () => {
+  const vista = renderToStaticMarkup(React.createElement(ReviewsReportTab, {
+    esSuperAdmin: true, alcance: "consolidado", setAlcance: () => {},
+  }));
+  assert.match(vista, /<option value="consolidado" selected="">Consolidado/);
+  assert.match(vista, /Todas las sedes vigentes/);
+  for (const formato of ["CSV", "PDF"]) {
+    assert.match(vista, new RegExp(`<button[^>]*>Descargar ${formato}`));
+    assert.doesNotMatch(vista, new RegExp(`<button[^>]* disabled=""[^>]*>Descargar ${formato}`));
   }
 });

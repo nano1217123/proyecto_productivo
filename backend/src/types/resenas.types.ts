@@ -14,15 +14,25 @@ export interface ResenaOutput {
   creado_en: string;
 }
 
-export interface ReporteResenasInput {
-  gymSlug: string;
+export interface FiltrosReporteResenas {
   desde?: string;
   hasta?: string;
 }
+
+export type ReporteResenasInput = FiltrosReporteResenas & (
+  { alcance: "sede"; gymSlug: string } | { alcance: "consolidado" }
+);
+export type FormatoReporteResenas = "csv" | "pdf";
 
 export interface FilaReporteResenas {
   gym_slug: string;
   creado_en: Date;
   calificacion: number;
   comentario: string | null;
+}
+
+export interface SeccionReporteResenas {
+  slug: string;
+  nombre: string;
+  filas: FilaReporteResenas[];
 }

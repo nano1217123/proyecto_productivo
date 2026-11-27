@@ -1,6 +1,89 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { crearDescargaResenas, obtenerReporteResenas } from "./reviewsReportApi.js";
+
+test("las respuestas incompletas o inválidas no generan una descarga ni un aviso de éxito", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => new Response(null));
+  for (const [status, body] of [[204, null], [206, "%PDF-1.7"], [200, ""], [200, "texto plano"]]) {
+    fetch.mock.mockImplementationOnce(async () => new Response(body, {
+      status, headers: { "content-type": "application/pdf" },
+    }));
+    let guardado = false;
+    const estados = [];
+    const descarga = crearDescargaResenas({ guardar: () => { guardado = true; } });
+    await descarga.iniciar({ gymSlug: "jj-poblado", formato: "pdf" }, s => estados.push(s.estado));
+    assert.equal(guardado, false);
+    assert.deepEqual(estados, ["cargando", "error"]);
+  }
+});
+
+test("cancelar mientras se lee el archivo impide guardar o publicar éxito", async (t) => {
+  let terminarLectura;
+  let iniciarLectura;
+  const leyendo = new Promise(resolve => { iniciarLectura = resolve; });
+  let signal;
+  t.mock.method(globalThis, "fetch", async (_url, opciones) => {
+    signal = opciones.signal;
+    const response = new Response("%PDF-1.7", { headers: { "content-type": "application/pdf" } });
+    response.arrayBuffer = () => new Promise(resolve => {
+      terminarLectura = resolve;
+      iniciarLectura();
+    });
+    return response;
+  });
+  const estados = [];
+  const descarga = crearDescargaResenas({ guardar: () => assert.fail("descarga cancelada") });
+  const pendiente = descarga.iniciar({ gymSlug: "jj-poblado", formato: "pdf" }, s => estados.push(s.estado));
+  await leyendo;
+  descarga.cancelar();
+  assert.equal(signal.aborted, true);
+  terminarLectura(new TextEncoder().encode("%PDF-1.7").buffer);
+  await pendiente;
+  assert.deepEqual(estados, ["cargando"]);
+});
+
+test("descarga PDF y CSV del consolidado a través de la API y valida MIME y extensión", async (t) => {
+  const peticiones = t.mock.method(globalThis, "fetch", async (_url, opciones) => {
+    const mime = opciones.headers.Accept;
+    return new Response(mime === "application/pdf" ? "%PDF-1.7" : "sede,fecha", {
+      headers: { "content-type": mime, "content-disposition": 'attachment; filename="erroneo.exe"' },
+    });
+  });
+  assert.equal((await obtenerReporteResenas({ alcance: "consolidado", formato: "pdf", gymSlug: "ignorada" })).nombre,
+    "resenas-consolidado.pdf");
+  assert.equal((await obtenerReporteResenas({ alcance: "consolidado", formato: "csv" })).nombre,
+    "resenas-consolidado.csv");
+  assert.equal((await obtenerReporteResenas({ gymSlug: "jj-poblado", formato: "pdf" })).nombre,
+    "resenas-jj-poblado.pdf");
+  assert.deepEqual(peticiones.mock.calls.map(c => c.arguments[0]), [
+    "/api/resenas/reportes/consolidado.pdf",
+    "/api/resenas/reportes/consolidado.csv",
+    "/api/resenas/gimnasio/jj-poblado/reporte.pdf",
+  ]);
+  assert.ok(peticiones.mock.calls.every(c => c.arguments[1].credentials === "include"));
+  peticiones.mock.mockImplementationOnce(async () => new Response("CSV", { headers: { "content-type": "text/csv" } }));
+  await assert.rejects(obtenerReporteResenas({ alcance: "consolidado", formato: "pdf" }), /no devolvió un archivo PDF/);
+});
+
+test("ignora un PDF por sede resuelto después de cambiar al consolidado", async () => {
+  const solicitudes = [];
+  const archivos = [];
+  const estados = [];
+  const descarga = crearDescargaResenas({
+    obtener: (filtros) => new Promise(resolve => solicitudes.push({ ...filtros, resolve })),
+    guardar: (archivo) => archivos.push(archivo),
+  });
+  const anterior = descarga.iniciar({ alcance: "sede", gymSlug: "jj-poblado", formato: "pdf" }, s => estados.push(s));
+  descarga.cancelar();
+  const nueva = descarga.iniciar({ alcance: "consolidado", formato: "csv" }, s => estados.push(s));
+  assert.equal(solicitudes[0].signal.aborted, true);
+  solicitudes[1].resolve("consolidado");
+  await nueva;
+  solicitudes[0].resolve("viejo");
+  await anterior;
+  assert.deepEqual(archivos, ["consolidado"]);
+  assert.equal(estados.filter(s => s.estado === "exito").length, 1);
+});
 import { pestanasAdmin, restaurarPestana } from "../../admin/lib/adminTabs.js";
 
 test("conserva la navegación del PR #27 y restaura solo pestañas permitidas", () => {

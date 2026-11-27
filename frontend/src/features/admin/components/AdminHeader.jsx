@@ -1,6 +1,6 @@
 "use client";
 
-export default function AdminHeader({ gymSeleccionado, setGymSeleccionado, gimnasios, logout }) {
+export default function AdminHeader({ gymSeleccionado, setGymSeleccionado, gimnasios, logout, ocultarSelector }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-5 mb-8">
       <div>
@@ -8,7 +8,7 @@ export default function AdminHeader({ gymSeleccionado, setGymSeleccionado, gimna
         <h1 className="m-1 text-[clamp(28px,4vw,42px)] tracking-[-1.2px]">Gestión de Sede</h1>
       </div>
 
-      <div className="flex items-center gap-2.5 p-2 px-3.5 border border-[#41433f] rounded-[10px] bg-[#212320] [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#a9afa7] [&_select]:border-0 [&_select]:outline-0 [&_select]:bg-transparent [&_select]:text-[#d7adff] [&_select]:font-bold [&_select]:text-sm">
+      {!ocultarSelector && <div className="flex items-center gap-2.5 p-2 px-3.5 border border-[#41433f] rounded-[10px] bg-[#212320] [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#a9afa7] [&_select]:border-0 [&_select]:outline-0 [&_select]:bg-transparent [&_select]:text-[#d7adff] [&_select]:font-bold [&_select]:text-sm">
         <label htmlFor="select-gym">Sede actual:</label>
         <select
           id="select-gym"
@@ -23,7 +23,7 @@ export default function AdminHeader({ gymSeleccionado, setGymSeleccionado, gimna
             </option>
           ))}
         </select>
-      </div>
+      </div>}
 
       <button
         type="button"

@@ -11,7 +11,14 @@ function prefijoComentario(comentario: string): string {
   return posibleFormula ? "[texto] " : "";
 }
 
-export function generarCsvResenas(filas: FilaReporteResenas[], maxBytes: number): string | null {
+export type FilaCsv = FilaReporteResenas | {
+  gym_slug: string;
+  creado_en: null;
+  calificacion: null;
+  comentario: "0 reseñas";
+};
+
+export function generarCsvResenas(filas: FilaCsv[], maxBytes: number): string | null {
   const encabezado = "\uFEFFsede,fecha,calificacion,comentario\r\n";
   const lineas = [encabezado];
   let bytes = Buffer.byteLength(encabezado, "utf8");
@@ -20,7 +27,7 @@ export function generarCsvResenas(filas: FilaReporteResenas[], maxBytes: number)
   for (const fila of filas) {
     const datos = [
       escaparTexto(fila.gym_slug),
-      fila.creado_en.toISOString(),
+      fila.creado_en?.toISOString() ?? "",
       fila.calificacion,
     ].join(",") + ",";
     const comentario = fila.comentario ?? "";

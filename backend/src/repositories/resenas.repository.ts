@@ -1,6 +1,7 @@
 ﻿// Repositorio para las operaciones de base de datos del módulo de reseñas.
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/AppError.js";
+import { SLUGS_SEDES } from "../lib/sedes.js";
 import type {
   CreateResenaInput,
   FilaReporteResenas,
@@ -32,11 +33,13 @@ function mapResena(resena: {
 export function createResenasRepository(db: typeof prisma = prisma) {
   return {
     async findForReport(
-      { gymSlug, desde, hasta }: ReporteResenasInput,
+      input: ReporteResenasInput,
       adminId: string | null,
       maxFilas: number,
       maxBytes: number
     ) {
+      const { desde, hasta } = input;
+      const gymSlug = input.alcance === "sede" ? input.gymSlug : null;
       // La asignación y las filas se leen con la misma instantánea de PostgreSQL.
       // Los candidatos solo materializan IDs, fechas y tamaños.
       const resultado = await db.$queryRaw<FilaConsultaReporte[]>`
@@ -50,9 +53,11 @@ export function createResenasRepository(db: typeof prisma = prisma) {
           )) AS autorizado
           FROM parametros p
         ), candidatas AS MATERIALIZED (
-          SELECT r.id, r.creado_en, octet_length(r.comentario) AS bytes
+          SELECT r.id, r.gym_slug, r.creado_en, octet_length(r.comentario) AS bytes
           FROM resenas r CROSS JOIN permiso p
-          WHERE p.autorizado AND r.gym_slug = p.sede
+          WHERE p.autorizado AND (
+            r.gym_slug = p.sede OR (p.sede IS NULL AND r.gym_slug = ANY(${[...SLUGS_SEDES]}::text[]))
+          )
             AND r.calificacion BETWEEN 1 AND 5
             AND (p.desde IS NULL
               OR r.creado_en >= (p.desde::timestamp AT TIME ZONE 'America/Bogota'))
@@ -72,7 +77,7 @@ export function createResenasRepository(db: typeof prisma = prisma) {
           END AS valor
           FROM permiso p CROSS JOIN resumen r
         ), elegibles AS MATERIALIZED (
-          SELECT c.id, c.creado_en
+          SELECT c.id, c.gym_slug, c.creado_en
           FROM candidatas c CROSS JOIN estado e
           WHERE e.valor = 'ok'
         )
@@ -80,7 +85,7 @@ export function createResenasRepository(db: typeof prisma = prisma) {
         FROM estado e
         LEFT JOIN elegibles c ON true
         LEFT JOIN resenas r ON r.id = c.id
-        ORDER BY c.creado_en DESC, c.id DESC
+        ORDER BY c.gym_slug COLLATE "C", c.creado_en DESC, c.id DESC
       `;
       const estado = resultado[0]?.estado;
       if (!estado) throw new Error("La consulta del reporte no devolvió su estado.");

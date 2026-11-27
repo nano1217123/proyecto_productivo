@@ -40,11 +40,20 @@ router.get(
   requireRole("super_admin"),
   listTodasLasResenas
 );
-router.get(
-  "/gimnasio/:gymSlug/reporte.csv",
-  reporteLimiter,
-  requireRole("admin", "super_admin"),
-  validateReporteResenas,
-  descargarReporteResenas
-);
+for (const formato of ["csv", "pdf"] as const) {
+  router.get(
+    `/gimnasio/:gymSlug/reporte.${formato}`,
+    reporteLimiter,
+    requireRole("admin", "super_admin"),
+    validateReporteResenas("sede"),
+    descargarReporteResenas(formato),
+  );
+  router.get(
+    `/reportes/consolidado.${formato}`,
+    reporteLimiter,
+    requireRole("super_admin"),
+    validateReporteResenas("consolidado"),
+    descargarReporteResenas(formato),
+  );
+}
 export default router;

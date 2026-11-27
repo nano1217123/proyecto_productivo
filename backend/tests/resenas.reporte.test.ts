@@ -3,17 +3,20 @@ import { once } from "node:events";
 import { after, mock, test } from "node:test";
 import { parse } from "csv-parse/sync";
 import express, { type RequestHandler } from "express";
+import PDFDocument from "pdfkit";
 import { AppError } from "../src/errors/AppError.js";
 import { errorHandler } from "../src/middleware/error.middleware.js";
 import { generarCsvResenas } from "../src/lib/resenasCsv.js";
+import { generarPdfResenas } from "../src/lib/resenasPdf.js";
 import type { FilaReporteResenas } from "../src/types/resenas.types.js";
 
 const roles = new Map([
   ["admin-a", "admin"], ["super", "super_admin"], ["cliente", "cliente"],
   ["particular", "usuario_particular"], ["limite", "super_admin"], ["frecuencia", "super_admin"],
   ["admin-revocado", "admin"],
+  ["pdf-super", "super_admin"], ["pdf-admin", "admin"], ["cuota-formatos", "super_admin"],
 ]);
-const asignaciones = new Set(["admin-a:jj-poblado", "admin-a:power-laureles", "admin-revocado:jj-poblado"]);
+const asignaciones = new Set(["admin-a:jj-poblado", "admin-a:power-laureles", "admin-revocado:jj-poblado", "pdf-admin:jj-poblado"]);
 const buscarRol = mock.fn(async ({ where }: { where: { idusuario: string } }) => {
   const tipoUsuario = roles.get(where.idusuario);
   return tipoUsuario ? { tipoUsuario } : null;
@@ -170,9 +173,9 @@ test("parametriza la sede y los límites inclusivos de calendario de Bogotá", a
     await respuesta.text();
     const [sql, ...valores] = consultaReporte.mock.calls.at(-1)!.arguments;
     assert.deepEqual(valores, ["jj-poblado", usuario === "admin-a" ? usuario : null,
-      desde, hasta, 5001, 5000, 8 * 1024 * 1024]);
+      desde, hasta, ["jj-poblado", "power-laureles", "fit-belen"], 5001, 5000, 8 * 1024 * 1024]);
     const sentencia = sql.join("?");
-    assert.match(sentencia, /p.autorizado AND r.gym_slug = p.sede/);
+    assert.match(sentencia, /p.autorizado AND \(\s*r.gym_slug = p.sede/);
     assert.match(sentencia, /calificacion BETWEEN 1 AND 5/);
     assert.match(sentencia, /creado_en >= \(p.desde::timestamp AT TIME ZONE 'America\/Bogota'\)/);
     assert.match(sentencia, /creado_en < \(\(p.hasta \+ 1\)::timestamp AT TIME ZONE 'America\/Bogota'\)/);
@@ -253,4 +256,120 @@ test("limita las descargas por usuario y no consulta reseñas al superar la cuot
   await bloqueada.json();
   assert.equal(consultaReporte.mock.callCount(), consultas + 10);
   assert.equal(buscarRol.mock.callCount(), rolesConsultados + 10);
+});
+
+function reporte(usuario: string | undefined, path: string) {
+  return fetch(base.replace(/\/gimnasio$/, "") + path, {
+    headers: usuario ? { "x-usuario-sintetico": usuario } : {},
+  });
+}
+
+test("protege los nuevos endpoints y rechaza filtros de alcance manipulados", async () => {
+  const consultas = consultaReporte.mock.callCount();
+  for (const [actor, ruta, status] of [
+    [undefined, "/reportes/consolidado.pdf", 401],
+    ["cliente", "/gimnasio/jj-poblado/reporte.pdf", 403],
+    ["pdf-admin", "/gimnasio/fit-belen/reporte.pdf", 403],
+    ["pdf-admin", "/reportes/consolidado.csv", 403],
+    ["pdf-admin", "/reportes/consolidado.pdf", 403],
+    ["pdf-super", "/reportes/consolidado.pdf?gymSlug=jj-poblado", 400],
+    ["pdf-super", "/reportes/consolidado.csv?desde=2089-01-02&hasta=2089-01-01", 400],
+    ["pdf-super", "/gimnasio/jj-poblado/reporte.pdf?desde=2089-02-30", 400],
+  ] as const) {
+    const res = await reporte(actor, ruta);
+    assert.equal(res.status, status);
+    assert.equal(res.headers.get("content-disposition"), null);
+    await res.text();
+  }
+  assert.equal(consultaReporte.mock.callCount(), consultas);
+});
+
+test("exporta el consolidado CSV con sedes sin reseñas y sin identificadores privados", async () => {
+  consultaReporte.mock.mockImplementationOnce(async () => conFilas([
+    { ...fila, comentario: "=1+1", usuario_id: "privado" },
+    { ...fila, gym_slug: "power-laureles", calificacion: 5 },
+  ]));
+  const res = await reporte("pdf-super", "/reportes/consolidado.csv");
+  assert.equal(res.status, 200);
+  const raw = await res.text();
+  assert.doesNotMatch(raw, /privado/);
+  const data = parse(raw, { columns: true });
+  assert.deepEqual(data.map((r: Record<string, string>) => [r.sede, r.calificacion, r.comentario]), [
+    ["fit-belen", "", "0 reseñas"], ["jj-poblado", "1", "[texto] =1+1"],
+    ["power-laureles", "5", "Buen lugar"],
+  ]);
+  assert.deepEqual(consultaReporte.mock.calls.at(-1)?.arguments.slice(1, 6),
+    [null, null, null, null, ["jj-poblado", "power-laureles", "fit-belen"]]);
+});
+
+test("entrega PDF por sede y consolidado y verifica límites previos al adjunto", async () => {
+  for (const [actor, path, filename] of [
+    ["pdf-admin", "/gimnasio/jj-poblado/reporte.pdf", "resenas-jj-poblado.pdf"],
+    ["pdf-super", "/gimnasio/jj-poblado/reporte.pdf", "resenas-jj-poblado.pdf"],
+    ["pdf-super", "/reportes/consolidado.pdf", "resenas-consolidado.pdf"],
+  ] as const) {
+    consultaReporte.mock.mockImplementationOnce(async () => conFilas([{ ...fila, comentario: "Café, ñ; bien\nVolveré" }]));
+    const res = await reporte(actor, path);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "application/pdf");
+    assert.equal(res.headers.get("content-disposition"), `attachment; filename="${filename}"`);
+    assert.equal(res.headers.get("cache-control"), "private, no-store");
+    assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+    const bytes = Buffer.from(await res.arrayBuffer());
+    assert.equal(bytes.subarray(0, 5).toString(), "%PDF-");
+    assert.match(bytes.subarray(-32).toString(), /%%EOF/);
+    assert.deepEqual(consultaReporte.mock.calls.at(-1)?.arguments.slice(-3), [501, 500, 1024 * 1024]);
+  }
+  for (const estado of ["limite_filas", "limite_bytes"]) {
+    consultaReporte.mock.mockImplementationOnce(async () => [estadoConsulta(estado)]);
+    const res = await reporte("pdf-super", "/reportes/consolidado.pdf");
+    assert.equal(res.status, 422);
+    assert.equal(res.headers.get("content-disposition"), null);
+    await res.text();
+  }
+  consultaReporte.mock.mockImplementationOnce(async () => conFilas([{ ...fila, creado_en: new Date(NaN) }]));
+  const error = await reporte("pdf-super", "/reportes/consolidado.pdf");
+  assert.equal(error.status, 500);
+  assert.equal(error.headers.get("content-disposition"), null);
+  assert.doesNotMatch(await error.text(), /RangeError|Invalid time value/);
+});
+
+test("acota páginas y bytes del PDF sin truncar comentarios", async () => {
+  const secciones = [{ slug: "jj-poblado", nombre: "El Poblado", filas: [
+    { ...fila, comentario: "Reseña extensa.\n".repeat(180) },
+  ] }];
+  const completo = await generarPdfResenas(secciones, {}, false, 4 * 1024 * 1024);
+  assert.ok(completo);
+  assert.match(completo.toString("latin1"), /\/Count [2-9]/);
+  assert.equal(await generarPdfResenas(secciones, {}, false, 4 * 1024 * 1024, 1), null);
+  assert.equal(await generarPdfResenas(secciones, {}, false, 80), null);
+});
+
+test("detiene la escritura antes de encolar un fragmento que excede el límite", async (t) => {
+  const push = PDFDocument.prototype.push;
+  const presupuesto = 80;
+  let encolados = 0;
+  let maximoPendiente = 0;
+  t.mock.method(PDFDocument.prototype, "push", function (this: PDFDocument, parte: Buffer | null) {
+    const continuar = push.call(this, parte);
+    encolados += parte?.length ?? 0;
+    maximoPendiente = Math.max(maximoPendiente, this.readableLength);
+    return continuar;
+  });
+  const resultado = await generarPdfResenas([{ slug: fila.gym_slug, nombre: "El Poblado", filas: [
+    { ...fila, comentario: "Reseña extensa.\n".repeat(400) },
+  ] }], {}, false, presupuesto);
+  assert.equal(resultado, null);
+  assert.ok(encolados > 0 && encolados <= presupuesto, `Bytes encolados: ${encolados}`);
+  assert.ok(maximoPendiente <= presupuesto, `Búfer de lectura: ${maximoPendiente}`);
+});
+
+test("comparte una cuota entre sedes, consolidado y formatos", async () => {
+  const caminos = ["/gimnasio/jj-poblado/reporte.csv", "/gimnasio/jj-poblado/reporte.pdf",
+    "/reportes/consolidado.csv", "/reportes/consolidado.pdf"];
+  for (let i = 0; i < 11; i++) {
+    const res = await reporte("cuota-formatos", caminos[i % caminos.length]);
+    assert.equal(res.status, i < 10 ? 200 : 429);
+    await res.arrayBuffer();
+  }
 });

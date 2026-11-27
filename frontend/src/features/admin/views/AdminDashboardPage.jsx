@@ -10,12 +10,13 @@ import CreateAdminTab from "../components/CreateAdminTab";
 import ClientesSedeTab from "../components/ClientesSedeTab";
 import SubscriptionTab from "../components/SubscriptionTab";
 import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
 
 export default function AdminDashboardPage() {
   const dashboard = useAdminDashboard();
+  const [alcanceReporte, setAlcanceReporte] = useState("sede");
   const { profile } = useAuth();
   const esAdmin = profile?.tipo_usuario === "admin";
   const { sedes, nombreSede, sede, error: errorSedes } = useSedes();
@@ -28,6 +29,7 @@ export default function AdminDashboardPage() {
   const idsSedes = gimnasios.map((g) => g.id).join(",");
   const { gymSeleccionado, setGymSeleccionado } = dashboard;
   const sedeReporte = gimnasios.find(({ id }) => id === gymSeleccionado);
+  const consolidado = dashboard.esSuperAdmin && alcanceReporte === "consolidado";
 
   useEffect(() => {
     const ids = idsSedes ? idsSedes.split(",") : [];
@@ -37,6 +39,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="w-full max-w-[1060px] mx-auto px-6 pt-10 pb-20">
       <AdminHeader 
+        ocultarSelector={dashboard.tabActiva === "reportes-resenas" && consolidado}
         gymSeleccionado={dashboard.gymSeleccionado} 
         setGymSeleccionado={dashboard.setGymSeleccionado} 
         gimnasios={gimnasios} 
@@ -80,7 +83,10 @@ export default function AdminDashboardPage() {
       {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && <CreateAdminTab />}
 
       {dashboard.tabActiva === "reportes-resenas" && (esAdmin || dashboard.esSuperAdmin) && (
-        <ReviewsReportTab key={sedeReporte?.id ?? ""} sede={sedeReporte} errorSedes={errorSedes} />
+        <ReviewsReportTab
+          sede={sedeReporte} errorSedes={errorSedes} esSuperAdmin={dashboard.esSuperAdmin}
+          alcance={consolidado ? "consolidado" : "sede"} setAlcance={setAlcanceReporte}
+        />
       )}
 
       {dashboard.tabActiva === "suscripcion" && esAdmin && <SubscriptionTab />}
