@@ -5,6 +5,7 @@ import { Suspense, useEffect, useRef } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useTrainingSession } from "../hooks/useTrainingSession";
 import SetRow from "../components/SetRow";
+import TrainingExercisePicker from "../components/TrainingExercisePicker";
 
 const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
 
@@ -41,6 +42,15 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
         <p className="text-sm text-[#a9afa7]">Cargando...</p>
       </div>
     );
+  }
+
+  const nombresPorId = new Map(catalogo.flatMap((grupo) =>
+    grupo.ejercicios.map((ejercicio) => [String(ejercicio.id), ejercicio.nombre]),
+  ));
+  const filasPorEjercicio = new Map();
+  for (const fila of filas) {
+    if (!filasPorEjercicio.has(fila.ejercicioId)) filasPorEjercicio.set(fila.ejercicioId, []);
+    filasPorEjercicio.get(fila.ejercicioId).push(fila);
   }
 
   return (
@@ -115,26 +125,32 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
             </label>
           </div>
 
-          <div className="grid gap-3 mb-4">
-            {filas.map((fila) => (
-              <SetRow
-                key={fila.id}
-                fila={fila}
-                catalogo={catalogo}
-                onUpdate={actualizarFila}
-                onRemove={quitarFila}
-                canRemove={filas.length > 1}
-              />
-            ))}
-          </div>
+          <TrainingExercisePicker catalogo={catalogo} onAdd={agregarFila} />
 
-          <button
-            type="button"
-            onClick={agregarFila}
-            className="mb-6 px-4 py-2.5 border border-[#41463f] rounded-lg bg-transparent text-[#f2f4ef] text-[13px] font-bold cursor-pointer transition hover:border-[#b56cff] hover:text-[#d7adff]"
-          >
-            + Agregar serie
-          </button>
+          <section aria-labelledby="series-entrenamiento" className="mb-6 grid gap-3">
+            <h2 id="series-entrenamiento" className="text-base font-bold text-[#f2f4ef]">Series del entrenamiento ({filas.length})</h2>
+            {filas.length === 0 && <p className="text-sm text-[#a9afa7]">Agrega un ejercicio para registrar tu primera serie.</p>}
+            {Array.from(filasPorEjercicio, ([ejercicioId, series]) => {
+              const nombre = nombresPorId.get(ejercicioId);
+              const titulo = nombre ?? `Ejercicio no disponible (${ejercicioId})`;
+              return (
+                <fieldset key={ejercicioId} className="grid min-w-0 gap-2 rounded-lg border border-[#41463f] p-3">
+                  <legend className="px-1 text-sm font-bold text-[#f2f4ef]">{titulo}</legend>
+                  {series.map((fila, index) => (
+                    <SetRow key={fila.id} fila={fila} numero={index + 1} ejercicio={titulo}
+                      onUpdate={actualizarFila} onRemove={quitarFila} />
+                  ))}
+                  {nombre && (
+                    <button type="button" onClick={() => agregarFila(ejercicioId)}
+                      aria-label={`Agregar serie de ${nombre}`}
+                      className={`min-h-10 justify-self-start rounded-lg border border-[#41463f] px-3 py-2 text-sm font-bold text-[#f2f4ef] hover:border-[#b56cff] ${ESTILO_FOCO}`}>
+                      Agregar serie
+                    </button>
+                  )}
+                </fieldset>
+              );
+            })}
+          </section>
 
           <button
             type="submit"
