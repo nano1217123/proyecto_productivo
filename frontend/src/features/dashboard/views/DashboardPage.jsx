@@ -122,7 +122,7 @@ function MemberDashboard() {
       {esParticular && (
         <section
           className="w-full max-w-[1060px] mx-auto mb-[38px]"
-          aria-label="Panel de hábitos diarios"
+          aria-label="Mi progreso"
         >
           <DailyTrackerWidget />
         </section>
