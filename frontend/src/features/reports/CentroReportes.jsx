@@ -17,11 +17,11 @@ function ResenasAutorizadas({ perfil }) {
   const seleccionada = permisos.sedes.includes(preferida) ? preferida : permisos.sedes[0];
   const sede = seleccionada ? { id: seleccionada, nombre: nombreSede(seleccionada) } : undefined;
   return (
-    <div className="rounded-2xl border border-[#4f4a3c] bg-[#24221e] p-4 sm:p-6">
+    <div className="rounded-2xl border border-[#41433f] bg-[var(--surface)] p-4 sm:p-6">
       {alcance === "sede" && permisos.sedes.length > 0 && (
         <label className="mb-4 flex flex-wrap items-center gap-3 text-sm">Sede del reporte
           <select value={seleccionada} onChange={event => setPreferida(event.target.value)}
-            className="rounded-lg border border-[#77746c] bg-[#181714] px-3 py-2 focus-visible:outline-2 focus-visible:outline-[#e5c674]">
+            className="rounded-lg border border-[#41463f] bg-[#151714] px-3 py-2 focus-visible:outline-2 focus-visible:outline-[var(--lime)]">
             {permisos.sedes.map(slug => <option key={slug} value={slug}>{nombreSede(slug)}</option>)}
           </select>
         </label>
@@ -36,11 +36,11 @@ export default function CentroReportes() {
   const { profile, loading } = useAuth();
   const permisos = accesoReportes(profile);
   return (
-    <main className="min-h-screen bg-[#161512] px-5 py-8 text-[#f1eee5]">
+    <main className="min-h-screen bg-[#171817] px-5 py-8 text-[var(--ink)]">
       <div className="mx-auto max-w-5xl">
         <Link href="/dashboard" className={enlaceReporte}>Volver al panel</Link>
-        <header className="my-7 border-b border-[#806b3e] pb-5">
-          <h1 className="text-3xl font-bold text-[#e5c674] sm:text-4xl">Centro de reportes</h1>
+        <header className="my-7 border-b border-[var(--green-soft)] pb-5">
+          <h1 className="text-3xl font-bold text-[var(--lime)] sm:text-4xl">Centro de reportes</h1>
         </header>
         {loading ? <p role="status">Cargando permisos de reportes…</p>
           : !permisos.personales ? <p role="status">Necesitas una sesión habilitada para consultar reportes.</p>

@@ -1,8 +1,9 @@
 import type { FiltrosReporteResenas, SeccionReporteResenas } from "../types/resenas.types.js";
 
 const negro = "#181818";
-const dorado = "#D8B45A";
-const papel = "#F6F4EE";
+// El PDF se renderiza sin CSS. Usa --green-dark de globals.css.
+const morado = "#8441C6";
+const papel = "#F2F4EF";
 const fecha = new Intl.DateTimeFormat("es-CO", {
   dateStyle: "medium", timeStyle: "short", timeZone: "America/Bogota",
 });
@@ -74,7 +75,7 @@ export function dibujarReporteResenas(
   }
   function encabezado(alcance: string) {
     doc.rect(x, 48, ancho, 50).fill(negro);
-    doc.rect(x, 98, ancho, 3).fill(dorado);
+    doc.rect(x, 98, ancho, 3).fill(morado);
     texto("J&JGym", x + 12, 55, 21, "#FFFFFF");
     texto(alcance, x + 13, 82, 10, "#FFFFFF");
     y = 112;
