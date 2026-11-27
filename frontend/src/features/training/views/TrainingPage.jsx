@@ -1,31 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useTrainingSession } from "../hooks/useTrainingSession";
 import SetRow from "../components/SetRow";
 
-function nuevaFila() {
-  return {
-    id: crypto.randomUUID(),
-    ejercicioId: "",
-    repeticiones: "",
-    pesoKg: "",
-  };
-}
+const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
+
 function TrainingPageContent({ gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
   const {
-    catalogo, cargandoCatalogo,
+    catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
     notas, setNotas,
     filas, guardando, error, exito,
-    nombrePorId,
     actualizarFila, agregarFila, quitarFila,
     guardarEntrenamiento
   } = useTrainingSession();
-  if (loading || cargandoCatalogo) {
+  const catalogoDisponible = !errorCatalogo && !cargandoCatalogo;
+  // Tras un reintento exitoso el botón desaparece: lleva el foco al primer
+  // campo del formulario para no dejarlo en <body>.
+  const reintentoRef = useRef(false);
+  const fechaRef = useRef(null);
+
+  useEffect(() => {
+    if (!catalogoDisponible || !reintentoRef.current) return;
+    reintentoRef.current = false;
+    fechaRef.current?.focus();
+  }, [catalogoDisponible]);
+
+  function reintentarCatalogo() {
+    reintentoRef.current = true;
+    cargarCatalogo();
+  }
+
+  if (loading || (cargandoCatalogo && !errorCatalogo && catalogo.length === 0)) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
         <p className="text-sm text-[#a9afa7]">Cargando...</p>
@@ -58,14 +68,33 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
       </section>
 
       <section className="w-full max-w-[1060px] mx-auto pb-10">
-        {error && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
-        {exito && <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px]">{exito}</div>}
+        {errorCatalogo && (
+          <div className="p-[26px] border border-[rgba(255,121,121,0.32)] rounded-xl bg-[#212320]">
+            <p role="alert" className="m-0 mb-2 text-sm font-bold text-[#ff7979]">{errorCatalogo}</p>
+            <p className="m-0 mb-5 text-[13px] text-[#a9afa7]">
+              Sin el catálogo no puedes elegir ejercicios. Tu fecha, notas y series se conservan mientras reintentas.
+            </p>
+            <button
+              type="button"
+              onClick={reintentarCatalogo}
+              aria-disabled={cargandoCatalogo}
+              className={`px-4 py-2.5 border-0 rounded-lg bg-[#b56cff] text-[#10110f] text-[13px] font-extrabold cursor-pointer transition hover:bg-[#d7adff] aria-disabled:opacity-60 aria-disabled:cursor-wait ${ESTILO_FOCO}`}
+            >
+              {cargandoCatalogo ? "Cargando catálogo..." : "Reintentar carga del catálogo"}
+            </button>
+          </div>
+        )}
 
+        {catalogoDisponible && error && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
+        {catalogoDisponible && exito && <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#321d47] text-[#d7adff] text-[13px]">{exito}</div>}
+
+        {catalogoDisponible && (
         <form onSubmit={guardarEntrenamiento} className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-[15px] mb-6">
             <label className="text-xs font-bold text-[#c0c7bd]">
               Fecha
               <input
+                ref={fechaRef}
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
@@ -115,6 +144,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
             {guardando ? "Guardando..." : "Guardar entrenamiento"}
           </button>
         </form>
+        )}
       </section>
     </main>
   );
