@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { trainingApi } from "../api/trainingApi";
+import ReportesPersonales from "../components/ReportesPersonales";
 
 export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
   const { loading, logout } = useAuth();
@@ -74,6 +75,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
           </button>
         </div>
       </header>
+      <div className="mx-auto max-w-[1060px]"><ReportesPersonales /></div>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>&larr; Inicio</Link>

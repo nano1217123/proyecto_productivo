@@ -1,10 +1,10 @@
 import type { FilaReporteResenas } from "../types/resenas.types.js";
 
-function escaparTexto(valor: string): string {
+export function escaparTexto(valor: string): string {
   return '"' + valor.replaceAll('"', '""') + '"';
 }
 
-function prefijoComentario(comentario: string): string {
+export function prefijoComentario(comentario: string): string {
   const posibleFormula = /^[\s']*[=+\-@＝＋－＠﹦﹢﹣﹫]/u.test(comentario) ||
     /^[\s']*[\p{Cc}\p{Cf}]/u.test(comentario);
   // La marca es visible y forma parte del texto de la celda.
