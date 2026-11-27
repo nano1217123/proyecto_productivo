@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import RoutineExercisePicker from "../components/RoutineExercisePicker";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useRoutineForm } from "../hooks/useRoutineForm";
 
 export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
-  const { user, loading, logout } = useAuth();
+  const { loading, logout } = useAuth();
   const {
     esEdicion, catalogo, cargandoDatos,
     nombre, setNombre,
     diaEtiqueta, setDiaEtiqueta,
-    seleccionados, ejercicioAAgregar, setEjercicioAAgregar,
+    seleccionados,
     guardando, error,
     agregarEjercicio, quitarEjercicio, moverEjercicio,
     guardarRutina
@@ -72,30 +72,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
             </label>
           </div>
 
-          <p className="text-xs font-bold text-[#c0c7bd] mb-2">Ejercicios de la rutina</p>
-          <div className="flex gap-3 mb-4">
-            <select
-              value={ejercicioAAgregar}
-              onChange={(e) => setEjercicioAAgregar(e.target.value)}
-              className="flex-1 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff]"
-            >
-              <option value="">Selecciona un ejercicio para agregar</option>
-              {catalogo.map((grupo) => (
-                <optgroup key={grupo.slug} label={grupo.nombre}>
-                  {grupo.ejercicios.map((ej) => (
-                    <option key={ej.id} value={ej.id}>{ej.nombre}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={agregarEjercicio}
-              className="px-4 py-2.5 border border-[#41463f] rounded-lg bg-transparent text-[#f2f4ef] text-[13px] font-bold cursor-pointer transition hover:border-[#b56cff] hover:text-[#d7adff]"
-            >
-              + Agregar
-            </button>
-          </div>
+          <RoutineExercisePicker catalogo={catalogo} agregarEjercicio={agregarEjercicio} />
 
           <div className="grid gap-2 mb-6">
             {seleccionados.length === 0 && (
