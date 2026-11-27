@@ -22,3 +22,24 @@ Sin la referencia, cada lanzador conserva el modo de desarrollo anterior.
 En esta estación, ese modo del backend lee la configuración habitual, que
 apunta a development. Mantener la referencia para trabajar en ensayo.
 Los scripts de producción permanecen independientes de la referencia.
+
+## Recuperación de contraseña
+
+El lanzador habitual de ensayo deja vacía `RESEND_API_KEY`. Este modo no envía
+correos de recuperación. La respuesta HTTP sigue siendo genérica para
+proteger la existencia de las cuentas. El registro de recuperación indica
+solo si el envío está desactivado, si el proveedor aceptó o rechazó la
+solicitud, o si hubo un error de transporte. No registra datos del destinatario,
+enlaces, tokens ni el cuerpo devuelto por el proveedor.
+
+### Prueba de correo controlada (propuesta)
+
+Un futuro comando separado requerirá autorización explícita para un ensayo
+concreto, verificación del endpoint y Branch ID de ensayo, una credencial
+dedicada de Resend obtenida de un gestor de secretos y un remitente de un
+dominio verificado. Antes de habilitar el envío, deberá validar una lista
+explícita de destinatarios QA permitidos y una URL de retorno de ensayo.
+Cualquier requisito ausente cancelará el arranque. El proceso tendrá una
+vigencia acotada y conservará la respuesta genérica. Una aceptación de
+Resend confirma recepción por el proveedor. La entrega al buzón deberá
+verificarse por separado. Esta opción aún no está implementada ni habilitada.
