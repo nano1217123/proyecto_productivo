@@ -26,12 +26,15 @@ export const crearMetrica = async (usuarioId: string, data: MetricasValidadas) =
 export const obtenerMetricasHoy = async (usuarioId: string) => {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  
+  const manana = new Date(hoy);
+  manana.setDate(manana.getDate() + 1);
+
   return await prisma.metricaDiaria.findFirst({
     where: {
       usuarioId,
-      fecha: { gte: hoy }
+      fecha: { gte: hoy, lt: manana }
     },
+    orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
     select: metricaPublica,
   });
 };
