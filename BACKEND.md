@@ -16,8 +16,9 @@ sobre:
 - **bcryptjs** (12 rondas) para contraseñas y códigos OTP.
 - **Resend** como proveedor de correo transaccional.
 
-Supabase ya no participa en el backend. El frontend aún no se ha
-migrado (sigue usando `supabase-js`); se hará en una fase posterior.
+Supabase ya no participa en el proyecto. El frontend llama al backend
+mediante `frontend/src/lib/api/httpClient.js`. La guía de arranque está en
+[`README.md`](./README.md).
 
 ## 2. Stack
 
@@ -205,6 +206,11 @@ routes → controller → service → repository → Prisma → Neon
 
 ## 8. Variables de entorno
 
+La lista completa y comentada está en
+[`backend/.env.example`](./backend/.env.example). `src/config/env.ts` detiene
+el arranque si falta alguna de las variables obligatorias, incluidas las de
+Google OAuth y Cloudinary. Extracto:
+
 ```env
 PORT=4000
 CLIENT_ORIGIN=http://localhost:3000
@@ -219,7 +225,19 @@ REFRESH_TOKEN_EXPIRES_IN=7d
 
 RESEND_API_KEY=<api key>
 EMAIL_FROM=GymPlataforma <noreply@gymplataform.lat>
+
+GOOGLE_CLIENT_ID=<client id>
+GOOGLE_CLIENT_SECRET=<client secret>
+GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/oauth/google/callback
+
+CLOUDINARY_CLOUD_NAME=<cloud name>
+CLOUDINARY_API_KEY=<api key>
+CLOUDINARY_API_SECRET=<api secret>
 ```
+
+`DATABASE_URL` y `DIRECT_URL` determinan la base que usa el backend. Antes de
+arrancar o de ejecutar Prisma CLI, confirma que apuntan a una base aislada y
+no a las ramas compartidas de Neon (`development`, `production`).
 
 ## 9. Dependencias añadidas
 
@@ -259,17 +277,17 @@ npx tsx scripts/asignar-super-admin.ts --correo persona@ejemplo.com   --confirma
 ## 12. Comandos útiles
 
 ```bash
+# Generar el cliente Prisma (necesario antes del primer arranque; no usa la base)
+npx prisma generate
+
 # Desarrollo
 npm run dev
 
 # Typecheck
 npm run typecheck
 
-# Migración nueva
+# Migración nueva (usa DIRECT_URL: solo contra una base aislada)
 npx prisma migrate dev --name <nombre>
-
-# Regenerar cliente Prisma
-npx prisma generate
 
 # Ver migraciones aplicadas
 npx prisma migrate status

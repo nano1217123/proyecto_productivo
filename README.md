@@ -1,93 +1,160 @@
-> **Nota (2026-10-15):** El backend migró de Supabase Auth a un
-> sistema de autenticación propio con Neon + Prisma + JWT. La
-> documentación técnica del backend está en [`BACKEND.md`](./BACKEND.md).
-> El `README.md` describe el estado del frontend, que aún no se ha
-> migrado.
+# J&JGym V2.0
 
-# Módulo de autenticación — Next.js + Node.js + Supabase
+Plataforma web para gimnasios: registro e inicio de sesión, entrenamientos,
+rutinas, catálogo de ejercicios, seguimiento del usuario particular, sedes y
+roles, reseñas y pagos con Wompi (Sandbox).
 
-Registro con verificación por código de 6 dígitos, login, contraseñas
-cifradas (gestionadas por Supabase Auth), y una tabla `usuarios` con
-seguimiento de suscripción.
+Esta guía explica cómo arrancar el proyecto después de clonarlo. La
+documentación técnica del backend está en [`BACKEND.md`](./BACKEND.md).
 
-## Requisitos previos (ya deberías tenerlos hechos)
+## Stack
 
-1. Proyecto creado en [supabase.com](https://supabase.com).
-2. Tabla `usuarios` creada con el script SQL (ver `supabase-schema.sql`).
-3. SMTP personalizado conectado (ej. Resend) en Authentication → Emails.
-4. Plantilla "Confirm signup" editada para usar `{{ .Token }}` (código de
-   6 dígitos) en vez de `{{ .ConfirmationURL }}`.
+| Parte | Tecnología |
+|---|---|
+| Frontend (`frontend/`) | Next.js 16 (App Router), React 19, JavaScript |
+| Backend (`backend/`) | Node.js, Express 4, TypeScript (se ejecuta con `tsx` en desarrollo) |
+| Base de datos | PostgreSQL en Neon, con Prisma 7 y `@prisma/adapter-neon` |
+| Autenticación | Propia: JWT en cookies httpOnly y refresh tokens rotativos |
+
+Arquitectura del backend: `routes → controller → service → repository →
+Prisma`. En el frontend, las vistas llaman a la API de cada módulo
+(`src/features/<módulo>/api`), que reutiliza
+[`frontend/src/lib/api/httpClient.js`](./frontend/src/lib/api/httpClient.js).
+
+## Requisitos
+
+- **Node.js** compatible con las dependencias: Next.js 16 pide `>=20.9.0` y
+  Prisma 7 pide `^20.19 || ^22.12 || >=24.0`. Los `package.json` no declaran
+  `engines`; los `Dockerfile` usan Node 20.
+- **npm** (los dos paquetes incluyen `package-lock.json`).
+- Una **base de datos de destino conocida** para el backend (ver
+  [Base de datos](#base-de-datos-qué-conecta-el-backend)).
 
 ## 1. Backend
 
 ```bash
 cd backend
-npm install
-cp .env.example .env
-# Completa SUPABASE_URL y SUPABASE_SECRET_KEY con tus valores reales
-npm run dev
+npm ci
+cp .env.example .env      # completa .env con tus valores (no lo subas a Git)
+npx prisma generate       # genera el cliente en src/generated/prisma (ignorado por Git)
+npm run dev               # tsx watch src/server.ts → http://localhost:4000
 ```
+
+- `npx prisma generate` no se conecta a la base: lee `prisma/schema.prisma`
+  mediante `prisma7.config.ts`. Repítelo cuando cambie el esquema. Sin este
+  paso el backend no compila ni arranca.
+- Variables en [`backend/.env.example`](./backend/.env.example). El backend
+  **no arranca** si falta alguna de estas: `DATABASE_URL`, `DIRECT_URL`,
+  `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+  `GOOGLE_REDIRECT_URI`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y
+  `CLOUDINARY_API_SECRET`.
+- `PORT` vale `4000` por defecto. `CLIENT_ORIGIN` (CORS) y `FRONTEND_URL`
+  valen `http://localhost:3000` por defecto; en producción `CLIENT_ORIGIN`
+  es obligatorio.
+- Opcionales: `RESEND_API_KEY` (correo), `RECAPTCHA_SECRET_KEY` (sin ella la
+  verificación de reCAPTCHA queda desactivada) y las variables de Wompi.
+  Sin las llaves de Wompi o sin `USD_COP_TASA`, el servidor arranca y los
+  endpoints de pago responden 503.
+
+Otros comandos (`backend/package.json`):
+
+| Comando | Qué hace |
+|---|---|
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run build` | Compila a `dist/` |
+| `npm start` | Ejecuta `dist/server.js` |
 
 ## 2. Frontend
 
 ```bash
 cd frontend
-npm install
+npm ci
 cp .env.local.example .env.local
-# Completa NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-npm run dev
+npm run dev               # next dev → http://localhost:3000
 ```
 
-## 3. Flujo completo
+Variables en [`frontend/.env.local.example`](./frontend/.env.local.example):
 
-1. `/register` → el usuario ingresa nombres, apellidos, correo y
-   contraseña. Supabase crea el registro en `auth.users` (contraseña
-   cifrada automáticamente) y el trigger de la base de datos crea la
-   fila correspondiente en `public.usuarios`.
-2. Supabase envía un correo con un código de 6 dígitos.
-3. `/verify-otp` → el usuario ingresa el código. Se confirma su cuenta.
-4. `/login` → inicio de sesión normal con email + contraseña.
-5. `/dashboard` → muestra los datos del perfil, incluyendo si la
-   suscripción sigue activa según `tiempo_duracion_inscripcion`.
+- **`BACKEND_URL`** (por defecto `http://localhost:4000`): destino de las
+  peticiones del frontend. El navegador llama siempre a `/api/...` en el
+  dominio del frontend y Next.js las reenvía a `BACKEND_URL`
+  ([`next.config.js`](./frontend/next.config.js)); el
+  [`proxy.js`](./frontend/src/proxy.js) lo usa también para validar la
+  sesión en `/dashboard`. Las reescrituras se calculan al arrancar
+  `next dev` o al ejecutar `next build`: si cambias la variable, reinicia o
+  vuelve a compilar. `NEXT_PUBLIC_API_URL` solo se usa como respaldo
+  heredado.
+- **`NEXT_PUBLIC_RECAPTCHA_SITE_KEY`**: clave pública de reCAPTCHA v3
+  (ver la sección de reCAPTCHA en `BACKEND.md`).
 
-## Por qué ya no hay bcrypt ni JWT manual
+`BACKEND_URL` solo decide a qué backend habla el frontend. **No decide qué
+base de datos usa ese backend**: eso depende del `.env` del backend.
 
-Supabase Auth (el servicio `auth.users`) ya hace esto internamente:
+Comandos: `npm run dev`, `npm run build`, `npm start`.
 
-- Cifra las contraseñas con un algoritmo seguro antes de guardarlas —
-  nunca las ves ni las tocas tú.
-- Genera y verifica el código de 6 dígitos.
-- Firma y valida los JWT de sesión.
-- Renueva la sesión automáticamente en el frontend (`supabase-js` lo
-  hace solo).
+## Base de datos: qué conecta el backend
 
-El backend Node.js ahora solo se usa para lógica adicional que
-necesite privilegios de administrador (ver `routes/perfil.routes.js`
-como ejemplo) — verifica el token de sesión con
-`supabaseAdmin.auth.getUser(token)`.
+El backend se conecta a la base indicada en `DATABASE_URL` (consultas de la
+aplicación) y Prisma CLI usa `DIRECT_URL` (migraciones y otros comandos).
+Comprueba el destino de ambas antes de arrancar.
 
-## Sobre `tiempo_duracion_inscripcion`
+### Verificar el destino antes de arrancar
 
-Es un campo tipo `interval` de PostgreSQL (ej. `30 days`). Representa
-cuánto dura la suscripción del usuario desde que se registró. Para
-saber si sigue activa:
+Desde `backend/`, después de completar `.env` y **antes** de `npm run dev`,
+muestra el host y la base de cada URL sin imprimir usuario ni contraseña:
 
-```
-activa = (tiempo_registrado + tiempo_duracion_inscripcion) > ahora()
+```bash
+node -e "require('dotenv').config({ quiet: true }); for (const k of ['DATABASE_URL', 'DIRECT_URL']) { try { const u = new URL(process.env[k]); console.log(k, '->', u.host, u.pathname.slice(1)); } catch { console.log(k, '-> no definida o inválida'); } }"
 ```
 
-Esto ya está calculado en `frontend/app/dashboard/page.jsx`. Si más
-adelante quieres renovar la suscripción manualmente, puedes actualizar
-`tiempo_registrado` a la fecha de renovación, o cambiar
-`tiempo_duracion_inscripcion` a un valor mayor.
+Interpreta el resultado así:
 
-## Siguientes pasos sugeridos
+- `127.0.0.1` o `localhost`: base local.
+- Un host `ep-…neon.tech`: un endpoint de Neon. Compáralo con el endpoint que
+  muestra la consola de Neon para cada rama. Si coincide con `development` o
+  `production`, es una base compartida: no arranques el backend sin
+  autorización del equipo.
+- `no definida o inválida`: corrige `.env` (el backend tampoco arrancaría).
 
-1. **Recuperar contraseña**: Supabase ya soporta
-   `supabase.auth.resetPasswordForEmail(email)` — se puede agregar una
-   página `/forgot-password` con el mismo patrón que `login`.
-2. **Tipos de usuario**: usa la columna `tipo_usuario` para mostrar u
-   ocultar funciones según el plan (ej. `'estandar'`, `'premium'`).
-3. **Panel de administrador**: usa `supabaseAdmin` en el backend para
-   listar todos los usuarios y gestionar sus suscripciones sin
-   restricciones de RLS.
+No compartas el contenido de `.env` ni la salida de comandos que impriman la
+URL completa.
+
+- **Neon `development` y `production` son bases compartidas del equipo.** Un
+  backend cuyo `.env` apunta a ellas puede abrir conexiones y escribir en
+  esos datos en cuanto recibe peticiones (registro, entrenamientos,
+  pagos…). Úsalas solo con autorización del equipo.
+- **Base aislada** (recomendada para desarrollar y probar): una rama de Neon
+  propia o desechable, o un PostgreSQL local. El cliente usa el driver
+  serverless de Neon (`@prisma/adapter-neon`); para un PostgreSQL local hace
+  falta un proxy compatible con ese driver, que **no está incluido** en el
+  repositorio.
+- No ejecutes `npx prisma migrate dev` ni `migrate deploy` contra una base
+  compartida. Las migraciones de `backend/prisma/migrations` describen el
+  esquema versionado, pero no indican qué se aplicó en cada rama de Neon.
+
+## Estado de algunos módulos
+
+- **Pagos (Wompi, solo Sandbox):** una transacción aprobada confirma el pago
+  en el backend. La activación y la vigencia de las suscripciones siguen
+  pendientes (ver `BACKEND.md`, sección 14).
+- **Métricas diarias del usuario particular:** la bandera
+  `PARTICULAR_METRICAS_DIARIAS` está desactivada por defecto (solo se activa
+  con el valor `true`). Su expansión de esquema está documentada en
+  [`backend/scripts/metricas/README.md`](./backend/scripts/metricas/README.md)
+  y sus scripts no deben ejecutarse en Neon ni en otras bases compartidas.
+
+## Herramientas personales (fuera del repositorio)
+
+Algunos integrantes usan scripts propios en `~/.jjgym` para preparar su
+entorno local. **No forman parte del repositorio** y no son necesarios para
+seguir esta guía. No subas a Git sus rutas, credenciales ni URLs privadas.
+
+## Documentación
+
+- [`BACKEND.md`](./BACKEND.md): arquitectura, endpoints, seguridad, roles y
+  sedes.
+- [`backend/scripts/metricas/README.md`](./backend/scripts/metricas/README.md):
+  expansión de métricas diarias.
+- [`DOCUMENTACION-PROYECTO.md`](./DOCUMENTACION-PROYECTO.md) y
+  [`docs/legacy/`](./docs/legacy/): **referencia histórica** de la versión
+  anterior basada en Supabase. Sus instrucciones ya no aplican.
