@@ -243,3 +243,29 @@ test("la consulta tras el conflicto admite reintento e ignora respuestas fuera d
   assert.equal(tracker.getSnapshot().habits.water, 8);
   assert.equal(tracker.getSnapshot().conflicto, null);
 });
+
+// Regresión de «Mi progreso»: la vista solo edita el peso y nunca debe
+// reemplazar los valores cargados de agua y entrenamiento.
+test("modo anterior: cambiar solo el peso reenvía el agua y el entrenamiento cargados", async () => {
+  const cargada = { pesoActualKg: 70, vasosAgua: 6, entrenamientoCompletado: true };
+  const guardar = mock.fn(async (datos) => respuesta({ ...cargada, ...datos }));
+  const tracker = createDailyMetricsState({ cargar: async () => respuesta(cargada), guardar });
+  await tracker.recargar();
+  tracker.editar("weight", "71.5");
+  await tracker.guardarCambios();
+  assert.deepEqual(guardar.mock.calls[0].arguments, [
+    { pesoActualKg: 71.5, vasosAgua: 6, entrenamientoCompletado: true },
+  ]);
+  assert.deepEqual(tracker.getSnapshot().habits, { weight: "71.5", water: 6, workoutDone: true });
+});
+
+test("modo diario: cambiar solo el peso envía únicamente pesoActualKg y diaEsperado", async () => {
+  const cargada = { pesoActualKg: 70, vasosAgua: 6, entrenamientoCompletado: true };
+  const guardar = mock.fn(async (datos) => respuesta({ ...cargada, pesoActualKg: datos.pesoActualKg }));
+  const tracker = createDailyMetricsState({ cargar: async () => diario(cargada), guardar });
+  await tracker.recargar();
+  tracker.editar("weight", "71.5");
+  await tracker.guardarCambios();
+  assert.deepEqual(guardar.mock.calls[0].arguments, [{ diaEsperado: dia, pesoActualKg: 71.5 }]);
+  assert.deepEqual(tracker.getSnapshot().habits, { weight: "71.5", water: 6, workoutDone: true });
+});
