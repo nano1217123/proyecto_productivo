@@ -121,9 +121,30 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
           }
         }
       } else {
-        // Modo normal: usa el archivo estático directamente sin peticiones de red
+        // Modo gimnasio: los ejercicios salen del catálogo de la API (con su
+        // id e imagen_url), como en casa. Las tarjetas estáticas sin
+        // equivalente exacto en la API se conservan al final. Si la API falla
+        // o no tiene el grupo, se usa el archivo estático como antes.
         const staticGroup = muscleGroupBySlug[groupSlug];
-        setGroupData(staticGroup || null);
+        try {
+          const catalogo = await exercisesApi.getExerciseCatalog();
+          if (cancelled) return;
+          const found = Array.isArray(catalogo) ? catalogo.find((g) => g.slug === groupSlug) : null;
+          const ejerciciosApi = found?.ejercicios || found?.exercises || [];
+          if (!staticGroup || ejerciciosApi.length === 0) {
+            setGroupData(staticGroup || null);
+            return;
+          }
+          const desdeApi = ejerciciosApi.map((ej) => mapBackendExercise(ej, staticGroup.exercises));
+          const nombresApi = new Set(desdeApi.map((e) => slugify(e.name)));
+          setGroupData({
+            ...staticGroup,
+            exercises: [...desdeApi, ...staticGroup.exercises.filter((s) => !nombresApi.has(slugify(s.name)))],
+          });
+        } catch (err) {
+          console.error("Error al cargar el catálogo; se usa la lista estática:", err);
+          if (!cancelled) setGroupData(staticGroup || null);
+        }
       }
     }
 
@@ -148,7 +169,9 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     if (!groupData || restoredFromUrl) return;
     const slug = searchParams.get("ejercicio");
     if (slug) {
-      const match = groupData.exercises.find((exercise) => slugify(exercise.name) === slug);
+      const match =
+        groupData.exercises.find((exercise) => claveUrl(exercise) === slug) ||
+        groupData.exercises.find((exercise) => slugify(exercise.name) === slug);
       if (match) setSelected(match);
     }
     setRestoredFromUrl(true);
@@ -168,12 +191,20 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
 
   const imagenes = useExerciseImages(groupSlug);
 
+  // Un ejercicio de la API (con id) solo usa su propia imagen: nunca la de
+  // otro ejercicio con el mismo nombre. La búsqueda por nombre queda para
+  // las tarjetas estáticas.
   const getExerciseImage = (exercise) =>
-    exercise?.imagenUrl || imagenes[slugify(exercise?.name || "")] || imagenes[exercise?.slug];
+    exercise?.id != null
+      ? exercise.imagenUrl || null
+      : exercise?.imagenUrl || imagenes[slugify(exercise?.name || "")] || imagenes[exercise?.slug];
+
+  // Identificador del ejercicio en la URL: el slug de la API si existe.
+  const claveUrl = (exercise) => exercise?.slug || slugify(exercise?.name || "");
 
   function syncUrl(exerciseOrNull) {
     const params = new URLSearchParams(searchParams.toString());
-    if (exerciseOrNull) params.set("ejercicio", slugify(exerciseOrNull.name));
+    if (exerciseOrNull) params.set("ejercicio", claveUrl(exerciseOrNull));
     else params.delete("ejercicio");
     const query = params.toString();
     window.history.replaceState(null, "", query ? `${pathname}?${query}` : pathname);
@@ -286,10 +317,11 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
         ) : (
           groupData.exercises.map((exercise, index) => {
             const imgSrc = getExerciseImage(exercise);
+            const nombreRepetido = groupData.exercises.filter((e) => e.name === exercise.name).length > 1;
             return (
               <button
                 className="group relative flex flex-col items-start border border-[#41433f] rounded-lg bg-[#212320] text-left text-[#f2f4ef] cursor-pointer transition hover:border-[var(--accent)] hover:bg-[#292b28] hover:-translate-y-1 overflow-hidden"
-                key={exercise.name}
+                key={exercise.id ?? `estatico-${exercise.name}`}
                 type="button"
                 style={{ "--accent": groupData.accent }}
                 onClick={() => openExercise(exercise)}
@@ -308,6 +340,7 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
                   </span>
                   <h2 className="m-0 text-[17px]">{exercise.name}</h2>
                   <p className="m-0 text-[12.5px] text-[#a9afa7]">{exercise.primary}</p>
+                  {nombreRepetido && <p className="m-0 text-[12px] text-[#c8cbc5]">{exercise.equipment}</p>}
                   <span className="mt-auto pt-2.5 inline-flex items-center gap-2 text-[12.5px] font-extrabold text-[var(--accent)]">
                     Ver detalle <b aria-hidden="true">&rarr;</b>
                   </span>
