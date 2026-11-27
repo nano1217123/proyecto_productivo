@@ -12,7 +12,6 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
   const [nombre, setNombre] = useState("");
   const [diaEtiqueta, setDiaEtiqueta] = useState("");
   const [seleccionados, setSeleccionados] = useState([]);
-  const [ejercicioAAgregar, setEjercicioAAgregar] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,15 +36,8 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
     cargar();
   }, [rutinaId, esEdicion]);
 
-  const nombrePorId = new Map();
-  for (const grupo of catalogo) {
-    for (const ej of grupo.ejercicios) nombrePorId.set(String(ej.id), ej.nombre);
-  }
-
-  function agregarEjercicio() {
-    if (!ejercicioAAgregar) return;
-    setSeleccionados((prev) => [...prev, { ejercicio_id: Number(ejercicioAAgregar), nombre: nombrePorId.get(ejercicioAAgregar) }]);
-    setEjercicioAAgregar("");
+  function agregarEjercicio(ejercicio) {
+    setSeleccionados((prev) => [...prev, { ejercicio_id: Number(ejercicio.id), nombre: ejercicio.nombre }]);
   }
 
   function quitarEjercicio(idx) {
@@ -90,7 +82,7 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
     esEdicion, catalogo, cargandoDatos,
     nombre, setNombre,
     diaEtiqueta, setDiaEtiqueta,
-    seleccionados, ejercicioAAgregar, setEjercicioAAgregar,
+    seleccionados,
     guardando, error,
     agregarEjercicio, quitarEjercicio, moverEjercicio,
     guardarRutina
