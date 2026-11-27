@@ -1,5 +1,7 @@
 "use client";
 
+import { enlaceReporte } from "@/src/features/reports/ReportActions";
+
 import Link from "next/link";
 import { Suspense } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
@@ -75,6 +77,9 @@ function MemberDashboard() {
           Cerrar sesion
         </button>
       </header>
+      <nav aria-label="Reportes" className="mx-auto mt-5 w-full max-w-[1060px]">
+        <Link href="/dashboard/reportes" className={enlaceReporte}>Centro de reportes</Link>
+      </nav>
 
       <section
         className="w-full max-w-[1060px] mx-auto pt-[78px] pb-[32px] [&_h1]:m-0 [&_h1]:text-[clamp(36px,6vw,62px)] [&_h1]:tracking-[-2px] [&_h1]:leading-none [&_p:not(.gym-kicker)]:max-w-[450px] [&_p:not(.gym-kicker)]:mt-[18px] [&_p:not(.gym-kicker)]:text-base [&_p:not(.gym-kicker)]:leading-[1.55] [&_p:not(.gym-kicker)]:text-[#a9afa7]"

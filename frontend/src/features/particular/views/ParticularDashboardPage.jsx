@@ -1,6 +1,7 @@
 'use client';
 import { useRef } from 'react';
 import Link from 'next/link';
+import { enlaceReporte } from "@/src/features/reports/ReportActions";
 import { useDailyMetrics } from '../hooks/useDailyMetrics.js';
 import DailyMetricsConflict from '../components/DailyMetricsConflict.jsx';
 
@@ -15,6 +16,9 @@ export default function ParticularDashboardPage() {
         <h1 className="text-3xl font-bold mb-2">Modo Autónomo</h1>
         <p className="text-gray-400">Gestiona tu salud sin necesidad de un gimnasio físico.</p>
       </header>
+      <Link href="/dashboard/reportes" className={enlaceReporte}>
+        Centro de reportes
+      </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-[#121214] p-6 rounded-2xl border border-gray-800 relative">

@@ -34,16 +34,16 @@ function ForgotPasswordForm() {
       <div className="w-full max-w-[410px] p-[38px_34px_32px] border border-[#383c35] rounded-[18px] bg-[rgba(28,30,27,0.95)] shadow-[0_22px_54px_rgba(0,0,0,0.42)]">
         <h1 className="m-0 mb-2 text-[27px] font-bold tracking-[-0.7px]">Recuperar contraseña</h1>
         <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">
-          Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
+          Ingresa tu correo para solicitar un enlace de restablecimiento.
         </p>
 
         {error && <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
 
         {sent ? (
-          <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#251833] text-[#d7adff] text-[13px] leading-[1.5]">
-            Si <strong>{email}</strong> está registrado, te enviamos un correo con
-            instrucciones para restablecer tu contraseña. Revisa también tu carpeta
-            de spam.
+          <div role="status" className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#251833] text-[#d7adff] text-[13px] leading-[1.5]">
+            Solicitud recibida. El correo solo se enviará si la cuenta existe,
+            tiene el correo verificado y el envío está habilitado. Si corresponde,
+            revisa también tu carpeta de spam.
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

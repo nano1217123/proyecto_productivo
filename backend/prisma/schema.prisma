@@ -287,3 +287,22 @@ model AuditoriaRol {
   @@index([creadoEn])
   @@map("auditoria_roles")
 }
+
+model AuditoriaReporte {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitudId  String   @map("solicitud_id") @db.Uuid
+  // Identidad opaca retenida aunque se elimine la cuenta.
+  actorId      String   @map("actor_id") @db.Uuid
+  tipoReporte  String   @map("tipo_reporte") @db.VarChar(20)
+  formato      String   @db.VarChar(3)
+  alcance      String?  @db.VarChar(12)
+  sedeSlug     String?  @map("sede_slug") @db.VarChar(64)
+  ocurridoEn   DateTime @map("ocurrido_en") @db.Timestamptz(6)
+  evento       String   @db.VarChar(24)
+  resultado    String   @db.VarChar(32)
+
+  @@unique([solicitudId, evento])
+  @@index([actorId, ocurridoEn])
+  @@index([ocurridoEn])
+  @@map("auditoria_reportes")
+}

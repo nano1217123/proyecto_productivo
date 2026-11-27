@@ -372,7 +372,9 @@ export function createAuthService(
             "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.",
         };
       } catch (error: unknown) {
-        return toAppError(error);
+        if (error instanceof AppError) throw error;
+        console.error("[auth.password_reset] error_al_preparar_solicitud");
+        throw new AppError(500, "Ocurrió un error al procesar tu solicitud. Por favor intenta de nuevo.");
       }
     },
 

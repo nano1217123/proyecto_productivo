@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-import { crearDescargaResenas, obtenerReporteResenas } from "./reviewsReportApi.js";
+import { crearDescargaResenas, obtenerReporteResenas, obtenerReporteMembresias } from "./reviewsReportApi.js";
+
+test("descarga membresías por sede y consolidadas mediante las rutas respectivas", async (t) => {
+  const peticiones = t.mock.method(globalThis, "fetch", async (_url, opciones) =>
+    new Response(opciones.headers.Accept === "application/pdf" ? "%PDF-1.7" : "sede,miembro", {
+      headers: { "content-type": opciones.headers.Accept },
+    }));
+  const csv = await obtenerReporteMembresias({ gymSlug: "jj-poblado", desde: "2026-11-27" });
+  const pdf = await obtenerReporteMembresias({ alcance: "consolidado", formato: "pdf" });
+  assert.equal(csv.nombre, "membresias-jj-poblado.csv");
+  assert.equal(pdf.nombre, "membresias-consolidado.pdf");
+  assert.deepEqual(peticiones.mock.calls.map(c => c.arguments[0]), [
+    "/api/reportes/membresias/sede/jj-poblado.csv?desde=2026-11-27",
+    "/api/reportes/membresias/consolidado.pdf",
+  ]);
+});
 
 test("las respuestas incompletas o inválidas no generan una descarga ni un aviso de éxito", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch", async () => new Response(null));

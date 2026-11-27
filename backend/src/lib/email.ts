@@ -54,45 +54,38 @@ export async function sendPasswordResetEmail(
   ttlMinutes: number
 ): Promise<boolean> {
   if (!env.resendApiKey) {
-    if (!env.isProduction) {
-      console.log(`[DEV] URL de recuperación para ${to}: ${resetUrl}`);
-      return true;
-    }
-    console.error("RESEND_API_KEY no configurada: no se envió el correo.");
+    console.info("[auth.password_reset.email] envio_desactivado");
     return false;
   }
 
   try {
-  console.log(`[EMAIL] Enviando reset a ${to} con from="${env.emailFrom}"`);
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: env.emailFrom,
-      to,
-      reply_to: "soporte@gymplataform.lat",
-      subject: "Recupera tu contraseña",
-      html: `<p>Hola ${nombres},</p>
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.emailFrom,
+        to,
+        reply_to: "soporte@gymplataform.lat",
+        subject: "Recupera tu contraseña",
+        html: `<p>Hola ${nombres},</p>
 <p>Recibimos una solicitud para restablecer tu contraseña.</p>
 <p><a href="${resetUrl}">Restablecer contraseña</a></p>
 <p>O copia este enlace: ${resetUrl}</p>
 <p>Expira en ${ttlMinutes} minutos. Si no lo solicitaste, ignora este mensaje.</p>`,
-    }),
-  });
+      }),
+    });
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    console.error("Resend error:", response.status, errBody);
-  } else {
-    console.log(`[EMAIL] Resend OK para ${to}`);
+    if (response.ok) {
+      console.info("[auth.password_reset.email] aceptado_por_proveedor");
+    } else {
+      console.error("[auth.password_reset.email] rechazo_del_proveedor", response.status);
+    }
+    return response.ok;
+  } catch {
+    console.error("[auth.password_reset.email] error_de_transporte");
+    return false;
   }
-  return response.ok;
-} catch (error: unknown) {
-  console.error("Error enviando correo:", error);
-  return false;
-} 
 }

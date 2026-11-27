@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import ReportesPersonales from "../components/ReportesPersonales";
 import { useTrainingHistory } from "../hooks/useTrainingHistory";
 
 const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
@@ -80,6 +81,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
           </button>
         </div>
       </header>
+      <div className="mx-auto max-w-[1060px]"><ReportesPersonales /></div>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>&larr; Inicio</Link>
@@ -136,7 +138,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
 
         {/* Columna derecha: gráfico de progreso */}
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
-          <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Progreso por ejercicio</h2>
+          <h2 id="vista-previa-progreso" tabIndex={-1} className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Progreso por ejercicio</h2>
 
           <label htmlFor={selectorId} className="block mb-2 text-xs font-bold text-[#c0c7bd]">
             Ejercicio

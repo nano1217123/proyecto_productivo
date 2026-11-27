@@ -1,6 +1,7 @@
 ﻿import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
+import { auditarArchivoGenerado } from "../middleware/auditoriaReportes.middleware.js";
 import { resenasService } from "../service/resenas.service.js";
 import type { CreateResenaInput, FormatoReporteResenas, ReporteResenasInput } from "../types/resenas.types.js";
 // POST /api/resenas
@@ -41,6 +42,8 @@ export function descargarReporteResenas(formato: FormatoReporteResenas): Request
     if (!req.userRole) throw new AppError(403, "No se pudo verificar tu rol.");
     const input = res.locals.reporteResenas as ReporteResenasInput;
     const archivo = await resenasService.exportarReporte(req.userId, req.userRole, input, formato);
+    if (!await auditarArchivoGenerado(res, input.alcance === "sede"
+      ? { tipo: "sede", sede: input.gymSlug } : { tipo: "consolidado" })) return;
     const alcance = input.alcance === "sede" ? input.gymSlug : "consolidado";
     return res.status(200)
       .set("Cache-Control", "private, no-store")

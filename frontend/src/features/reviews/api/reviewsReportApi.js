@@ -16,7 +16,7 @@ function fechaValida(valor) {
   return Number.isFinite(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
 }
 
-function nombreSeguro(cabecera, destino, formato) {
+function nombreSeguro(cabecera, destino, formato, prefijo) {
   const extendido = /(?:^|;)\s*filename\*\s*=\s*UTF-8'[^']*'([^;]+)/i.exec(cabecera)?.[1];
   const simple = /(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;\s]+))/i.exec(cabecera);
   let decodificado;
@@ -29,12 +29,20 @@ function nombreSeguro(cabecera, destino, formato) {
       && !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])\./i.test(nombre)) return nombre;
   }
   const sede = destino.replace(/[^a-z0-9-]/gi, "-").slice(0, 80);
-  return `resenas-${sede || "sede"}.${formato}`;
+  return `${prefijo}-${sede || "sede"}.${formato}`;
 }
 
-export async function obtenerReporteResenas({
+export function obtenerReporteResenas(filtros) {
+  return obtenerReportePorSede(filtros, false);
+}
+
+export function obtenerReporteMembresias(filtros) {
+  return obtenerReportePorSede(filtros, true);
+}
+
+async function obtenerReportePorSede({
   gymSlug, alcance = "sede", formato = "csv", desde = "", hasta = "", signal,
-}) {
+}, membresias) {
   if (!["sede", "consolidado"].includes(alcance) || !["csv", "pdf"].includes(formato)) {
     throw new HttpError("Selecciona un alcance y formato válidos.");
   }
@@ -51,7 +59,8 @@ export async function obtenerReporteResenas({
   if (hasta) filtros.set("hasta", hasta);
   const query = filtros.toString();
   const consolidado = alcance === "consolidado";
-  const ruta = consolidado ? "/api/resenas/reportes/consolidado"
+  const ruta = membresias ? "/api/reportes/membresias/" + (consolidado ? "consolidado" : "sede/" + encodeURIComponent(gymSlug))
+    : consolidado ? "/api/resenas/reportes/consolidado"
     : `/api/resenas/gimnasio/${encodeURIComponent(gymSlug)}/reporte`;
   const url = `${ruta}.${formato}${query ? "?" + query : ""}`;
   const mime = formato === "pdf" ? "application/pdf" : "text/csv";
@@ -61,7 +70,9 @@ export async function obtenerReporteResenas({
     if (respuesta.status !== 200) {
       const body = respuesta.ok ? null : await respuesta.json().catch(() => null);
       if (respuesta.ok) await respuesta.body?.cancel();
-      throw new HttpError(mensajes[respuesta.status] ?? "No se pudo descargar el reporte. Intenta de nuevo.",
+      const mensaje = membresias && respuesta.status === 403 ? "No tienes permiso para descargar estas membresías."
+        : mensajes[respuesta.status];
+      throw new HttpError(mensaje ?? "No se pudo descargar el reporte. Intenta de nuevo.",
         { status: respuesta.status, body, url });
     }
     if (respuesta.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== mime) {
@@ -77,7 +88,7 @@ export async function obtenerReporteResenas({
     return {
       blob: new Blob([datos], { type: respuesta.headers.get("content-type") }),
       nombre: nombreSeguro(respuesta.headers.get("content-disposition") ?? "",
-        consolidado ? "consolidado" : gymSlug, formato),
+        consolidado ? "consolidado" : gymSlug, formato, membresias ? "membresias" : "resenas"),
     };
   } catch (error) {
     if (signal?.aborted || error?.name === "AbortError" || error instanceof HttpError) throw error;

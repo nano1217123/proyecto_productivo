@@ -54,6 +54,7 @@ mock.module(new URL("../src/lib/prisma.ts", import.meta.url).href, {
     usuario: { findUnique: buscarRol },
     adminSede: { findUnique: buscarAsignacion },
     $queryRaw: consultaReporte,
+    $executeRaw: async () => 1,
   } },
 });
 

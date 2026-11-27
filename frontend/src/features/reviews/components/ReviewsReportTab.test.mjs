@@ -29,13 +29,13 @@ test("muestra la sede recibida y deja inactiva la descarga cuando falta", () => 
   const sinSede = renderToStaticMarkup(React.createElement(ReviewsReportTab));
   assert.doesNotMatch(sinSede, /option value="consolidado"/);
   assert.match(sinSede, /No hay una sede disponible/);
-  assert.match(sinSede, /<button[^>]*disabled=""[^>]*>Descargar CSV/);
+  assert.match(sinSede, /<button[^>]*disabled=""[^>]*>.*Descargar CSV/);
   for (const sede of [{ id: "jj-poblado", nombre: "El Poblado" }, { id: "power-laureles", nombre: "Laureles" }]) {
     const vista = renderToStaticMarkup(React.createElement(ReviewsReportTab, { sede }));
     assert.ok(vista.includes("Sede seleccionada: " + sede.nombre));
     assert.match(vista, /<label for="[^"]+-desde"[^>]*>Fecha inicial/);
     assert.match(vista, /<label for="[^"]+-hasta"[^>]*>Fecha final/);
-    assert.doesNotMatch(vista, /<button[^>]*disabled=""[^>]*>Descargar CSV/);
+    assert.doesNotMatch(vista, /<button[^>]*disabled=""[^>]*>.*Descargar CSV/);
   }
 });
 
@@ -46,7 +46,7 @@ test("solo el superadministrador puede elegir el consolidado y descargar ambos f
   assert.match(vista, /<option value="consolidado" selected="">Consolidado/);
   assert.match(vista, /Todas las sedes vigentes/);
   for (const formato of ["CSV", "PDF"]) {
-    assert.match(vista, new RegExp(`<button[^>]*>Descargar ${formato}`));
-    assert.doesNotMatch(vista, new RegExp(`<button[^>]* disabled=""[^>]*>Descargar ${formato}`));
+    assert.match(vista, new RegExp(`<button[^>]*>.*Descargar ${formato}`));
+    assert.doesNotMatch(vista, new RegExp(`<button[^>]* disabled=""[^>]*>.*Descargar ${formato}`));
   }
 });

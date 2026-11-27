@@ -1,5 +1,10 @@
 # Reportes de reseñas por sede y consolidados
 
+El PDF administrativo presenta período, generación en Bogotá, total, promedio,
+distribución de las cinco valoraciones y cantidad de reseñas de 4 o 5.
+El consolidado añade el comparativo de sedes y separa su detalle por gimnasio.
+Los encabezados de detalle se repiten al continuar en otra página.
+
 `GET /api/resenas/gimnasio/:gymSlug/reporte.csv` admite `desde` y `hasta` opcionales en formato `YYYY-MM-DD`. Ambos incluyen el día completo en Bogotá. La columna `fecha` se exporta en UTC.
 
 El PDF por sede usa `/api/resenas/gimnasio/:gymSlug/reporte.pdf`. Los consolidados usan
