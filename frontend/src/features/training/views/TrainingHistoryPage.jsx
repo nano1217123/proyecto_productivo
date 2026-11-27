@@ -116,7 +116,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
 
         {/* Columna derecha: gráfico de progreso */}
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
-          <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Progreso por ejercicio</h2>
+          <h2 id="vista-previa-progreso" tabIndex={-1} className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Progreso por ejercicio</h2>
 
           <select
             value={ejercicioSeleccionado}

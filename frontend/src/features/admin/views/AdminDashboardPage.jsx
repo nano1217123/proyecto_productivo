@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { enlaceReporte } from "@/src/features/reports/ReportActions";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import AdminHeader from "../components/AdminHeader";
 import AdminTabs from "../components/AdminTabs";
@@ -46,6 +48,7 @@ export default function AdminDashboardPage() {
         logout={dashboard.logout} 
       />
 
+      <Link href="/dashboard/reportes" className={enlaceReporte + " mb-5"}>Centro de reportes</Link>
       <AdminTabs 
         tabActiva={dashboard.tabActiva} 
         setTabActiva={dashboard.setTabActiva} 

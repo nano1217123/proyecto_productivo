@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { crearDescargaResenas } from "../../reviews/api/reviewsReportApi.js";
+import { BotonesDescarga } from "../../reports/ReportActions.jsx";
 
 import { obtenerReportePersonal } from "../api/reportesPersonalesApi.js";
 
@@ -30,12 +31,7 @@ export default function ReportesPersonales() {
         </label>
         <label className="grid gap-1">Desde<input className="rounded bg-[#212320] p-2" type="date" name="desde" disabled={ocupado} /></label>
         <label className="grid gap-1">Hasta<input className="rounded bg-[#212320] p-2" type="date" name="hasta" disabled={ocupado} /></label>
-        {["csv", "pdf"].map(formato => (
-          <button key={formato} value={formato} type="submit" disabled={ocupado}
-            className="rounded bg-[#b56cff] px-3 py-2 font-bold text-[#151714] disabled:opacity-60">
-            Descargar {formato.toUpperCase()}
-          </button>
-        ))}
+        <BotonesDescarga cargando={ocupado} />
       </form>
       <p role={estado?.estado === "error" ? "alert" : "status"} className="mt-2 text-sm">
         {ocupado ? "Preparando el reporte." : estado?.mensaje}

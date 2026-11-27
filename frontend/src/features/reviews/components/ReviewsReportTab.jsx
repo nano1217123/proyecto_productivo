@@ -2,6 +2,7 @@
 
 import { useId, useLayoutEffect, useState } from "react";
 import { crearDescargaResenas } from "../api/reviewsReportApi.js";
+import { BotonesDescarga } from "../../reports/ReportActions.jsx";
 
 export default function ReviewsReportTab({ sede, errorSedes, esSuperAdmin, alcance = "sede", setAlcance }) {
   const id = useId();
@@ -54,12 +55,7 @@ export default function ReviewsReportTab({ sede, errorSedes, esSuperAdmin, alcan
           <input id={id + "-hasta"} type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
             disabled={!habilitado || cargando} className="rounded-md border border-[#41463f] bg-[#151714] px-3 py-2 text-white" />
         </div>
-        {["csv", "pdf"].map((formato) => (
-          <button key={formato} type="submit" value={formato} disabled={!habilitado || cargando}
-            className="rounded-md bg-[#b56cff] px-4 py-2 font-bold text-[#151714] disabled:opacity-50">
-            Descargar {formato.toUpperCase()}
-          </button>
-        ))}
+        <BotonesDescarga disabled={!habilitado} cargando={cargando} />
       </form>
       {resultado?.estado === "error" ? (
         <p role="alert" className="mt-3 text-sm text-[#ffabab]">{resultado.mensaje}</p>

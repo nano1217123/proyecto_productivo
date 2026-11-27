@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { endpoint, validarUrlEnsayo, verificarIdentidad } from "../src/dev/ensayo.js";
-import { estadisticasResenas } from "../src/lib/resenasPdfDiseno.js";
+import { estadisticasResenas, periodoResenas } from "../src/lib/resenasPdfDiseno.js";
 import { generarPdfResenas } from "../src/lib/resenasPdf.js";
 
 test("acepta exclusivamente el endpoint de ensayo y rechaza identidades distintas", () => {
@@ -26,6 +26,13 @@ test("calcula la distribución y el promedio ponderado a partir de las reseñas"
   assert.deepEqual(datos.distribucion.map(d => d.proporcion), [0.25, 0, 0, 0, 0.75]);
   assert.equal(estadisticasResenas([]).promedio, null);
   assert.ok(estadisticasResenas([]).distribucion.every(d => d.proporcion === null));
+});
+
+test("distingue el historial completo de los períodos con límites", () => {
+  assert.equal(periodoResenas({}), "Todo el historial disponible");
+  assert.equal(periodoResenas({ desde: "2026-01-01" }), "Desde el 2026-01-01");
+  assert.equal(periodoResenas({ hasta: "2026-01-02" }), "Hasta el 2026-01-02");
+  assert.equal(periodoResenas({ desde: "2026-01-01", hasta: "2026-01-02" }), "2026-01-01 — 2026-01-02");
 });
 
 test("genera reportes vacíos y pagina comentarios largos sin adjuntos parciales", async () => {

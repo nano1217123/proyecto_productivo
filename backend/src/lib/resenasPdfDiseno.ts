@@ -10,6 +10,13 @@ const decimal = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maxim
 const porcentaje = new Intl.NumberFormat("es-CO", { style: "percent", maximumFractionDigits: 1 });
 const estrellas = [5, 4, 3, 2, 1] as const;
 
+export function periodoResenas({ desde, hasta }: FiltrosReporteResenas) {
+  if (desde && hasta) return `${desde} — ${hasta}`;
+  if (desde) return `Desde el ${desde}`;
+  if (hasta) return `Hasta el ${hasta}`;
+  return "Todo el historial disponible";
+}
+
 export function estadisticasResenas(filas: readonly { calificacion: number }[]) {
   const conteos = [0, 0, 0, 0, 0, 0];
   let suma = 0;
@@ -86,7 +93,7 @@ export function dibujarReporteResenas(
   encabezado(titulo);
   texto("Reporte administrativo de reseñas", x, y, 16);
   y += 27;
-  texto(`Período: ${filtros.desde ?? "sin inicio"} — ${filtros.hasta ?? "sin fin"}`, x, y, 10);
+  texto(`Período: ${periodoResenas(filtros)}`, x, y, 10);
   texto(`Generado: ${fecha.format(new Date())} (America/Bogota)`, x, y + 16, 10);
   y += 40;
   doc.rect(x, y, ancho, 46).fill(papel);
