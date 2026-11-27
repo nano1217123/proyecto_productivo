@@ -9,6 +9,7 @@ import ConfigTab from "../components/ConfigTab";
 import CreateAdminTab from "../components/CreateAdminTab";
 import ClientesSedeTab from "../components/ClientesSedeTab";
 import SubscriptionTab from "../components/SubscriptionTab";
+import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab";
 import { useEffect } from "react";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
@@ -26,6 +27,7 @@ export default function AdminDashboardPage() {
   ).map((slug) => ({ id: slug, nombre: nombreSede(slug) }));
   const idsSedes = gimnasios.map((g) => g.id).join(",");
   const { gymSeleccionado, setGymSeleccionado } = dashboard;
+  const sedeReporte = gimnasios.find(({ id }) => id === gymSeleccionado);
 
   useEffect(() => {
     const ids = idsSedes ? idsSedes.split(",") : [];
@@ -76,6 +78,10 @@ export default function AdminDashboardPage() {
       )}
 
       {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && <CreateAdminTab />}
+
+      {dashboard.tabActiva === "reportes-resenas" && (esAdmin || dashboard.esSuperAdmin) && (
+        <ReviewsReportTab key={sedeReporte?.id ?? ""} sede={sedeReporte} errorSedes={errorSedes} />
+      )}
 
       {dashboard.tabActiva === "suscripcion" && esAdmin && <SubscriptionTab />}
     </div>

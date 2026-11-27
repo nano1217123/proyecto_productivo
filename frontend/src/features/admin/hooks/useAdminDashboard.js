@@ -1,23 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { adminApi } from "../api/adminApi";
+import { PESTANA_INICIAL, restaurarPestana } from "../lib/adminTabs.js";
 
 const CLAVE_PESTANA = "jjgym:admin:pestana";
 // «Miembros» se retiró: el plan, el vencimiento y el cobro del alumno se
 // gestionan fuera de la plataforma (RN-014). Los clientes reales de cada sede
 // están en «Clientes». Una pestaña guardada que ya no existe vuelve a esta.
-const PESTANA_INICIAL = "clientes";
-const PESTANAS = ["clientes", "imagenes", "comunicacion", "configuracion"];
-
-// "crear-admin" solo para super_admin y "suscripcion" solo para admin de
-// sede (super_admin y cliente no pagan); el backend vuelve a comprobarlo.
-function pestanaPermitida(tab, { esSuperAdmin, esAdmin }) {
-  return (
-    PESTANAS.includes(tab) ||
-    (tab === "crear-admin" && esSuperAdmin) ||
-    (tab === "suscripcion" && esAdmin)
-  );
-}
 
 export function useAdminDashboard() {
   const { logout, profile } = useAuth();
@@ -34,8 +23,7 @@ export function useAdminDashboard() {
   useEffect(() => {
     let guardada = null;
     try { guardada = sessionStorage.getItem(CLAVE_PESTANA); } catch { /* sin almacenamiento */ }
-    if (guardada && pestanaPermitida(guardada, { esSuperAdmin, esAdmin })) setTabActivaEstado(guardada);
-    else if (guardada) setTabActivaEstado(PESTANA_INICIAL);
+    if (guardada) setTabActivaEstado(restaurarPestana(guardada, { esSuperAdmin, esAdmin }));
   }, [esSuperAdmin, esAdmin]);
   // Sede elegida en el panel. Las opciones salen del servidor: las sedes
   // del admin (admin_sedes) o el catálogo completo para el super_admin.
