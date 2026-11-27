@@ -9,7 +9,7 @@ import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab
 import { accesoReportes } from "./reportAccess.js";
 import { enlaceReporte, IconoReporte } from "./ReportActions.jsx";
 
-function ResenasAutorizadas({ perfil }) {
+function ReportePorSede({ perfil, membresias = false }) {
   const { sedes, nombreSede, error } = useSedes();
   const permisos = accesoReportes(perfil, sedes);
   const [preferida, setPreferida] = useState("");
@@ -26,7 +26,7 @@ function ResenasAutorizadas({ perfil }) {
           </select>
         </label>
       )}
-      <ReviewsReportTab sede={sede} errorSedes={error} esSuperAdmin={permisos.consolidado}
+      <ReviewsReportTab sede={sede} errorSedes={error} esSuperAdmin={permisos.consolidado} membresias={membresias}
         alcance={alcance} setAlcance={setAlcance} />
     </div>
   );
@@ -49,7 +49,10 @@ export default function CentroReportes() {
             <Link href="/dashboard/entrenamientos/historial#vista-previa-progreso" className={enlaceReporte + " mb-6"}>
               <IconoReporte tipo="vista" /> Vista previa de progreso
             </Link>
-            {permisos.resenas && <ResenasAutorizadas key={profile.idusuario + ":" + profile.tipo_usuario} perfil={profile} />}
+            {permisos.resenas && <div className="grid gap-5" key={profile.idusuario + ":" + profile.tipo_usuario}>
+              <ReportePorSede perfil={profile} />
+              <ReportePorSede perfil={profile} membresias />
+            </div>}
           </>}
       </div>
     </main>

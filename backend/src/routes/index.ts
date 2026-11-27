@@ -9,6 +9,7 @@ import rutinasRoutes from "./rutinas.routes.js";
 import imagenesRoutes from "./imagenes.routes.js";
 import resenasRoutes from "./resenas.routes.js";
 import reportesPersonalesRoutes from "./reportesPersonales.routes.js";
+import reportesMembresiasRoutes from "./reportesMembresias.routes.js";
 
 import particularRoutes from "./particular.routes.js"; 
 import pagosRoutes from "./pagos.routes.js";
@@ -25,6 +26,7 @@ router.use("/entrenamientos", entrenamientosRoutes);
 router.use("/imagenes", imagenesRoutes);
 router.use("/resenas", resenasRoutes);
 router.use("/reportes/personales", reportesPersonalesRoutes);
+router.use("/reportes/membresias", reportesMembresiasRoutes);
 
 router.use("/particular", particularRoutes);
 router.use("/pagos", pagosRoutes);

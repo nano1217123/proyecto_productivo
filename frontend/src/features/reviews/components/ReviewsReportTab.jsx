@@ -1,15 +1,15 @@
 "use client";
 
 import { useId, useLayoutEffect, useState } from "react";
-import { crearDescargaResenas } from "../api/reviewsReportApi.js";
+import { crearDescargaResenas, obtenerReporteMembresias } from "../api/reviewsReportApi.js";
 import { BotonesDescarga } from "../../reports/ReportActions.jsx";
 
-export default function ReviewsReportTab({ sede, errorSedes, esSuperAdmin, alcance = "sede", setAlcance }) {
+export default function ReviewsReportTab({ sede, errorSedes, esSuperAdmin, alcance = "sede", setAlcance, membresias = false }) {
   const id = useId();
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [resultado, setResultado] = useState(null);
-  const [descarga] = useState(crearDescargaResenas);
+  const [descarga] = useState(() => crearDescargaResenas(membresias ? { obtener: obtenerReporteMembresias } : undefined));
   const gymSlug = sede?.id;
   const consolidado = esSuperAdmin && alcance === "consolidado";
   const habilitado = Boolean(consolidado || gymSlug);
@@ -29,7 +29,10 @@ export default function ReviewsReportTab({ sede, errorSedes, esSuperAdmin, alcan
 
   return (
     <section aria-labelledby={id + "-titulo"} className="rounded-xl border border-[#41433f] bg-[#212320] p-5">
-      <h2 id={id + "-titulo"} className="text-2xl font-bold text-[#f2f4ef]">Reportes de reseñas</h2>
+      <h2 id={id + "-titulo"} className="text-2xl font-bold text-[#f2f4ef]">{membresias ? "Reportes de membresías" : "Reportes de reseñas"}</h2>
+      {membresias && <p className="mt-2 text-sm text-[#d7adff]">
+        Incluye vínculos actuales. Las fechas filtran el día de vinculación en Bogotá.
+      </p>}
       {esSuperAdmin && (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-[#f2f4ef]">
           <label htmlFor={id + "-alcance"}>Alcance</label>
