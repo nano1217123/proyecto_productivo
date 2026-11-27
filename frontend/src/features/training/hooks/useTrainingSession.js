@@ -76,6 +76,7 @@ export function useTrainingSession() {
   function agregarFila(ejercicioId) {
     const fila = nuevaFila(String(ejercicioId));
     setFilas((prev) => [...prev, fila]);
+    return fila.id;
   }
 
   function quitarFila(id) {
