@@ -11,7 +11,7 @@ export async function obtenerReportePersonal({ tipo, formato, desde, hasta, sign
   if (respuesta.status === 401) throw new Error("Vuelve a iniciar sesión.");
   if (respuesta.status === 422) {
     const resultado = await respuesta.json().catch(() => null);
-    signal.throwIfAborted();
+    signal?.throwIfAborted();
     throw new Error(typeof resultado?.message === "string" && resultado.message
       ? resultado.message : "No se pudo generar el reporte para este período.");
   }
@@ -20,7 +20,7 @@ export async function obtenerReportePersonal({ tipo, formato, desde, hasta, sign
     throw new Error("No se pudo descargar el reporte.");
   }
   const datos = await respuesta.arrayBuffer();
-  signal.throwIfAborted();
+  signal?.throwIfAborted();
   if (!datos.byteLength || (formato === "pdf" && new TextDecoder().decode(datos.slice(0, 5)) !== "%PDF-")) {
     throw new Error("El reporte está vacío o tiene un formato inválido.");
   }
