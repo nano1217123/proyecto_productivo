@@ -16,16 +16,28 @@ export function validarArchivoImagen(archivo) {
 }
 
 // Nombres legibles; si se repiten dentro del grupo se distinguen por el
-// equipo y, si aún coinciden, por el ID.
+// equipo y, si aún coinciden, por el ID. Cada opción conserva su equipo
+// para la búsqueda, aunque no aparezca en la etiqueta.
 export function etiquetasEjercicios(ejercicios) {
   const conEquipo = (e) => (e.equipo ? `${e.nombre} (${e.equipo})` : e.nombre);
   return ejercicios.map((ejercicio) => {
+    const base = { id: ejercicio.id, equipo: ejercicio.equipo || "" };
     const mismosNombre = ejercicios.filter((e) => e.nombre === ejercicio.nombre);
-    if (mismosNombre.length === 1) return { id: ejercicio.id, etiqueta: ejercicio.nombre };
+    if (mismosNombre.length === 1) return { ...base, etiqueta: ejercicio.nombre, equipoVisible: false };
     const etiqueta = conEquipo(ejercicio);
     const repetida = mismosNombre.filter((e) => conEquipo(e) === etiqueta).length > 1;
-    return { id: ejercicio.id, etiqueta: repetida ? `${etiqueta} · ID ${ejercicio.id}` : etiqueta };
+    return {
+      ...base,
+      etiqueta: repetida ? `${etiqueta} · ID ${ejercicio.id}` : etiqueta,
+      equipoVisible: Boolean(ejercicio.equipo),
+    };
   });
+}
+
+// Texto de la opción en el selector. Mientras se busca, añade el equipo si
+// la etiqueta no lo muestra, para que se entienda por qué coincide.
+export function textoOpcion(opcion, buscando = false) {
+  return buscando && opcion.equipo && !opcion.equipoVisible ? `${opcion.etiqueta} · ${opcion.equipo}` : opcion.etiqueta;
 }
 
 // Minúsculas y sin tildes, para buscar «press inclinado» o «muneca».
@@ -33,14 +45,14 @@ export function normalizarBusqueda(texto) {
   return String(texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
-// Filtra las opciones del grupo por su etiqueta (que incluye el equipo
-// cuando distingue homónimos). Solo filtra: nunca elige un ejercicio. El
+// Filtra las opciones del grupo por nombre (la etiqueta) y por equipo, se
+// muestre o no en la etiqueta. Solo filtra: nunca elige un ejercicio. El
 // ejercicio ya seleccionado se conserva visible aunque no coincida, para
 // que el selector siga mostrando el destino confirmado.
 export function filtrarOpciones(opciones, termino, idSeleccionado = "") {
   const buscado = normalizarBusqueda(termino);
   if (!buscado) return { visibles: opciones, coincidencias: opciones.length, seleccionFuera: false };
-  const coinciden = opciones.filter((o) => normalizarBusqueda(o.etiqueta).includes(buscado));
+  const coinciden = opciones.filter((o) => normalizarBusqueda(`${o.etiqueta} ${o.equipo ?? ""}`).includes(buscado));
   const seleccionada = opciones.find((o) => String(o.id) === String(idSeleccionado));
   const seleccionFuera = Boolean(seleccionada) && !coinciden.includes(seleccionada);
   return {

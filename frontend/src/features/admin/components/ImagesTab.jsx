@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { muscleGroupBySlug } from "@/src/features/exercises/lib/muscleGroups";
-import { etiquetasEjercicios, filtrarOpciones, useImageAssignment } from "../hooks/useImageAssignment";
+import { etiquetasEjercicios, filtrarOpciones, textoOpcion, useImageAssignment } from "../hooks/useImageAssignment";
 
 const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
 const ESTILO_CAMPO = `w-full p-2.5 bg-[#151714] border border-[#41463f] rounded-[10px] text-[#f2f4ef] text-sm focus:border-[#b56cff] disabled:opacity-60 disabled:cursor-not-allowed ${ESTILO_FOCO}`;
@@ -193,7 +193,7 @@ export default function ImagesTab() {
                 <option value="">
                   {!grupo ? "Primero elige un grupo" : sinCoincidencias ? "Sin coincidencias" : "Selecciona un ejercicio"}
                 </option>
-                {filtro.visibles.map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
+                {filtro.visibles.map((o) => <option key={o.id} value={o.id}>{textoOpcion(o, buscando)}</option>)}
               </select>
             </div>
 

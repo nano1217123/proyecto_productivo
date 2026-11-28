@@ -8,7 +8,7 @@ mock.module(new URL("../../exercises/api/exercisesApi.js", import.meta.url).href
   namedExports: { exercisesApi: { getExerciseCatalog: () => { throw new Error("Usa el catálogo simulado."); } } },
 });
 
-const { createImageAssignmentState, etiquetasEjercicios, filtrarOpciones, normalizarBusqueda, validarArchivoImagen, TAMANO_MAXIMO_IMAGEN } = await import("./useImageAssignment.js");
+const { createImageAssignmentState, etiquetasEjercicios, filtrarOpciones, normalizarBusqueda, textoOpcion, validarArchivoImagen, TAMANO_MAXIMO_IMAGEN } = await import("./useImageAssignment.js");
 
 const GRUPOS = [
   { slug: "pecho", nombre: "Pecho", ejercicios: [{ id: 1, nombre: "Press banca", imagen_url: "https://img.test/vieja.jpg" }, { id: 2, nombre: "Aperturas", imagen_url: null }] },
@@ -189,23 +189,43 @@ test("los nombres repetidos se distinguen por equipo y el destino confirmado usa
   assert.deepEqual(asignar.mock.calls[0].arguments, [6, "https://img.test/r.jpg"]);
 });
 
-test("la búsqueda ignora mayúsculas y tildes y encuentra por equipo en homónimos", () => {
+test("la búsqueda ignora mayúsculas y tildes y consulta nombre y equipo de todos los ejercicios", () => {
   const opciones = etiquetasEjercicios([
     { id: 1, nombre: "Curl de muñeca", equipo: "Mancuerna" },
     { id: 2, nombre: "Press inclinado", equipo: "Barra" },
     { id: 3, nombre: "Press inclinado", equipo: "Mancuerna" },
     { id: 4, nombre: "Sentadilla", equipo: "Barra" },
+    { id: 5, nombre: "Extensión de cuádriceps", equipo: "Máquina" },
+    { id: 6, nombre: "Plancha", equipo: null },
   ]);
   assert.equal(normalizarBusqueda("  MUÑECA "), "muneca");
   assert.deepEqual(filtrarOpciones(opciones, "muneca").visibles.map((o) => o.id), [1]);
   assert.deepEqual(filtrarOpciones(opciones, "PRESS INCLINADO").visibles.map((o) => o.id), [2, 3]);
-  // El equipo forma parte de la etiqueta solo en los homónimos.
-  assert.deepEqual(filtrarOpciones(opciones, "mancuerna").visibles.map((o) => o.id), [3]);
-  assert.deepEqual(filtrarOpciones(opciones, "barra").visibles.map((o) => o.id), [2]);
+  // El equipo cuenta aunque la etiqueta solo lo muestre en los homónimos.
+  assert.deepEqual(filtrarOpciones(opciones, "mancuerna").visibles.map((o) => o.id), [1, 3]);
+  assert.deepEqual(filtrarOpciones(opciones, "barra").visibles.map((o) => o.id), [2, 4]);
+  assert.deepEqual(filtrarOpciones(opciones, "maquina").visibles.map((o) => o.id), [5]);
+  assert.deepEqual(filtrarOpciones(opciones, "plancha").visibles.map((o) => o.id), [6], "sin equipo se busca por nombre");
+  assert.deepEqual(filtrarOpciones(opciones, "null").visibles, [], "un equipo vacío no se convierte en texto");
   const vacio = filtrarOpciones(opciones, "zzz");
   assert.equal(vacio.coincidencias, 0);
   assert.deepEqual(vacio.visibles, []);
-  assert.equal(filtrarOpciones(opciones, "").visibles.length, 4);
+  assert.equal(filtrarOpciones(opciones, "").visibles.length, 6);
+});
+
+test("mientras se busca, la opción muestra el equipo que la etiqueta no incluye", () => {
+  const [curl, pressBarra, , , , plancha] = etiquetasEjercicios([
+    { id: 1, nombre: "Curl de muñeca", equipo: "Mancuerna" },
+    { id: 2, nombre: "Press inclinado", equipo: "Barra" },
+    { id: 3, nombre: "Press inclinado", equipo: "Mancuerna" },
+    { id: 4, nombre: "Remo", equipo: "Barra" },
+    { id: 5, nombre: "Remo", equipo: "Barra" },
+    { id: 6, nombre: "Plancha", equipo: null },
+  ]);
+  assert.equal(textoOpcion(curl, false), "Curl de muñeca", "sin búsqueda la etiqueta no cambia");
+  assert.equal(textoOpcion(curl, true), "Curl de muñeca · Mancuerna");
+  assert.equal(textoOpcion(pressBarra, true), "Press inclinado (Barra)", "no se repite el equipo ya visible");
+  assert.equal(textoOpcion(plancha, true), "Plancha");
 });
 
 test("filtrar conserva la selección actual y nunca elige otro ejercicio", () => {
