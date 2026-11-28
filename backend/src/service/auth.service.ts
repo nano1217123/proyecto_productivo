@@ -302,7 +302,7 @@ export function createAuthService(
           throw new AppError(401, SESION_INVALIDA);
         }
 
-        if (stored.expiresAt.getTime() < Date.now()) {
+        if (stored.expiresAt.getTime() <= Date.now()) {
           throw new AppError(401, SESION_INVALIDA);
         }
 
@@ -312,12 +312,13 @@ export function createAuthService(
         }
 
         const refreshToken = generateRefreshToken();
-        await sessions.rotate(
+        const rotated = await sessions.rotate(
           stored.id,
           user.idusuario,
           hashRefreshToken(refreshToken),
           refreshExpiresAt()
         );
+        if (!rotated) throw new AppError(409, "La sesión cambió durante la renovación. Intenta de nuevo.");
 
         return {
           accessToken: signAccessToken({

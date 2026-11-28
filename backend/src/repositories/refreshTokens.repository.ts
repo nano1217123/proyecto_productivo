@@ -44,16 +44,19 @@ export function createRefreshTokensRepository(db: typeof prisma = prisma) {
       usuarioId: string,
       newHash: string,
       expiresAt: Date
-    ): Promise<void> {
-      await db.$transaction([
-        db.refreshToken.update({
-          where: { id: oldId },
+    ): Promise<boolean> {
+      return db.$transaction(async (tx) => {
+        const { count } = await tx.refreshToken.updateMany({
+          where: { id: oldId, usuarioId, revoked: false, expiresAt: { gt: new Date() } },
           data: { revoked: true },
-        }),
-        db.refreshToken.create({
+        });
+        if (count === 0) return false;
+
+        await tx.refreshToken.create({
           data: { usuarioId, tokenHash: newHash, expiresAt },
-        }),
-      ]);
+        });
+        return true;
+      });
     },
   };
 }

@@ -1,10 +1,11 @@
+import { sessionFetch } from "../../../lib/api/sessionFetch.js";
 export async function obtenerReportePersonal({ tipo, formato, desde, hasta, signal }) {
   if (desde && hasta && desde > hasta) throw new Error("La fecha inicial debe preceder a la final.");
   const parametros = new URLSearchParams();
   if (desde) parametros.set("desde", desde);
   if (hasta) parametros.set("hasta", hasta);
   const mime = formato === "pdf" ? "application/pdf" : "text/csv";
-  const respuesta = await fetch(`/api/reportes/personales/${tipo}.${formato}?${parametros}`, {
+  const respuesta = await sessionFetch(`/api/reportes/personales/${tipo}.${formato}?${parametros}`, {
     credentials: "include", headers: { Accept: mime }, signal,
   });
   if (respuesta.status === 401) throw new Error("Vuelve a iniciar sesión.");

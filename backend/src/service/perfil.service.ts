@@ -26,7 +26,7 @@ export function createPerfilService(
       const perfil = await repository.findProfileById(idUsuario);
 
       if (!perfil) {
-        throw new AppError(404, "Perfil no encontrado.");
+        throw new AppError(401, "No se encontró el usuario de la sesión.");
       }
 
       return perfil;
