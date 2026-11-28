@@ -5,7 +5,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { pestanasAdmin } from "@/src/features/admin/lib/adminTabs";
 import { HomeIcon } from "../components/HomePanel";
-import "./dashboard-navigation.css";
 
 const base = "/dashboard";
 
