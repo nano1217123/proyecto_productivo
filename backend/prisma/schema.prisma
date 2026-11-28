@@ -22,6 +22,10 @@ model Usuario {
   bloqueadoHasta            DateTime?            @map("bloqueado_hasta") @db.Timestamptz(6)
   intentosFallidos          Int                  @default(0) @map("intentos_fallidos")
 
+  nutricion                  NutricionPerfil?
+  referenciasNutricion       NutricionReferencia[]
+  registrosNutricion         NutricionRegistro[]
+  favoritosNutricion         NutricionFavorito[]
   entrenamientos            Entrenamiento[]
   passwordResetTokens       PasswordResetToken[]
   refreshTokens             RefreshToken[]
@@ -337,4 +341,66 @@ model AuditoriaReporte {
   @@index([actorId, ocurridoEn])
   @@index([ocurridoEn])
   @@map("auditoria_reportes")
+}
+
+model NutricionPerfil {
+  usuarioId          String   @id @map("usuario_id") @db.Uuid
+  birthYear          Int      @map("birth_year")
+  activity           String
+  goal               String
+  preference         String
+  allergens          String[]
+  needsProfessional  Boolean  @map("needs_professional")
+  tracking           Boolean  @default(true)
+  zone               String
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  usuario            Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@map("nutricion_perfiles")
+}
+
+model NutricionReferencia {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  day         DateTime @db.Date
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  goal        String
+  weight      Float?
+  minimum     Int?
+  maximum     Int?
+  method      String
+  usuario     Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId, day, createdAt, id])
+  @@map("nutricion_referencias")
+}
+
+model NutricionRegistro {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  foodId       Int      @map("food_id")
+  snapshot     Json
+  quantity     Float
+  unit         String
+  grams        Float
+  protein      Float
+  meal         String?
+  day          DateTime @db.Date
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  usuario      Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId, day, createdAt])
+  @@map("nutricion_registros")
+}
+
+model NutricionFavorito {
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  foodId      Int      @map("food_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  usuario     Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@id([usuarioId, foodId])
+  @@map("nutricion_favoritos")
 }
