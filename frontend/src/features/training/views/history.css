@@ -2,6 +2,7 @@
   --history-bg: var(--background);
   --history-card: var(--surface);
   --history-border: var(--line);
+  --history-control-border: #75677d;
   --history-text: var(--ink);
   --history-muted: var(--muted);
   --history-accent: var(--lime);
@@ -25,21 +26,21 @@
 .history-page :is(button, select, input:not([type="checkbox"]), textarea) {
   background: var(--history-bg);
   color: var(--history-text);
-  border: 1px solid var(--history-border);
+  border: 1px solid var(--history-control-border);
   border-radius: .55rem;
   min-height: 44px;
   padding: .5rem .7rem;
   transition: background-color .16s ease, border-color .16s ease, color .16s ease, opacity .16s ease, transform .16s ease;
 }
 .history-page :is(button, summary, select) { cursor: pointer; }
-.history-page :is(input:not([type="checkbox"]), select, textarea) { border-color: #6b5b78; }
 .history-page :is(input, select, textarea):focus { border-color: var(--history-accent); }
 .history-page button:active:not(:disabled) { transform: translateY(1px); }
 .history-page :focus-visible { outline: 2px solid var(--history-accent); outline-offset: 3px; }
 .history-page button:disabled { opacity: .55; cursor: default; }
 .history-page button:hover:not(:disabled), .history-page button[aria-pressed="true"] { border-color: var(--green); background: var(--green-soft); }
-.history-card { transition: border-color .18s ease, box-shadow .18s ease; }
-.history-card:focus-within { border-color: var(--green); }
+.history-card { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.history-card[data-reference] { background: var(--green-soft); }
+.history-card[data-reference], .history-card:focus-within { border-color: var(--green); }
 @media (hover: hover) {
   .history-card:hover { border-color: var(--green); box-shadow: 0 .35rem 1rem #0004; }
 }

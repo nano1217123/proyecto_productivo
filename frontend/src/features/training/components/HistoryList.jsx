@@ -10,7 +10,7 @@ export default function HistoryList({ rows, order, query, onDetail, onRepeat, on
   }
   return groups.map(({ key, rows: sessions }) => <section className="history-stack" key={key || "resultados"}>
     {key && <h2 className="history-month">{monthLabel(sessions[0].fecha)}</h2>}
-    {sessions.map((row) => <article className="history-card" key={row.id}>
+    {sessions.map((row) => <article className="history-card" key={row.id} data-reference={comparison?.id === row.id ? "" : undefined}>
       <div className="history-card-top">
         <div className="history-date" aria-hidden="true"><small>{new Intl.DateTimeFormat("es-CO", { weekday: "short", timeZone: "UTC" }).format(new Date(row.fecha))}</small><strong>{row.fecha.slice(-2)}</strong></div>
         <div>

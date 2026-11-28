@@ -54,7 +54,7 @@ class API(BaseHTTPRequestHandler):
             if session_mode == "expired" or "access_token=browser-fixture" not in self.headers.get("Cookie", ""):
                 return self.reply({}, 401)
         profile = {"idusuario": "browser-test", "nombres": "Emiliano", "apellidos": "Prueba",
-                   "tipo_usuario": "cliente" if mode == "client" else "admin" if mode == "admin" else "usuario_particular",
+                   "tipo_usuario": {"client": "cliente", "admin": "admin", "super_admin": "super_admin"}.get(mode, "usuario_particular"),
                    "sede": "jj-poblado" if mode == "client" else None}
         routines = [{"id": id, "nombre": name, "dias": [date.fromisoformat(today).isoweekday()]}
                     for id, name in zip(routine_ids, ["Piernas", "Espalda"])] if mode == "scheduled" else []
@@ -318,6 +318,12 @@ with ExitStack() as resources:
     mode = "admin"
     navigate()
     wait_for(lambda: js("return !!document.querySelector('main') && !document.querySelector('.home-dashboard')"), "Panel administrativo")
+    wait_for(lambda: js("return document.title === 'Panel administrativo | J&J GYM'"), "Título administrativo")
+    mode = "super_admin"
+    navigate()
+    wait_for(lambda: js("return document.title === 'Panel de superadministración | J&J GYM'"), "Título de superadministración")
+    js("""document.querySelector('.dashboard-sidebar-desktop a[href^="/dashboard/reportes"]').click()""")
+    wait_for(lambda: js("return document.title === 'Centro de reportes | J&J GYM'"), "Título al salir del panel")
     print("Inicio en Firefox: 360, 768 y 1150 px, estados, navegación, inicio libre, rutina, reanudación, repetición, nutrición y panel administrativo.")
 
     mode = "new"

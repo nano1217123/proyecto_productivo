@@ -98,6 +98,8 @@ def verify_routes():
     html = request(SITE).decode()
     assert "Plataforma de entrenamiento y gestión deportiva" in html
     assert "index, follow" in html and "og:image" in html
+    assert "<title>J&amp;J GYM | Entrena, progresa y supera tus límites</title>" in html
+    assert 'href="/landing/icon.svg"' in html
     assert "USD\u00a010" in html and "USD\u00a0150" in html
     assert "<video" not in html
     links = Links(html)
@@ -110,8 +112,15 @@ def verify_routes():
     gyms = {parse_qs(urlsplit(href).query)["gym"][0]
             for href in links.hrefs if href.startswith("/login?gym=")}
     assert gyms == {"jj-poblado", "power-laureles", "fit-belén"}
-    for path in ("/login", "/register", "/auth/callback"):
-        assert b"noindex, nofollow" in request(SITE + path)
+    for path, title in {
+        "/login": "Iniciar sesión",
+        "/register": "Crear cuenta",
+        "/auth/callback": "Completar inicio de sesión",
+        "/verify-otp": "Verificar cuenta",
+    }.items():
+        page = request(SITE + path).decode()
+        assert "noindex, nofollow" in page
+        assert f"<title>{title} | J&amp;J GYM</title>" in page
     for path in ("/dashboard", "/dashboard/pagos", "/dashboard/nutricion"):
         html_protegido = request(SITE + path)
         assert b"noindex, nofollow" in html_protegido
@@ -128,6 +137,7 @@ def verify_browser(resources):
     driver = subprocess.Popen([geckodriver, "--port", "19727"], stdout=log, stderr=log)
     resources.callback(driver.terminate)
     wait(lambda: request(DRIVER + "/status"))
+    reduced_motion = os.environ.get("LANDING_REDUCED_MOTION", "1") == "1"
     caps = {"alwaysMatch": {
         "browserName": "firefox",
         "moz:firefoxOptions": {"binary": firefox, "args": ["-headless"], "prefs": {
@@ -135,7 +145,7 @@ def verify_browser(resources):
             "network.proxy.http": "127.0.0.1", "network.proxy.http_port": 9,
             "network.proxy.ssl": "127.0.0.1", "network.proxy.ssl_port": 9,
             "network.proxy.no_proxies_on": "localhost, 127.0.0.1",
-            "ui.prefersReducedMotion": 1,
+            "ui.prefersReducedMotion": int(reduced_motion),
         }}
     }}
     session = json.loads(request(DRIVER + "/session", "POST", {"capabilities": caps}))["value"]["sessionId"]
@@ -171,7 +181,7 @@ def verify_browser(resources):
     assert js("return document.activeElement.classList.contains('ll-skip')")
     keys(".ll-skip", "\ue007")
     assert js("return document.activeElement.id === 'contenido'")
-    widths = [320, 390, 768, 1024, 1440]
+    widths = [320, 390, 768, 976, 1024, 1440]
     screenshots = os.environ.get("LANDING_SCREENSHOTS")
     if screenshots:
         target = Path(screenshots)
@@ -192,7 +202,10 @@ def verify_browser(resources):
         wd("/frame", "POST", {"id": frame})
         wait(lambda: select(".ll-hero h1"))
         assert js("return innerWidth === arguments[0] && document.documentElement.scrollWidth <= arguments[0]", width), width
-        assert js("return matchMedia('(prefers-reduced-motion: reduce)').matches")
+        assert js("return document.querySelector('.ll-hero').nextElementSibling.id === 'imc'")
+        assert js("return matchMedia('(prefers-reduced-motion: reduce)').matches") == reduced_motion
+        if reduced_motion:
+            assert js("return parseFloat(getComputedStyle(document.querySelector('.ll-bmi-value')).animationDuration) <= .00001")
         if width == 390:
             wait(lambda: js("return document.fonts.status === 'loaded' && document.querySelector('.ll-hero-visual img').naturalWidth"))
             if screenshots:
@@ -205,6 +218,11 @@ def verify_browser(resources):
             keys(".ll-mobile-menu summary", "\ue00c")
             assert not js("return document.querySelector('.ll-mobile-menu').open")
             keys(".ll-mobile-menu summary", "\ue007")
+            wait(lambda: js("""
+                const menu = document.querySelector('.ll-mobile-menu');
+                const link = menu.querySelector('a[href="#planes"]');
+                return menu.open && link.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true });
+            """))
             keys(".ll-mobile-menu a[href='#planes']", "\ue007")
             wait(lambda: js("return location.hash === '#planes' && !document.querySelector('.ll-mobile-menu').open"))
             keys(".ll-faq summary", "\ue007")
@@ -220,10 +238,12 @@ def verify_browser(resources):
                 keys(selector, "\ue007")
                 wait(lambda: js("return document.querySelector(arguments[0]).getAttribute('aria-pressed') === 'true' && document.querySelector('.ll-screen img').naturalWidth", selector))
             images = js("return [...document.images].map(image => image.getAttribute('src')).filter(Boolean)")
+            assert len({js("return document.querySelector(arguments[0]).getAttribute('src')", selector)
+                        for selector in (".ll-hero-visual > img", ".ll-audience img", ".ll-final-photo")}) == 3
             for image in images:
                 assert request(SITE + image), image
         wd("/frame/parent", "POST", {})
-    print("Firefox: 320, 390, 768, 1024 y 1440 px; teclado, menú, FAQ, IMC, selector e imágenes correctos.")
+    print("Firefox: 320, 390, 768, 976, 1024 y 1440 px; teclado, menú, FAQ, IMC, selector e imágenes correctos.")
 
     for path in ("/dashboard", "/dashboard/pagos", "/dashboard/nutricion"):
         wd("/url", "POST", {"url": SITE + path})

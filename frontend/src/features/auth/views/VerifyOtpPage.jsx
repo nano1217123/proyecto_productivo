@@ -50,7 +50,7 @@ export default function VerifyOtpPage({ email, gym }) {
           className="w-full p-3 mb-4 bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-center tracking-[10px] text-xl"
         />
         {error && <p id="error-codigo" role="alert" className="mb-4 text-sm text-[#ff7979]">{error}</p>}
-        <button type="submit" disabled={submitting || code.length !== 6} className="w-full p-3 bg-[#b56cff] text-[#10110f] font-bold rounded-lg disabled:opacity-50">
+        <button type="submit" aria-busy={submitting} disabled={submitting || code.length !== 6} className="w-full p-3 bg-[#b56cff] text-[#10110f] font-bold rounded-lg disabled:opacity-50">
           {submitting ? "Verificando..." : "Verificar código"}
         </button>
       </form>

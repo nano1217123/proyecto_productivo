@@ -72,6 +72,33 @@ button[aria-busy="true"]::before {
   animation: ui-spin .75s linear infinite;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  @supports selector(details::details-content) {
+    :is(.ll-mobile-menu, .ll-faq details, .dashboard-sidebar-mobile)::details-content {
+      opacity: 0;
+      transition: opacity .18s ease, content-visibility .18s allow-discrete;
+    }
+
+    :is(.ll-mobile-menu, .ll-faq details, .dashboard-sidebar-mobile)[open]::details-content {
+      opacity: 1;
+    }
+  }
+
+  @supports not selector(details::details-content) {
+    :is(.ll-mobile-menu, .ll-faq details, .dashboard-sidebar-mobile)[open] > :not(summary) {
+      animation: ui-enter .18s ease-out;
+    }
+  }
+}
+
+.auth-ui :is(input, select, button[type="submit"]) {
+  transition: background-color .17s ease, border-color .17s ease, box-shadow .17s ease, opacity .17s ease, transform .17s ease;
+}
+
+.auth-ui button[type="submit"]:active:not(:disabled) { transform: translateY(1px); }
+.auth-ui input[aria-invalid="true"] { border-color: var(--danger); }
+.auth-ui :is([role="alert"], [role="status"]) { animation: ui-enter .18s ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
   button[aria-busy="true"]::before { animation: none; }
   *, *::before, *::after {

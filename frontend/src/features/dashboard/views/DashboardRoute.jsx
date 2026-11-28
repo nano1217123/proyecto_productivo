@@ -26,7 +26,7 @@ export default function DashboardRoute() {
 
   // Roles actualizados según la nueva lógica del backend
   const esAdmin = ["admin", "super_admin"].includes(profile?.tipo_usuario);
-  
+
   return esAdmin ? (
     <Suspense fallback={<MemberDashboardSkeleton />}><AdminDashboardPage /></Suspense>
   ) : <DashboardPage />;
