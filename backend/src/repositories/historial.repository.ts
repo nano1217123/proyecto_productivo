@@ -37,7 +37,7 @@ const marcas = (usuarioId: string) => Prisma.sql`marcas AS (
       SELECT id, ejercicio_id, tipo, peso, anterior FROM marcas_ordenadas WHERE peso > anterior
     )`;
 
-export async function consultarHistorial(usuarioId: string, filtros: FiltrosHistorial) {
+export async function consultarHistorial(usuarioId: string, filtros: FiltrosHistorial, limite = 20) {
   const condiciones = [
     filtros.desde && Prisma.sql`e.fecha >= ${filtros.desde}::date`,
     filtros.hasta && Prisma.sql`e.fecha <= ${filtros.hasta}::date`,
@@ -59,7 +59,6 @@ export async function consultarHistorial(usuarioId: string, filtros: FiltrosHist
     corta: Prisma.sql`duracion ASC NULLS LAST, fecha DESC`,
     volumen: Prisma.sql`CASE WHEN convenciones = 1 AND tipos = ARRAY['fuerza']::text[] THEN volumen END DESC NULLS LAST, fecha DESC`,
   }[filtros.orden];
-  const limite = 20;
   const paginaPrimero = !filtros.records && filtros.orden !== "volumen";
   const pagina = Prisma.sql`LIMIT ${limite + 1} OFFSET ${(filtros.pagina - 1) * limite}`;
   const filas = await prisma.$queryRaw<unknown[]>(Prisma.sql`
@@ -77,7 +76,7 @@ export async function consultarHistorial(usuarioId: string, filtros: FiltrosHist
         array_agg(DISTINCT coalesce(s.tipo, 'fuerza')) FILTER (WHERE ${cargaValida}) AS tipos,
         coalesce(array_agg(DISTINCT ${grupoEjercicio}) FILTER (WHERE j.id IS NOT NULL), '{}') AS grupos,
         (SELECT count(*)::int FROM mejoras m WHERE m.id = e.id) AS records
-      FROM sesiones e LEFT JOIN series_entrenamiento s ON s.entrenamiento_id = e.id
+      FROM sesiones e LEFT JOIN series_entrenamiento s ON s.entrenamiento_id = e.id AND s.usuario_id = ${usuarioId}::uuid
       LEFT JOIN ejercicios j ON j.id = s.ejercicio_id
       GROUP BY e.id, e.fecha, e."creadoEn", e."iniciadoEn", e.nombre, e.rutina, e.duracion, e.ejercicios, e.catalogo_historico
     )
@@ -189,4 +188,22 @@ export async function corregirDetalle(usuarioId: string, id: string, revision: n
     await tx.serieEntrenamiento.deleteMany({ where: { entrenamientoId: id, usuarioId } });
     await tx.serieEntrenamiento.createMany({ data: filasSesion(usuarioId, id, contenido.ejercicios) });
   });
+}
+
+export async function resumenInicio(usuarioId: string, desde: string, hasta: string) {
+  const [historial, dias, totales] = await Promise.all([
+    consultarHistorial(usuarioId, { pagina: 1, orden: "recientes", hasta }, 1),
+    prisma.$queryRaw<Array<{ fecha: string; sesiones: number; tiempo: number | null; series: number }>>(Prisma.sql`
+      SELECT e.fecha::text, count(*)::int AS sesiones, sum(${duracion})::float8 AS tiempo,
+        coalesce(sum(series.total), 0)::int AS series
+      FROM entrenamientos e
+      LEFT JOIN LATERAL (SELECT count(*) AS total FROM series_entrenamiento s
+        WHERE s.entrenamiento_id = e.id AND s.usuario_id = e.usuario_id) series ON true
+      WHERE e.usuario_id = ${usuarioId}::uuid AND e.estado = 'finalizado'
+        AND e.fecha BETWEEN ${desde}::date AND ${hasta}::date
+      GROUP BY e.fecha ORDER BY e.fecha
+    `),
+    prisma.entrenamiento.count({ where: { usuarioId, estado: "finalizado", fecha: { lte: new Date(hasta) } } }),
+  ]);
+  return { ultimo: historial.entrenamientos[0] ?? null, dias, total: totales };
 }

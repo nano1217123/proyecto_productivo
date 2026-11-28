@@ -107,3 +107,11 @@ export function createRutinasRepository(db = prisma) {
 
 export type RutinasRepository = ReturnType<typeof createRutinasRepository>;
 export const rutinasRepository = createRutinasRepository();
+
+export function listarPlanificacion(usuarioId: string) {
+  return prisma.rutina.findMany({
+    where: { usuarioId, archivada: false },
+    select: { id: true, nombre: true, dias: true },
+    orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
+  });
+}

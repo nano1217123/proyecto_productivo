@@ -17,6 +17,7 @@ router.use(requireAuth, (req, res, next) => {
   }
   next();
 });
+router.get("/resumen-inicio", asyncHandler(async (req, res) => res.json(await service.summaryForHome(req.userId!))));
 router.get("/perfil", asyncHandler(async (req, res) => res.json(await service.profile(req.userId!))));
 router.patch("/perfil", asyncHandler(async (req, res) =>
   res.json(await service.saveProfile(req.userId!, input.validate(input.profileInput, req.body)))));
