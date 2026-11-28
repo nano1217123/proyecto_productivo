@@ -331,7 +331,7 @@ export default function PaymentOptions({ embedded = false }) {
                 onClick={() => elegir(opcion)}
                 aria-label={`Continuar con ${nombrePlan(opcion.plan)}${opcion.gym_slug ? ` de ${nombreSede(opcion.gym_slug)}` : ""}`}
               >
-                Continuar
+                Continuar al pago
               </button>
             </article>
           );
@@ -342,7 +342,7 @@ export default function PaymentOptions({ embedded = false }) {
           href={`/dashboard/pagos/resultado?referencia=${encodeURIComponent(ultimaReferencia)}`}
           className={`self-start text-sm text-[#a9afa7] no-underline hover:text-[#f2f4ef] rounded-sm ${focusRing}`}
         >
-          ¿Ya pagaste? Ver el estado de tu último pago
+          Consultar estado del pago
         </Link>
       )}
     </div>

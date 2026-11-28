@@ -11,7 +11,7 @@ export default function PaymentsPage() {
           PAGOS
         </p>
         <h1 className="m-0 text-[clamp(32px,5vw,48px)] tracking-[-1.5px] leading-none">
-          Pagar suscripción
+          Suscripción y pagos
         </h1>
         <p className="mt-4 max-w-[520px] text-[#a9afa7] leading-[1.55]">
           Elige el plan, revisa el valor y confírmalo. El pago se completa en

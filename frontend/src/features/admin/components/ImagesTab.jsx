@@ -70,7 +70,7 @@ export default function ImagesTab() {
     enviar();
   }
 
-  const textoBoton = fase === "subiendo" ? "Subiendo imagen..." : fase === "asignando" ? "Asignando imagen..." : "Subir y asignar imagen";
+  const textoBoton = fase === "subiendo" ? "Subiendo imagen..." : fase === "asignando" ? "Asignando imagen..." : "Guardar imagen del ejercicio";
 
   return (
     <section aria-labelledby="titulo-imagenes" className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">

@@ -1,14 +1,12 @@
 "use client";
 
 import { claveSedeAdmin } from "@/src/features/admin/hooks/useAdminDashboard";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import ReportesPersonales from "@/src/features/training/components/ReportesPersonales";
 import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab";
 import { accesoReportes } from "./reportAccess.js";
-import { enlaceReporte } from "./ReportActions.jsx";
 
 function ReportePorSede({ perfil, desdePanel, membresias = false }) {
   const { sedes, nombreSede, error } = useSedes();
@@ -52,9 +50,6 @@ export default function CentroReportes({ gym }) {
           : !permisos.personales ? <p role="status">Necesitas una sesión habilitada para consultar reportes.</p>
           : <>
             <ReportesPersonales key={profile.idusuario ?? profile.tipo_usuario} />
-            <Link href="/dashboard/entrenamientos/historial#vista-previa-progreso" className={enlaceReporte + " mb-6"}>
-              Vista previa de progreso
-            </Link>
             {permisos.resenas && <div className="grid gap-5" key={profile.idusuario + ":" + profile.tipo_usuario}>
               <ReportePorSede perfil={profile} desdePanel={gym} />
               <ReportePorSede perfil={profile} desdePanel={gym} membresias />

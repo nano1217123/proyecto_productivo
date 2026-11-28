@@ -7,7 +7,7 @@ export default function AdminTabs({ tabActiva, setTabActiva, esSuperAdmin, esAdm
 
   return (
     <nav aria-label="Secciones del panel" className="mb-6 grid grid-cols-2 gap-2 border-b border-[#30332f] pb-4 sm:flex sm:flex-wrap">
-      {pestanas.map(({ id, etiqueta, pronto }) => {
+      {pestanas.map(({ id, etiqueta }) => {
         const activa = tabActiva === id;
         return (
           <button
@@ -22,11 +22,6 @@ export default function AdminTabs({ tabActiva, setTabActiva, esSuperAdmin, esAdm
             }`}
           >
             {etiqueta}
-            {pronto && (
-              <span className="px-1.5 py-0.5 rounded border border-[rgba(255,196,87,.45)] text-[#ffcf70] text-[10px] font-extrabold tracking-wider uppercase">
-                Pronto
-              </span>
-            )}
           </button>
         );
       })}

@@ -30,6 +30,7 @@ export default function AdminDashboardPage() {
         general={dashboard.esSuperAdmin}
         alcance={dashboard.tabActiva === "imagenes" ? "Catálogo compartido entre sedes" :
           dashboard.tabActiva === "crear-admin" ? "Asignación por sede" :
+          dashboard.tabActiva === "suscripcion" ? "Facturación por cada sede administrada" :
           gymSeleccionado ? nombreSede(gymSeleccionado) : "Sin sede seleccionada"}
         gymSeleccionado={gymSeleccionado}
         setGymSeleccionado={dashboard.setGymSeleccionado} 
@@ -57,7 +58,7 @@ export default function AdminDashboardPage() {
       )}
 
       {dashboard.tabActiva === "clientes" && (
-        <ClientesSedeTab gymSlug={gymSeleccionado} esSuperAdmin={dashboard.esSuperAdmin} />
+        <ClientesSedeTab key={gymSeleccionado ?? "sin-sede"} gymSlug={gymSeleccionado} esSuperAdmin={dashboard.esSuperAdmin} />
       )}
 
       {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && <CreateAdminTab />}

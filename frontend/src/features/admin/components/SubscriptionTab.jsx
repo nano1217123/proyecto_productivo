@@ -12,7 +12,7 @@ export default function SubscriptionTab() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="suscripcion-sede-titulo" className="m-0 text-2xl tracking-[-0.5px] text-[#f2f4ef]">
-            Suscripción de tus sedes
+            Suscripción de la plataforma por sede
           </h2>
           <p className="m-0 mt-2 max-w-[560px] text-sm text-[#a9afa7] leading-[1.55]">
             Paga la suscripción mensual de cada sede que administras. Revisas el

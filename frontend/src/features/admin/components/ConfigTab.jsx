@@ -1,7 +1,5 @@
 "use client";
 
-import NoDisponible from "./NoDisponible";
-
 // Datos de la sede seleccionada según GET /api/sedes (slug, nombre y
 // ubicación), solo lectura. Todavía no hay un endpoint para editarlos ni
 // para guardar teléfono u horarios.
@@ -12,7 +10,7 @@ export default function ConfigTab({ gymSlug, sede, errorSedes }) {
       className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]"
     >
       <h2 id="perfil-sede-titulo" className="text-xl mt-0 mb-2">
-        Perfil de la sede
+        Información de la sede
       </h2>
       <p className="text-sm text-[#a9afa7] mb-5 max-w-[600px]">
         Información pública de la sede seleccionada, tal como la tiene registrada la plataforma.
@@ -39,12 +37,6 @@ export default function ConfigTab({ gymSlug, sede, errorSedes }) {
         </dl>
       )}
 
-      <NoDisponible titulo="La edición del perfil de la sede aún no está conectada.">
-        <p>
-          Todavía no se pueden cambiar el nombre ni la ubicación, ni registrar
-          el teléfono o los horarios desde el panel.
-        </p>
-      </NoDisponible>
     </section>
   );
 }
