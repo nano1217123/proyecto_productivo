@@ -1,3 +1,4 @@
+import ProgressNutrition from "@/src/features/nutrition/components/ProgressNutrition";
 import DailyTrackerWidget from "../components/DailyTrackerWidget.jsx";
 
 export default function ParticularDashboardPage() {
@@ -6,6 +7,7 @@ export default function ParticularDashboardPage() {
       <div className="mx-auto max-w-[1060px]">
         <h1 className="mb-6 text-4xl font-bold">Seguimiento diario</h1>
         <DailyTrackerWidget />
+        <ProgressNutrition />
       </div>
     </main>
   );
