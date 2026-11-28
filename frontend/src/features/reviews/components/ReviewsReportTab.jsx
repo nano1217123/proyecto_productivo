@@ -3,6 +3,7 @@
 import { useId, useLayoutEffect, useState } from "react";
 import { crearDescargaResenas, obtenerReporteMembresias } from "../api/reviewsReportApi.js";
 import { BotonesDescarga, EstadoDescarga, FechasReporte, campoReporte, filtrosReporte, panelReporte } from "../../reports/ReportActions.jsx";
+import { HomeIcon } from "../../dashboard/components/HomePanel.jsx";
 
 export default function ReviewsReportTab({ sede, selectorSede, cargandoSedes, errorSedes, esSuperAdmin, alcance = "sede", setAlcance, membresias = false }) {
   const id = useId();
@@ -29,10 +30,12 @@ export default function ReviewsReportTab({ sede, selectorSede, cargandoSedes, er
 
   return (
     <section aria-labelledby={id + "-titulo"} className={panelReporte}>
-      <h2 id={id + "-titulo"} className="text-2xl font-bold">{membresias ? "Reportes de membresías" : "Reportes de reseñas"}</h2>
-      {membresias && <p className="mt-2 text-sm text-[var(--muted)]">
-        Incluye vínculos actuales. Las fechas filtran el día de vinculación en Bogotá.
-      </p>}
+      <header className="reports-panel-heading">
+        <span className="reports-panel-icon"><HomeIcon name={membresias ? "card" : "reviews"} /></span>
+        <div><h2 id={id + "-titulo"}>{membresias ? "Reportes de membresías" : "Reportes de reseñas"}</h2>
+          <p>{membresias ? "Incluye vínculos actuales. Las fechas filtran el día de vinculación en Bogotá."
+            : "Exporta las opiniones y calificaciones de las sedes autorizadas."}</p></div>
+      </header>
       {(esSuperAdmin || selectorSede) && (
         <div className={"mt-4 " + filtrosReporte}>
           {esSuperAdmin && (

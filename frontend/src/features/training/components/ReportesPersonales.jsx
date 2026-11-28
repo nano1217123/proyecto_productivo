@@ -6,8 +6,15 @@ import { crearDescargaResenas } from "../../reviews/api/reviewsReportApi.js";
 import { BotonesDescarga, EstadoDescarga, FechasReporte, campoReporte, panelReporte } from "../../reports/ReportActions.jsx";
 
 import { obtenerReportePersonal } from "../api/reportesPersonalesApi.js";
+import { HomeIcon } from "../../dashboard/components/HomePanel.jsx";
 
-export default function ReportesPersonales() {
+const tipos = [
+  ["progreso", "Progreso físico", "trend"],
+  ["rutinas", "Rutinas", "training"],
+  ["ejercicios", "Ejercicios realizados", "routine"],
+];
+
+export default function ReportesPersonales({ enCentro = false }) {
   const id = useId();
   const [descarga] = useState(() => crearDescargaResenas({ obtener: obtenerReportePersonal }));
   const [tipo, setTipo] = useState("progreso");
@@ -18,7 +25,11 @@ export default function ReportesPersonales() {
   const ocupado = estado?.estado === "cargando";
   return (
     <section aria-labelledby={id} className={panelReporte}>
-      <h2 id={id} className="text-2xl font-bold">Mis reportes</h2>
+      {enCentro ? <header className="reports-panel-heading">
+        <span className="reports-panel-icon"><HomeIcon name="routine" /></span>
+        <div><h2 id={id}>Exportar reporte personal</h2>
+          <p>Descarga información de tu entrenamiento y progreso.</p></div>
+      </header> : <h2 id={id} className="text-2xl font-bold">Mis reportes</h2>}
       <form className="mt-4" aria-busy={ocupado} onSubmit={evento => {
         evento.preventDefault();
         const campos = new FormData(evento.currentTarget);
@@ -27,13 +38,23 @@ export default function ReportesPersonales() {
           formato: evento.nativeEvent.submitter?.value || "csv",
         }, actualizar);
       }}>
-        <label className="grid gap-1 text-sm sm:max-w-sm">Tipo de reporte personal
+        {enCentro ? <fieldset className="reports-types">
+          <legend>Tipo de reporte personal</legend>
+          <div>
+            {tipos.map(([valor, nombre, icono]) => (
+              <label key={valor}>
+                <HomeIcon name={icono} />
+                <span>{nombre}</span>
+                <input type="radio" name="tipo" value={valor} checked={tipo === valor}
+                  onChange={() => setTipo(valor)} disabled={ocupado} />
+              </label>
+            ))}
+          </div>
+        </fieldset> : <label className="grid gap-1 text-sm sm:max-w-sm">Tipo de reporte personal
           <select name="tipo" value={tipo} onChange={(evento) => setTipo(evento.target.value)} className={campoReporte} disabled={ocupado}>
-            <option value="progreso">Progreso físico</option>
-            <option value="rutinas">Rutinas</option>
-            <option value="ejercicios">Ejercicios realizados</option>
+            {tipos.map(([valor, nombre]) => <option key={valor} value={valor}>{nombre}</option>)}
           </select>
-        </label>
+        </label>}
         <FechasReporte {...{ desde, hasta, setDesde, setHasta }} disabled={ocupado} />
         <BotonesDescarga cargando={ocupado} />
       </form>

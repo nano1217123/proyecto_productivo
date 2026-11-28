@@ -8,6 +8,7 @@ import ReportesPersonales from "@/src/features/training/components/ReportesPerso
 import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab";
 import { accesoReportes } from "./reportAccess.js";
 import { campoReporte, panelReporte } from "./ReportActions.jsx";
+import { HomeIcon } from "../dashboard/components/HomePanel.jsx";
 
 function ReportePorSede({ perfil, desdePanel, membresias = false }) {
   const { sedes, nombreSede, error, cargando } = useSedes();
@@ -34,37 +35,40 @@ function ReportePorSede({ perfil, desdePanel, membresias = false }) {
 }
 
 const categorias = [
-  ["personales", "Personales"],
-  ["resenas", "Reseñas"],
-  ["membresias", "Membresías"],
+  ["personales", "Mis reportes", "Progreso, rutinas y ejercicios", "routine"],
+  ["resenas", "Reseñas", "Opiniones y calificaciones por sede", "reviews"],
+  ["membresias", "Membresías", "Vínculos actuales por sede", "card"],
 ];
 
 function ReportesDisponibles({ perfil, gym, permisos }) {
   const [categoria, setCategoria] = useState(gym && permisos.resenas ? "resenas" : "personales");
-  return <>
-    {permisos.resenas && (
-      <div role="group" aria-label="Categorías de reportes" className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {categorias.map(([valor, etiqueta]) => (
-          <button key={valor} type="button" aria-pressed={categoria === valor} onClick={() => setCategoria(valor)}
-            className="min-h-11 cursor-pointer rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-2 font-semibold hover:border-[var(--lime)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--lime)] aria-pressed:border-[var(--lime)] aria-pressed:bg-[var(--green-soft)] aria-pressed:text-[var(--lime)]">
-            {etiqueta}
+  return <div className="reports-grid">
+    <section className="reports-categories" aria-labelledby="reports-categories-title">
+      <h2 id="reports-categories-title">Categoría de reporte</h2>
+      <div role="group" aria-labelledby="reports-categories-title">
+        {(permisos.resenas ? categorias : categorias.slice(0, 1)).map(([valor, etiqueta, detalle, icono]) => (
+          <button key={valor} type="button" aria-label={etiqueta} aria-pressed={categoria === valor}
+            onClick={() => setCategoria(valor)} className="reports-category">
+            <HomeIcon name={icono} />
+            <span><strong>{etiqueta}</strong><small>{detalle}</small></span>
           </button>
         ))}
       </div>
-    )}
-    {categoria === "personales" || !permisos.resenas ? <ReportesPersonales /> :
+    </section>
+    {categoria === "personales" || !permisos.resenas ? <ReportesPersonales enCentro /> :
       <ReportePorSede key={categoria} perfil={perfil} desdePanel={gym} membresias={categoria === "membresias"} />}
-  </>;
+  </div>;
 }
 
 export default function CentroReportes({ gym }) {
   const { profile, loading } = useAuth();
   const permisos = accesoReportes(profile);
   return (
-    <main className="px-4 py-6 text-[var(--ink)] sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-[1100px]">
-        <header className="mb-6 border-b border-[var(--line)] pb-4">
-          <h1 className="text-3xl font-bold text-[var(--lime)] sm:text-4xl">Centro de reportes</h1>
+    <main className="reports-center">
+      <div className="reports-shell">
+        <header className="reports-header">
+          <h1>Centro de reportes</h1>
+          <p>Configura y descarga reportes {permisos.resenas ? "de tu actividad, reseñas o membresías." : "de tu actividad."}</p>
         </header>
         {loading ? <p className={panelReporte} role="status">Cargando permisos de reportes…</p>
           : !permisos.personales ? <p className={panelReporte} role="status">Necesitas una sesión habilitada para consultar reportes.</p>

@@ -56,16 +56,19 @@ test("conserva el acceso personal y el enlace a Progreso para clientes y particu
     assert.match(vista, /Tipo de reporte personal/);
     assert.match(vista, /Ejercicios realizados/);
     assert.match(vista, /href="\/dashboard\/entrenamientos\/progreso#vista-previa-progreso"/);
-    assert.doesNotMatch(vista, /Categorías de reportes|Sede del reporte/);
+    assert.match(vista, /Categoría de reporte/);
+    assert.doesNotMatch(vista, /aria-label="Reseñas"|aria-label="Membresías"|Sede del reporte/);
+    assert.equal((vista.match(/type="radio"/g) ?? []).length, 3);
+    assert.match(vista, /type="radio"[^>]*checked=""[^>]*value="progreso"/);
   }
 });
 
 test("el acceso desde Reseñas abre el reporte con una sede permitida y respeta el rol", () => {
   perfil = { tipo_usuario: "admin", sedes_administradas: ["propia", "otra"] };
   const render = gym => renderToStaticMarkup(React.createElement(CentroReportes, { gym }));
-  assert.match(render(), /aria-pressed="true"[^>]*>Personales/);
+  assert.match(render(), /aria-label="Mis reportes" aria-pressed="true"/);
   const desdeResenas = render("otra");
-  assert.match(desdeResenas, /aria-pressed="true"[^>]*>Reseñas/);
+  assert.match(desdeResenas, /aria-label="Reseñas" aria-pressed="true"/);
   assert.match(desdeResenas, /value="otra" selected/);
   assert.doesNotMatch(desdeResenas, /value="ajena"|Consolidado/);
   assert.match(render("ajena"), /value="propia" selected/);
