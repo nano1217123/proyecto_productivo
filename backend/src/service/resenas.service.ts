@@ -5,9 +5,13 @@ import {
 } from "../repositories/resenas.repository.js";
 import type {
   CreateResenaInput,
+  AccionRespuesta,
+  ConsultaResenasAdmin,
+  ConsultaResenasPublicas,
   FormatoReporteResenas,
   ReporteResenasInput,
   ResenaOutput,
+  UpdateResenaInput,
 } from "../types/resenas.types.js";
 import type { TipoUsuario } from "../types/usuario.types.js";
 import { gestionRepository } from "../repositories/gestion.repository.js";
@@ -101,15 +105,46 @@ export function createResenasService(
       }
       return repository.create(usuarioId, input);
     },
+    async listOwn(usuarioId: string) {
+      return repository.agregarEstadoVotos(await repository.findOwn(usuarioId), usuarioId);
+    },
+    async updateOwn(usuarioId: string, id: string, input: UpdateResenaInput) {
+      const resena = await repository.updateOwn(usuarioId, id, input);
+      if (!resena) throw new AppError(404, "Reseña no encontrada.");
+      return resena;
+    },
+    async deleteOwn(usuarioId: string, id: string) {
+      if (!(await repository.deleteOwn(usuarioId, id))) {
+        throw new AppError(404, "Reseña no encontrada.");
+      }
+    },
     // Consulta las reseñas de la comunidad de un gimnasio.
     async listPublic(
       gymSlug: string,
-      rol: TipoUsuario
-    ): Promise<ResenaOutput[]> {
+      rol: TipoUsuario,
+      usuarioId: string,
+      consulta?: ConsultaResenasPublicas,
+    ) {
       if (!["cliente", "usuario_particular", "admin", "super_admin"].includes(rol)) {
         throw new AppError(403, "No tienes permisos para consultar reseñas.");
       }
-      return repository.findPublicByGym(gymSlug);
+      if (consulta) {
+        if (!esSedeValida(gymSlug)) throw new AppError(404, "Sede no encontrada.");
+        const pagina = await repository.findPublicPage(gymSlug, consulta);
+        return { ...pagina, resenas: await repository.agregarEstadoVotos(pagina.resenas, usuarioId) };
+      }
+      return { resenas: await repository.agregarEstadoVotos(await repository.findPublicByGym(gymSlug), usuarioId) };
+    },
+    async listAdminPage(usuarioId: string, gymSlug: string, consulta: ConsultaResenasAdmin) {
+      if (!esSedeValida(gymSlug)) throw new AppError(404, "Sede no encontrada.");
+      const pagina = await repository.findPublicPage(gymSlug, consulta, usuarioId);
+      return { ...pagina, resenas: await repository.agregarEstadoVotos(pagina.resenas, usuarioId) };
+    },
+    gestionarVotoUtil(usuarioId: string, resenaId: string, marcar: boolean) {
+      return repository.gestionarVotoUtil(usuarioId, resenaId, marcar);
+    },
+    gestionarRespuesta(usuarioId: string, resenaId: string, accion: AccionRespuesta) {
+      return repository.gestionarRespuesta(usuarioId, resenaId, accion);
     },
     // Consulta todas las reseñas de un gimnasio.
     // El gimnasio asignado debe venir de una fuente verificada del backend.
@@ -139,16 +174,14 @@ export function createResenasService(
       return repository.findAllByGym(gymSlugAsignado);
     },
     // El superadministrador puede consultar las reseñas de toda la plataforma.
-    async listAll(
-      rol: TipoUsuario
-    ): Promise<ResenaOutput[]> {
+    async listAll(rol: TipoUsuario, usuarioId: string) {
       if (rol !== "super_admin") {
         throw new AppError(
           403,
           "Solo el superadministrador puede consultar todas las reseñas."
         );
       }
-      return repository.findAll();
+      return repository.agregarEstadoVotos(await repository.findAll(), usuarioId);
     },
   };
 }

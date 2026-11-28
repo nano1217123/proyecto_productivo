@@ -22,7 +22,6 @@ export default function DashboardNavigation() {
     ["/entrenamientos", "Registrar entrenamiento"],
     ["/entrenamientos/historial", "Historial"],
     ["/nutricion", "Nutrición"],
-    ...(rol === "cliente" && profile.sede ? [["/resenas", "Reseñas de mi sede"]] : []),
     ...(rol === "usuario_particular" ? [["/particular", "Mi progreso"], ["/pagos", "Suscripción"]] : []),
   ];
   const destinosAdmin = ruta === base + "/reportes" ? [
@@ -30,7 +29,9 @@ export default function DashboardNavigation() {
     ["", "Imágenes de ejercicios", "imagenes"],
     ["", "Información de la sede", "configuracion"],
   ] : [];
-  const destinos = [["", "Inicio"], ...(admin ? destinosAdmin : personal), ["/reportes", "Reportes"]];
+  const tieneResenas = admin || rol === "cliente" || rol === "usuario_particular";
+  const destinos = [["", "Inicio"], ...(admin ? destinosAdmin : personal),
+    ...(tieneResenas ? [["/resenas", "Reseñas"]] : []), ["/reportes", "Reportes"]];
   const activo = destinos.filter(([path]) => path ? ruta === base + path || ruta.startsWith(base + path + "/") : ruta === base)
     .sort(([a], [b]) => b.length - a.length)[0]?.[0];
 
@@ -38,7 +39,9 @@ export default function DashboardNavigation() {
     const query = new URLSearchParams();
     const gym = rol === "cliente" ? profile.sede : params.get("gym");
     if (seccion) query.set("seccion", seccion);
-    if (gym && !admin) query.set("gym", gym);
+    if (gym && (!admin || (path === "/resenas" && rol === "admin" && profile.sedes_administradas?.includes(gym)))) {
+      query.set("gym", gym);
+    }
     if (enCasa && !admin) query.set("modo", "casa");
     return base + path + (query.size ? "?" + query : "");
   }
