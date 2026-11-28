@@ -1,7 +1,16 @@
+import { v5 as uuidForRequest } from "uuid";
+import type { NutricionPerfil, NutricionReferencia } from "../generated/prisma/client.js";
+
+type ProfileResult = {
+  settings: Omit<NutricionPerfil, "usuarioId"> | null;
+  weight: number | null;
+  today: string;
+  reference: (Omit<NutricionReferencia, "usuarioId"> & { currentEstimate: ReturnType<typeof proteinReference> }) | null;
+  methodSource: string;
+};
 import type { Prisma } from "../generated/prisma/client.js";
 import { AppError } from "../errors/AppError.js";
-import { generateId } from "../lib/uuid.js";
-import { compatible, contribution, findFood, recommendations } from "./catalog.js";
+import { compatible, contribution, findFood, mealIdeas, recommendations } from "./catalog.js";
 import { foods, type Food } from "./foods.js";
 import { localDay, methodSource, methodVersion, proteinReference, twoDecimals } from "./method.js";
 import { nutritionDb as db } from "./repository.js";
@@ -20,7 +29,7 @@ function estimate(birthYear: number, day: string, weight: number, activity: stri
   return proteinReference(minimumAge, weight, activity, needsProfessional);
 }
 
-export async function profile(usuarioId: string) {
+export async function profile(usuarioId: string, refresh = true): Promise<ProfileResult> {
   const [settings, weight] = await Promise.all([
     db.profiles.findUnique({ where: { usuarioId }, omit: { usuarioId: true } }),
     db.latestWeight(usuarioId),
@@ -33,54 +42,65 @@ export async function profile(usuarioId: string) {
   const currentEstimate = settings && currentWeight !== null
     ? estimate(settings.birthYear, today, currentWeight, settings.activity, settings.needsProfessional)
     : null;
-  return {
-    settings, weight: currentWeight, today,
-    reference: reference && {
-      ...reference,
-      currentEstimate,
-      requiresRefresh: reference.weight !== currentWeight ||
-        reference.minimum !== (currentEstimate?.minimum ?? null) ||
-        reference.maximum !== (currentEstimate?.maximum ?? null),
-    },
-    methodSource,
+  if (refresh && settings && reference && currentWeight !== null &&
+      (reference.weight !== currentWeight || reference.method !== methodVersion ||
+      reference.minimum !== (currentEstimate?.minimum ?? null) || reference.maximum !== (currentEstimate?.maximum ?? null))) {
+    await db.transaction(usuarioId, async (tx) => {
+      const stored = await tx.nutricionPerfil.findUnique({ where: { usuarioId } });
+      const current = await db.latestWeight(usuarioId, tx);
+      if (stored && current?.pesoActualKg != null) {
+        await saveReference(tx, usuarioId, stored, current.pesoActualKg, localDay(stored.zone));
+      }
+    });
+    return profile(usuarioId, false);
+  }
+  return { settings, weight: currentWeight, today, reference: reference && { ...reference, currentEstimate }, methodSource };
+}
+
+async function saveReference(tx: Prisma.TransactionClient, usuarioId: string,
+  settings: Pick<NutricionPerfil, "birthYear" | "activity" | "goal" | "needsProfessional">, weight: number, today: string) {
+  const day = dayDate(today);
+  const fixed = await tx.nutricionReferencia.findFirst({
+    where: { usuarioId, day: { lte: day } }, orderBy: [...newest],
+  });
+  const range = estimate(settings.birthYear, today, weight, settings.activity, settings.needsProfessional);
+  const next = {
+    goal: settings.goal, weight, minimum: range?.minimum ?? null,
+    maximum: range?.maximum ?? null, method: methodVersion,
   };
+  if (!fixed || Object.entries(next).some(([key, value]) => fixed[key as keyof typeof next] !== value)) {
+    await tx.nutricionReferencia.create({ data: { ...next, usuarioId, day } });
+  }
 }
 
 export async function saveProfile(usuarioId: string, input: z.infer<typeof profileInput>) {
   const { weight: supplied, ...settings } = input;
   const now = new Date();
   const today = localDay(settings.zone, now);
-  const day = dayDate(today);
   if (settings.birthYear > Number(today.slice(0, 4))) throw new AppError(400, "Revisa el año de nacimiento.");
   await db.transaction(usuarioId, async (tx) => {
     const previous = await db.latestWeight(usuarioId, tx);
     const weight = supplied ?? previous?.pesoActualKg ?? null;
     if (weight === null) throw new AppError(400, "Indica tu peso actual.");
     if (supplied !== undefined && supplied !== previous?.pesoActualKg) {
-      await tx.$executeRaw`
-        INSERT INTO metricas_diarias (id, usuario_id, fecha, dia_local, peso_actual_kg, vasos_agua, entrenamiento_completado)
-        VALUES (${generateId()}::uuid, ${usuarioId}::uuid, ${now}, ${today}::date, ${supplied}, 0, false)
-        ON CONFLICT (usuario_id, dia_local) DO UPDATE SET peso_actual_kg = EXCLUDED.peso_actual_kg
-      `;
+      const metricDay = dayDate(localDay("America/Bogota", now));
+      const latestToday = await tx.metricaDiaria.findFirst({
+        where: { usuarioId, diaLocal: metricDay }, orderBy: [{ fecha: "desc" }, { id: "desc" }],
+      });
+      if (latestToday) {
+        await tx.metricaDiaria.update({ where: { id: latestToday.id }, data: { pesoActualKg: supplied } });
+      } else {
+        await tx.metricaDiaria.create({ data: { usuarioId, fecha: now, diaLocal: metricDay, pesoActualKg: supplied } });
+      }
     }
     await tx.nutricionPerfil.upsert({
       where: { usuarioId },
       create: { ...settings, usuarioId },
       update: settings,
     });
-    const fixed = await tx.nutricionReferencia.findFirst({
-      where: { usuarioId, day: { lte: day } }, orderBy: [...newest],
-    });
-    const range = estimate(settings.birthYear, today, weight, settings.activity, settings.needsProfessional);
-    const next = {
-      goal: settings.goal, weight, minimum: range?.minimum ?? null,
-      maximum: range?.maximum ?? null, method: methodVersion,
-    };
-    if (!fixed || Object.entries(next).some(([key, value]) => fixed[key as keyof typeof next] !== value)) {
-      await tx.nutricionReferencia.create({ data: { ...next, usuarioId, day } });
-    }
+    await saveReference(tx, usuarioId, settings, weight, today);
   });
-  return profile(usuarioId);
+  return profile(usuarioId, false);
 }
 
 export async function catalog(usuarioId: string, filters: z.infer<typeof catalogInput>) {
@@ -107,8 +127,9 @@ export async function catalog(usuarioId: string, filters: z.infer<typeof catalog
 
 export async function suggested(usuarioId: string) {
   const settings = await db.profiles.findUnique({ where: { usuarioId } });
-  if (!settings || settings.needsProfessional ||
-      Number(localDay(settings.zone).slice(0, 4)) - settings.birthYear - 1 < 18) return [];
+  if (!settings || settings.needsProfessional) return [];
+  const earliestAge = Number(localDay(settings.zone).slice(0, 4)) - settings.birthYear - 1;
+  if (earliestAge < 18 || earliestAge >= 64) return [];
   return recommendations(settings);
 }
 
@@ -119,11 +140,30 @@ export async function favorite(usuarioId: string, foodId: number, enabled: boole
   else await db.favorites.deleteMany({ where: key });
 }
 
-export async function saveEntry(usuarioId: string, input: z.infer<typeof entryInput>, id?: string) {
+export async function quoteEntry(usuarioId: string, id: string, foodId: number, quantity: number, unit: string) {
+  const record = await db.entries.findFirst({ where: { usuarioId, id, foodId } });
+  if (!record) throw new AppError(404, "Registro no encontrado.");
+  return contribution(record.snapshot as unknown as Food, quantity, unit);
+}
+
+export async function saveEntry(usuarioId: string, input: z.infer<typeof entryInput> & { requestId?: string }, id?: string) {
+  const retryId = input.requestId ? uuidForRequest(input.requestId, usuarioId) : undefined;
   return db.transaction(usuarioId, async (tx) => {
     const settings = await tx.nutricionPerfil.findUnique({ where: { usuarioId } });
     const existing = id ? await tx.nutricionRegistro.findFirst({ where: { usuarioId, id } }) : null;
     if (id && !existing) throw new AppError(404, "Registro no encontrado.");
+    if (!id && retryId) {
+      const previous = await tx.nutricionRegistro.findFirst({
+        where: { usuarioId, id: retryId }, omit: { usuarioId: true },
+      });
+      if (previous) {
+        if (dayKey(previous.day) !== input.day || previous.foodId !== input.foodId ||
+            previous.quantity !== input.quantity || previous.unit !== input.unit || previous.meal !== input.meal) {
+          throw new AppError(409, "La solicitud de registro ya se utilizó con otros datos.");
+        }
+        return previous;
+      }
+    }
     if (!settings || (!id && !settings.tracking)) throw new AppError(409, "Activa el registro en tu perfil nutricional.");
     if (input.day > localDay(settings.zone)) throw new AppError(400, "Selecciona una fecha hasta hoy.");
     if (existing && existing.foodId !== input.foodId) throw new AppError(400, "El alimento de un registro existente se conserva.");
@@ -135,7 +175,7 @@ export async function saveEntry(usuarioId: string, input: z.infer<typeof entryIn
       return entry;
     }
     return tx.nutricionRegistro.create({
-      data: { ...data, usuarioId, foodId: food.id, snapshot: { ...food } as Prisma.InputJsonValue },
+      data: { ...data, id: retryId, usuarioId, foodId: food.id, snapshot: { ...food } as Prisma.InputJsonValue },
       omit: { usuarioId: true },
     });
   });
@@ -177,4 +217,9 @@ export async function history(usuarioId: string, options: z.infer<typeof history
       foodId, name: foods.find((food) => food.id === foodId)?.name ?? "Alimento archivado", count: _count.foodId,
     })),
   };
+}
+
+export async function mealsForUser(usuarioId: string) {
+  const settings = await db.profiles.findUnique({ where: { usuarioId } });
+  return mealIdeas(settings);
 }

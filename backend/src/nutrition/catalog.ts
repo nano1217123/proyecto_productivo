@@ -45,3 +45,23 @@ export function recommendations(profile: FoodPreferences & { goal: string; activ
     return [{ ...food, reason }];
   });
 }
+
+const ideas = [
+  { id: "huevos-arepa", name: "Huevos con arepa y aguacate", minutes: 15, steps: "Cocina el huevo, calienta la arepa y sirve con aguacate.", ingredients: [[173424, 100], [168070, 70], [171705, 50]] },
+  { id: "pollo-arroz", name: "Pollo con arroz, lentejas y tomate", minutes: 30, steps: "Sirve el pollo asado con arroz y lentejas cocidos. Acompaña con tomate fresco.", ingredients: [[171477, 100], [169757, 100], [172421, 90], [170457, 60]] },
+  { id: "yogur-avena", name: "Yogur con avena y banano", minutes: 10, steps: "Mezcla el yogur con avena cocida y fría. Agrega el banano en rodajas.", ingredients: [[171284, 150], [173905, 80], [173944, 100]] },
+  { id: "garbanzos-arroz", name: "Garbanzos con arroz y tomate", minutes: 20, steps: "Calienta el arroz y los garbanzos cocidos y agrega tomate picado al servir.", ingredients: [[173757, 120], [169757, 100], [170457, 80]] },
+];
+
+export function mealIdeas(profile?: FoodPreferences | null) {
+  return ideas.flatMap(({ ingredients, ...idea }) => {
+    const allocated = ingredients.map(([foodId, grams]) => ({ food: findFood(foodId), grams }));
+    if (profile && allocated.some(({ food }) => !compatible(food, profile))) return [];
+    return [{
+      ...idea,
+      ingredients: allocated.map(({ food, grams }) => ({ id: food.id, name: food.name, grams })),
+      allergens: [...new Set(allocated.flatMap(({ food }) => food.allergens))],
+      protein: twoDecimals(allocated.reduce((sum, { food, grams }) => sum + food.protein * grams / 100, 0)),
+    }];
+  });
+}

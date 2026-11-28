@@ -30,6 +30,7 @@ export const entryInput = z.strictObject({
   meal: z.enum(meals).nullable(),
   day: date,
 });
+export const createEntryInput = entryInput.extend({ requestId: id.optional() });
 export const quoteInput = entryInput.pick({ quantity: true, unit: true, foodId: true });
 export const historyInput = z.object({
   day: date,

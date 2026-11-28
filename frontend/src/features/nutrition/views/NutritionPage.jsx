@@ -1,105 +1,139 @@
 "use client";
 
-import { Suspense } from "react";
-import { useAuth } from "@/src/features/auth/context/AuthContext";
-import { NutritionSkeleton } from "@/src/components/ui/Skeleton";
-import { useNutritionCalculator } from "../hooks/useNutritionCalculator";
-import { goals } from "../lib/nutrition";
+import { useState } from "react";
+import Link from "next/link";
+import { nutritionApi } from "../api/nutritionApi";
+import { useNutritionData } from "../hooks/useNutritionData";
+import ProfileForm from "../components/ProfileForm";
+import FoodImage from "../components/FoodImage";
+import FoodCatalog, { FoodCard } from "../components/FoodCatalog";
+import History, { Distribution, EntryList } from "../components/History";
+import { EntryForm, FoodDetail } from "../components/FoodDialogs";
+import { goals, grams } from "../components/labels";
+import "./nutrition.css";
 
-function NutritionCalculator() {
-  const { loading } = useAuth();
+const sections = { overview: "Resumen", catalog: "Alimentos", history: "Historial", meals: "Ideas de comidas" };
 
-   const {
-    weight, setWeight,
-    height, setHeight,
-    goal, setGoal,
-    bmi, bmiStatus,
-    proteinTarget, goalInfo,
-    availableFoods, selectedFoods,
-    totalProtein, progressPercent, goalReached,
-    toggleFood
-  } = useNutritionCalculator();
-
-  if (loading) return <NutritionSkeleton />;
-  return (
-    <main className="min-h-screen px-6 pb-[72px] bg-[#171817] pb-20">
-
-      <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px] [&_h1]:m-0 [&_h1]:text-[clamp(34px,5vw,54px)] [&_h1]:tracking-[-1.8px] [&_h1]:leading-[1.05] [&_p:last-child]:max-w-[510px] [&_p:last-child]:mt-[15px] [&_p:last-child]:text-[15px] [&_p:last-child]:leading-[1.6] [&_p:last-child]:text-[#a9afa7]">
-        <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">BIENESTAR</p>
-        <h1>Calcula tu proteína diaria</h1>
-        <p>Ingresa tu peso, estatura y objetivo para conocer una meta de proteína orientativa, y elige los alimentos que prefieras hasta alcanzarla.</p>
-      </section>
-
-      <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] items-start gap-[18px] pb-10">
-        <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
-          <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Tus datos</h2>
-          <p className="text-sm text-[#a9afa7]">70 kg y 170 cm son valores de ejemplo. Sustitúyelos por tus datos.</p>
-          <div className="grid grid-cols-2 gap-[15px] my-[27px_0_22px] [&_label]:text-xs [&_label]:font-bold [&_label]:text-[#c0c7bd]">
-            <label htmlFor="nutri-weight">Peso<div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff] [&_input]:w-full [&_input]:min-w-0 [&_input]:py-2 [&_input]:border-0 [&_input]:outline-0 [&_input]:bg-transparent [&_input]:text-[#f2f4ef] [&_input]:text-[22px] [&_input]:font-bold [&_span]:text-[#b56cff] [&_span]:text-xs [&_span]:font-extrabold"><input id="nutri-weight" type="number" min="1" max="500" value={weight} onChange={(event) => setWeight(event.target.value)} /><span>kg</span></div></label>
-            <label htmlFor="nutri-height">Estatura<div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff] [&_input]:w-full [&_input]:min-w-0 [&_input]:py-2 [&_input]:border-0 [&_input]:outline-0 [&_input]:bg-transparent [&_input]:text-[#f2f4ef] [&_input]:text-[22px] [&_input]:font-bold [&_span]:text-[#b56cff] [&_span]:text-xs [&_span]:font-extrabold"><input id="nutri-height" type="number" min="1" max="300" value={height} onChange={(event) => setHeight(event.target.value)} /><span>cm</span></div></label>
-          </div>
-
-          <p className="m-0 mb-2.5 text-xs font-bold text-[#c0c7bd]">¿Cuál es tu objetivo?</p>
-          <div className="grid gap-2 mb-[22px]" role="radiogroup" aria-label="Objetivo">
-            {goals.map((item) => (
-              <button key={item.value} type="button" role="radio" aria-checked={goal === item.value} className={`p-[11px_14px] border rounded-[10px] bg-[#151714] text-[#f2f4ef] text-[13.5px] font-semibold text-left cursor-pointer transition hover:border-[#b56cff] ${goal === item.value ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]" : "border-[#41463f]"}`} onClick={() => setGoal(item.value)}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className={`grid grid-cols-[1fr_auto] items-center gap-x-[15px] gap-y-1 p-[18px] border-l-4 rounded-sm [&_span]:block [&_span]:text-[11px] [&_span]:text-[#b7c5ae] [&_b]:block [&_b]:mt-1 [&_b]:text-base [&_small]:block [&_small]:mt-0.5 [&_small]:text-[11px] [&_small]:text-[#9ba995] [&_strong]:text-[40px] [&_strong]:leading-none ${bmiStatus?.tone === "low" ? "border-[#4caed3] bg-[#172c34] [&_b]:text-[#79cbeb] [&_strong]:text-[#79cbeb]" : bmiStatus?.tone === "high" ? "border-[#dc914f] bg-[#362417] [&_b]:text-[#f2b276] [&_strong]:text-[#f2b276]" : "border-[#b56cff] bg-[#321d47] [&_b]:text-[#d7adff] [&_strong]:text-[#d7adff]"}`} aria-live="polite">
-            <div><span>Tu índice de masa corporal</span><b>{bmiStatus ? bmiStatus.label : "Ingresa valores válidos"}</b><small>{bmiStatus?.detail}</small></div>
-            <strong>{bmi ? bmi.toFixed(1) : "—"}</strong>
-          </div>
-
-          <div className="mt-4 p-[16px_18px] border-l-4 border-[#ffb84d] rounded-sm bg-[#2c2416] [&_span]:block [&_span]:text-[11px] [&_span]:font-bold [&_span]:text-[#e3c793] [&_strong]:block [&_strong]:mt-1 [&_strong]:text-[30px] [&_strong]:text-[#ffc177] [&_p]:mt-2 [&_p]:text-[12.5px] [&_p]:leading-[1.5] [&_p]:text-[#cbb98d]">
-            <span>Meta diaria de proteína ({goalInfo?.label.toLowerCase()})</span>
-            <strong>{proteinTarget ? `${proteinTarget} g` : "—"}</strong>
-            <p>{goalInfo?.hint}</p>
-          </div>
-
-          <p className="mt-4 text-[12px] leading-[1.5] text-[#a9afa7]">El IMC y la meta de proteína son referencias generales (basadas en tu peso corporal) y no sustituyen la valoración de un nutricionista o médico.</p>
-        </div>
-
-        <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
-          <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Elige tus alimentos</h2>
-          <p className="m-[-10px_0_18px] text-[13px] leading-[1.55] text-[#a9afa7]">Son opciones para escoger, no una obligación. Marca los que quieras comer hoy. Al cambiar el objetivo, el total solo cuenta los alimentos disponibles para ese objetivo.</p>
-
-          <div className="mb-[18px]" aria-live="polite">
-            <div className="h-2.5 rounded-md bg-[#151714] overflow-hidden"><div className="h-full rounded-md bg-gradient-to-r from-[#8441c6] to-[#d7adff] transition-[width] duration-200" style={{ width: `${progressPercent}%` }} /></div>
-            <div className="flex justify-between mt-2 text-[12.5px] font-semibold text-[#a9afa7]">
-              <span>{totalProtein} g de {proteinTarget || "—"} g</span>
-              <span>{progressPercent}%</span>
-            </div>
-            {goalReached && <p className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#251833] text-[#d7adff] text-[13px] leading-[1.5]" style={{ marginTop: 12, marginBottom: 0 }}>¡Alcanzaste tu meta de proteína del día! Ya elegiste suficiente con estas opciones.</p>}
-          </div>
-
-          <div className="grid gap-2 max-h-[480px] overflow-y-auto pr-1">
-            {availableFoods.map((food) => {
-              const active = selectedFoods.has(food.name);
-              return (
-                <button key={food.name} type="button" className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-[12px_14px] border rounded-[10px] bg-[#151714] text-[#f2f4ef] text-left font-inherit cursor-pointer transition hover:border-[#b56cff] ${active ? "border-[#b56cff] bg-[#321d47]" : "border-[#41463f]"}`} onClick={() => toggleFood(food.name)} aria-pressed={active}>
-                  <span className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-[13.5px] font-semibold">{food.name}</span>
-                    <span className="text-[11.5px] text-[#a9afa7]">{food.category} · {food.serving}</span>
-                    <span className="text-xs font-bold">{active ? "Seleccionado" : "Agregar"}</span>
-                  </span>
-                  <span className="text-[13px] font-extrabold text-[#d7adff] whitespace-nowrap">{food.proteinPerServing} g</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-    </main>
-  );
+function DailyProtein({ reference, data, tracking, explore }) {
+  const amount = data?.days[0]?.protein ?? null;
+  const percentage = reference && amount !== null ? Math.round(amount * 100 / reference.minimum) : null;
+  return <article className="nut-panel nut-protein nut-stack">
+    <h2>Proteína de hoy</h2>
+    <div className="nut-metrics">
+      <div><small>Proteína registrada</small><strong>{amount === null ? "Sin registros" : grams(amount)}</strong></div>
+      <div><small>Referencia orientativa</small><strong>{reference ? `${reference.minimum}–${grams(reference.maximum)}` : "Orientación general"}</strong></div>
+    </div>
+    {percentage !== null && <>
+      <label className="nut-progress">{percentage} % del extremo inferior de la referencia
+        <progress max="100" value={Math.min(100, percentage)} /></label>
+      <p>{amount < reference.minimum ? `${grams(reference.minimum - amount)} hasta el extremo inferior` :
+        amount > reference.maximum ? `${grams(amount - reference.maximum)} por encima del extremo superior` : "Dentro del intervalo orientativo"}</p>
+    </>}
+    {!reference && <p>Si eres menor de edad, tienes una condición que afecta tus necesidades o necesitas orientación individual, consulta a un profesional de nutrición.</p>}
+    <p>La proteína es una parte de la alimentación. Los cambios de peso dependen también de la energía total y otros factores.</p>
+    {tracking ? <button className="nut-primary" onClick={explore}>Registrar alimento</button> : <p>Registro de alimentos desactivado.</p>}
+  </article>;
 }
 
-export default function NutritionPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]"><p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Cargando...</p></div>}>
-      <NutritionCalculator />
-    </Suspense>
-  );
+export default function NutritionPage({ gym }) {
+  const [view, setView] = useState("overview");
+  const [configure, setConfigure] = useState(false);
+  const [dialog, setDialog] = useState(null);
+  const [version, setVersion] = useState(0);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const profileResult = useNutritionData("perfil", {}, version);
+  const profile = profileResult.data;
+  const ready = Boolean(profile?.settings);
+  const daily = useNutritionData(ready && !configure && view === "overview" ? "registros" : null, { day: profile?.today }, version);
+  const suggested = useNutritionData(ready && view === "overview" ? "recomendaciones" : null, {}, version);
+  const favorites = useNutritionData(ready || view === "catalog" ? "alimentos" : null, { favorite: "true" }, version);
+  const ideas = useNutritionData(view === "meals" ? "comidas" : null, {}, version);
+  const retry = () => setVersion((value) => value + 1);
+  const details = (food) => setDialog({ type: "details", food });
+  const log = profile?.settings?.tracking ? (food) => setDialog({ type: "entry", food }) : undefined;
+  const edit = (entry) => setDialog({ type: "entry", food: entry.snapshot, entry });
+
+  function saved(message) {
+    setStatus(message);
+    setError("");
+    setDialog(null);
+    setConfigure(false);
+    retry();
+  }
+  async function toggle(food, enabled) {
+    try {
+      await nutritionApi.favorite(food.id, enabled);
+      setStatus(enabled ? "Alimento guardado en favoritos." : "Alimento retirado de favoritos.");
+      setError("");
+      retry();
+    } catch (error) { setError(error.message); }
+  }
+  async function remove(entry) {
+    if (!window.confirm(`¿Eliminar el registro de ${entry.snapshot.name}?`)) return;
+    try { await nutritionApi.remove(entry.id); saved("Registro eliminado."); }
+    catch (error) { setError(error.message); }
+  }
+
+  return <main className="nut-shell nut-stack">
+    <header className="nut-header">
+      <div><Link href={`/dashboard${gym ? "?" + new URLSearchParams({ gym }) : ""}`}>← Panel principal</Link>
+        <h1>Mi nutrición</h1><p>Explora alimentos y lleva un registro de la proteína que consumes.</p></div>
+      {ready && <button onClick={() => setConfigure(!configure)}>{configure ? "Volver al resumen" : "Configuración nutricional"}</button>}
+    </header>
+    {(profileResult.loading || daily.loading) && <p role="status">Cargando información nutricional…</p>}
+    {(error || profileResult.error || daily.error || suggested.error || favorites.error) &&
+      <p role="alert" className="nut-panel">{error || profileResult.error || daily.error || suggested.error || favorites.error} <button onClick={() => { setError(""); retry(); }}>Reintentar</button></p>}
+    {status && <p role="status" className="nut-status">{status}</p>}
+    {profile && (configure || !ready) && <ProfileForm profile={profile} saved={saved} close={() => setConfigure(false)} />}
+    {!configure && profile && <>
+      <nav className="nut-tabs" aria-label="Secciones de nutrición">{Object.entries(sections).map(([key, label]) =>
+        <button key={key} aria-current={view === key ? "page" : undefined} onClick={() => setView(key)}>{label}</button>)}</nav>
+      {view === "overview" && ready && <>
+        <div className="nut-overview">
+          <DailyProtein reference={profile.reference?.currentEstimate} data={daily.data} tracking={profile.settings.tracking} explore={() => setView("catalog")} />
+          <article className="nut-panel nut-goal-summary">
+            <h2>Objetivo actual</h2><strong>{goals[profile.settings.goal].name}</strong>
+            <p>{goals[profile.settings.goal].description}</p>
+            <p>Actualizado el {profile.reference?.day.slice(0, 10) ?? profile.settings.updatedAt.slice(0, 10)}</p>
+            <button onClick={() => setConfigure(true)}>Cambiar objetivo</button>
+            <p><a href={profile.methodSource} target="_blank" rel="noreferrer">Metodología de la referencia</a></p>
+          </article>
+        </div>
+        <div className="nut-actions">{["catalog", "history", "meals"].map((key) =>
+          <button key={key} onClick={() => setView(key)}>{sections[key]}</button>)}</div>
+        <section className="nut-stack">
+          <h2>Alimentos recomendados</h2>
+          {suggested.loading && <p role="status">Cargando recomendaciones…</p>}
+          {suggested.data?.length ? <div className="nut-grid">{suggested.data.map((food) =>
+            <FoodCard key={food.id} food={food} favorite={favorites.data?.favorites.includes(food.id) ?? false} {...{ toggle, details, log }} />)}</div>
+            : suggested.data && <p>Explora el catálogo para consultar alimentos y porciones.</p>}
+        </section>
+        <section className="nut-panel nut-stack">
+          <h2>Registros de hoy</h2>
+          {daily.data && (daily.data.entries.length ? <>
+            <Distribution values={daily.data.meals} />
+            <EntryList entries={daily.data.entries} {...{ edit, remove, details }} />
+            {daily.data.total > daily.data.pageSize && <button onClick={() => setView("history")}>Ver todos los registros</button>}
+          </> : <p>Hoy todavía no hay registros.</p>)}
+        </section>
+      </>}
+      {view === "catalog" && <FoodCatalog {...{ version, toggle, details, log, retry }} />}
+      {view === "history" && <History today={profile.today} {...{ version, edit, remove, details, retry }} />}
+      {view === "meals" && <section className="nut-stack"><h2>Ideas de comidas</h2>
+        <p>Combinaciones flexibles con alimentos del catálogo. Los tiempos presuponen que los ingredientes principales están listos.</p>
+        {ideas.loading && <p role="status">Cargando ideas…</p>}
+        {ideas.error && <p role="alert">{ideas.error} <button onClick={retry}>Reintentar</button></p>}
+        {ideas.data?.length === 0 && <p>Sin ideas compatibles con los filtros del perfil.</p>}
+        <div className="nut-grid">{ideas.data?.map((idea) => <article className="nut-panel" key={idea.name}>
+          <FoodImage id={idea.id} />
+          <h3>{idea.name}</h3><strong>{grams(idea.protein)} de proteína estimada · {idea.minutes} min</strong>
+          <ul>{idea.ingredients.map((food) => <li key={food.id}>{food.name} · {grams(food.grams)}</li>)}</ul>
+          <p>{idea.steps}</p><small>Alérgenos identificados · {idea.allergens.join(", ") || "Sin alérgenos consignados"}</small>
+        </article>)}</div>
+      </section>}
+    </>}
+    {dialog?.type === "details" && <FoodDetail food={dialog.food} close={() => setDialog(null)} favorite={favorites.data?.favorites.includes(dialog.food.id) ?? false} {...{ toggle, log }} />}
+    {dialog?.type === "entry" && profile && <EntryForm food={dialog.food} entry={dialog.entry} day={profile.today} today={profile.today} close={() => setDialog(null)} saved={saved} />}
+  </main>;
 }
