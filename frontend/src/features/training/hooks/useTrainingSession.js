@@ -17,20 +17,20 @@ export function useTrainingSession() {
   const [notas, setNotas] = useState("");
   const [filas, setFilas] = useState(() => {
     const rutinaParam = searchParams.get("rutina");
-    if (!rutinaParam) return [nuevaFila()];
+    if (!rutinaParam) return [];
     return rutinaParam
       .split(",")
       .filter(Boolean)
-      .map((id) => ({ ...nuevaFila(), ejercicioId: id }));
+      .map((id) => nuevaFila(id));
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
 
-  function nuevaFila() {
+  function nuevaFila(ejercicioId) {
     return {
       id: crypto.randomUUID(),
-      ejercicioId: "",
+      ejercicioId,
       repeticiones: "",
       pesoKg: "",
     };
@@ -73,27 +73,35 @@ export function useTrainingSession() {
     setFilas((prev) => prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
   }
 
-  function agregarFila() {
-    setFilas((prev) => [...prev, nuevaFila()]);
+  function agregarFila(ejercicioId) {
+    const fila = nuevaFila(String(ejercicioId));
+    setFilas((prev) => [...prev, fila]);
+    return fila.id;
   }
 
   function quitarFila(id) {
-    setFilas((prev) => (prev.length > 1 ? prev.filter((f) => f.id !== id) : prev));
+    setFilas((prev) => prev.filter((f) => f.id !== id));
   }
 
   async function guardarEntrenamiento(event) {
     if (event) event.preventDefault();
+    if (guardando) return;
     setError("");
     setExito("");
 
-    const filasValidas = filas.filter((f) => f.ejercicioId && f.repeticiones);
-    if (filasValidas.length === 0) {
+    if (filas.length === 0) {
       setError("Agrega al menos una serie con ejercicio y repeticiones.");
       return;
     }
 
+    const idsDisponibles = new Set(catalogo.flatMap((grupo) => grupo.ejercicios.map((ejercicio) => String(ejercicio.id))));
+    if (filas.some((fila) => !idsDisponibles.has(fila.ejercicioId))) {
+      setError("Quita las series de los ejercicios que ya no están disponibles.");
+      return;
+    }
+
     const contador = new Map();
-    const series = filasValidas.map((f) => {
+    const series = filas.map((f) => {
       const actual = (contador.get(f.ejercicioId) || 0) + 1;
       contador.set(f.ejercicioId, actual);
       return {
@@ -108,7 +116,7 @@ export function useTrainingSession() {
     try {
       await trainingApi.saveTrainingSession({ fecha, notas: notas.trim(), series });
       setExito("Entrenamiento guardado correctamente.");
-      setFilas([nuevaFila()]);
+      setFilas([]);
       setNotas("");
     } catch (err) {
       setError(err.message);
