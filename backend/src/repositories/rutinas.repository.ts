@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/AppError.js";
-import type { Prisma } from "../generated/prisma/client.js";
+import { Prisma } from "../generated/prisma/client.js";
 import type { CreateRutinaInput, UpdateRutinaInput } from "../types/rutinas.types.js";
 
 const include = {
@@ -46,21 +46,28 @@ export function createRutinasRepository(db = prisma) {
     },
 
     async create(usuarioId: string, input: CreateRutinaInput, generateId: () => string) {
-      const { ejercicioIds, planes, ...datos } = input;
-      const id = generateId();
-      await db.$transaction(async (tx) => {
-        await validarCatalogo(tx, ejercicioIds);
-        await tx.rutina.create({
-          data: { ...datos, id, usuarioId, rutinaEjercicios: { createMany: { data: ejercicioIds.map((ejercicioId, i) => ({
-            ejercicioId: BigInt(ejercicioId), orden: i + 1, ...planes?.[i],
-          })) } } },
+      const { ejercicioIds, planes, solicitudId, ...datos } = input;
+      const id = solicitudId ?? generateId();
+      const existe = () => db.rutina.findFirst({ where: { id, usuarioId }, select: { id: true } });
+      if (solicitudId && await existe()) return id;
+      try {
+        await db.$transaction(async (tx) => {
+          await validarCatalogo(tx, ejercicioIds);
+          await tx.rutina.create({
+            data: { ...datos, id, usuarioId, rutinaEjercicios: { createMany: { data: ejercicioIds.map((ejercicioId, i) => ({
+              ejercicioId: BigInt(ejercicioId), orden: i + 1, ...planes?.[i],
+            })) } } },
+          });
         });
-      });
+      } catch (error) {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
+        if (!solicitudId || !(await existe())) throw new AppError(409, "El identificador de solicitud no está disponible.");
+      }
       return id;
     },
 
     async update(usuarioId: string, input: UpdateRutinaInput) {
-      const { rutinaId, ejercicioIds, planes, ...datos } = input;
+      const { rutinaId, ejercicioIds, planes, solicitudId: _solicitudId, ...datos } = input;
       await db.$transaction(async (tx) => {
         const resultado = await tx.rutina.updateMany({ where: { id: rutinaId, usuarioId }, data: datos });
         if (!resultado.count) throw new AppError(404, "Rutina no encontrada.");

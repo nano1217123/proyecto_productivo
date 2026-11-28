@@ -25,9 +25,10 @@ export function createSesionEntrenamientoRepository(db = prisma) {
       return db.entrenamiento.findFirst({ where: { usuarioId, estado: "en_curso" }, select });
     },
 
-    async iniciar(usuarioId: string, id: string, contenido: ContenidoSesion) {
+    async iniciar(usuarioId: string, id: string, entrada: ContenidoSesion | (() => Promise<ContenidoSesion>)) {
       const existente = await obtener(usuarioId, id);
       if (existente) return existente;
+      const contenido = typeof entrada === "function" ? await entrada() : entrada;
       await validarCatalogo(contenido);
       const ahora = new Date();
       const fecha = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(ahora);

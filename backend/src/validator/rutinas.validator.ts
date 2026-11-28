@@ -33,6 +33,8 @@ const planEjercicio = z.object({
     if ([duracionSeg, pesoKg, asistenciaKg, distanciaKm].some((value) => value != null)) reject("Selecciona el tipo de ejercicio.");
     return;
   }
+  // Las plantillas antiguas podían registrar únicamente series o descanso.
+  // La edición actual envía siempre los objetivos aplicables.
   const porTiempo = ["isometrico", "cardio", "estiramiento"].includes(tipo);
   if ((porTiempo && repeticiones != null) ||
       (!porTiempo && tipo !== "movilidad" && duracionSeg != null) ||
@@ -46,6 +48,7 @@ const planEjercicio = z.object({
 });
 
 const metadata = z.object({
+  solicitudId: z.uuid().optional(),
   descripcion: texto(500),
   objetivo: texto(120),
   notas: texto(200),
@@ -125,14 +128,26 @@ export function parseCreateRutinaBody(body: unknown): CreateRutinaInput {
 
   const ids = parseEjercicioIds(ejercicioIds);
 
+  const datos = leerSesion(metadata, body);
   const configuracion = planes === undefined ? undefined
     : leerSesion(z.array(planEjercicio.nullable()).length(ids.length), planes);
   if (configuracion && configuracion.reduce((total, plan) => total + (plan?.series ?? 1), 0) > 200) {
     throw new AppError(400, "La rutina admite hasta 200 series.");
   }
 
+  const actual = Object.hasOwn(body, "dias");
+  if (actual && (ids.length > 30 || configuracion?.some((plan) => {
+    if (!plan?.tipo) return true;
+    if (plan.tipo !== "cardio" && plan.series == null) return true;
+    if (plan.tipo === "movilidad") return plan.duracionSeg == null && plan.repeticiones == null;
+    if (["cardio", "isometrico", "estiramiento"].includes(plan.tipo)) return plan.duracionSeg == null;
+    return plan.repeticiones == null;
+  }) || !configuracion)) {
+    throw new AppError(400, "Configura las series y las repeticiones o duración de cada ejercicio. El máximo es de 30 ejercicios.");
+  }
+
   return {
-    ...leerSesion(metadata, body),
+    ...datos,
     planes: configuracion,
     nombre: nombreLimpio,
     diaEtiqueta: etiquetaLimpia,
@@ -148,7 +163,8 @@ export const validateCreateRutina: RequestHandler = (req, _res, next) => {
 // Parsea y valida el body para actualizar una rutina.
 // Misma forma que create (nombre, diaEtiqueta, ejercicioIds).
 export function parseUpdateRutinaBody(body: unknown): Omit<UpdateRutinaInput, "rutinaId"> {
-  return parseCreateRutinaBody(body);
+  const { solicitudId: _solicitudId, ...input } = parseCreateRutinaBody(body);
+  return input;
 }
 
 export const validateUpdateRutina: RequestHandler = (req, _res, next) => {

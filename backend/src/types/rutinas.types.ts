@@ -21,6 +21,7 @@ export interface CreateRutinaInput {
   objetivo?: string | null;
   notas?: string | null;
   dias?: number[];
+  solicitudId?: string;
   ejercicioIds: number[];
   planes?: (PlanRutinaEjercicio | null)[];
 }

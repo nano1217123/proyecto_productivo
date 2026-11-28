@@ -7,6 +7,7 @@ import {
   getRutina,
   listRutinas,
   updateRutina,
+  startRoutine,
 } from "../controller/rutinas.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import {
@@ -23,6 +24,7 @@ router.get("/", listRutinas);
 router.post("/", validateCreateRutina, createRutina);
 router.get("/:id", getRutina);
 router.put("/:id", validateUpdateRutina, updateRutina);
+router.post("/:id/iniciar", startRoutine);
 router.patch("/:id/estado", changeArchive);
 router.delete("/:id", deleteRutina);
 
