@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { muscleGroupBySlug } from "../lib/muscleGroups";
@@ -177,16 +177,11 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     setRestoredFromUrl(true);
   }, [groupData, restoredFromUrl, searchParams]);
 
-  // Cierre con tecla Escape
+  const dialogo = useRef(null);
+  const tarjetaOrigen = useRef(null);
+
   useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === "Escape") closeModal();
-    }
-    if (selected) {
-      document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (selected && !dialogo.current?.open) dialogo.current?.showModal();
   }, [selected]);
 
   const imagenes = useExerciseImages(groupSlug);
@@ -210,12 +205,16 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     window.history.replaceState(null, "", query ? `${pathname}?${query}` : pathname);
   }
 
-  function openExercise(exercise) {
+  function openExercise(exercise, tarjeta) {
+    tarjetaOrigen.current = tarjeta;
+    setVistaModal("foto");
     setSelected(exercise);
     syncUrl(exercise);
   }
 
   function closeModal() {
+    dialogo.current?.close();
+    tarjetaOrigen.current?.focus({ preventScroll: true });
     setSelected(null);
     syncUrl(null);
   }
@@ -224,7 +223,6 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
     return (
       <main className="min-h-screen px-6 pb-[72px] bg-[#171817] grid place-items-center">
         <div className="max-w-md py-12 px-6 text-center border border-[#41433f] rounded-lg bg-[#212320]">
-          <span className="inline-block text-3xl mb-3" aria-hidden="true">🏠</span>
           <h1 className="m-0 mb-2 text-lg font-bold text-[#f2f4ef]">
             No pudimos cargar los ejercicios en casa
           </h1>
@@ -261,7 +259,7 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
           className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]"
           href={`/dashboard/ejercicios?gym=${encodeURIComponent(gym)}${modoCasa ? "&modo=casa" : ""}`}
         >
-          &larr; Grupos musculares
+          Volver a grupos musculares
         </Link>
         <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">
           {groupData.name.toUpperCase()} {modoCasa && "• EN CASA"}
@@ -282,9 +280,6 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
       >
         {groupData.exercises.length === 0 ? (
           <div className="col-span-full py-16 px-6 text-center border border-dashed border-[#41433f] rounded-2xl bg-[#212320]/60">
-            <span className="inline-block text-3xl mb-3" aria-hidden="true">
-              {modoCasa ? "🏠" : "🏋️"}
-            </span>
             <h3 className="m-0 mb-2 text-lg font-bold text-[#f2f4ef]">
               {modoCasa
                 ? "No hay ejercicios para este grupo en Modo Casa"
@@ -306,15 +301,15 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
                 key={exercise.id ?? `estatico-${exercise.name}`}
                 type="button"
                 style={{ "--accent": groupData.accent }}
-                onClick={() => openExercise(exercise)}
+                onClick={(event) => openExercise(exercise, event.currentTarget)}
               >
-                {imgSrc && (
+                {imgSrc ? (
                   <img
                     src={imgSrc}
                     alt={exercise.name}
                     className="w-full h-[140px] object-cover border-b border-[#41433f]"
                   />
-                )}
+                ) : <p className="px-5 pt-4 text-sm text-[#a9afa7]">Imagen no disponible</p>}
 
                 <div className="p-5 flex flex-col items-start gap-1.5 w-full flex-1">
                   <span className="text-[11px] font-extrabold tracking-widest text-[var(--accent)]">
@@ -324,7 +319,7 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
                   <p className="m-0 text-[12.5px] text-[#a9afa7]">{exercise.primary}</p>
                   {nombreRepetido && <p className="m-0 text-[12px] text-[#c8cbc5]">{exercise.equipment}</p>}
                   <span className="mt-auto pt-2.5 inline-flex items-center gap-2 text-[12.5px] font-extrabold text-[var(--accent)]">
-                    Ver detalle <b aria-hidden="true">&rarr;</b>
+                    Ver detalle
                   </span>
                 </div>
               </button>
@@ -337,24 +332,24 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
         const anatomy = getExerciseAnatomy(selected, groupSlug, groupData.name);
         const modalImgSrc = getExerciseImage(selected);
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-[rgba(8,9,7,0.72)] backdrop-blur-[2px]"
-            role="dialog"
-            aria-modal="true"
+          <dialog
+            ref={dialogo}
+            className="m-auto w-[calc(100%-2rem)] max-w-[480px] overflow-visible bg-transparent p-0 text-[#f2f4ef] backdrop:bg-black/70"
             aria-label={selected.name}
-            onClick={closeModal}
+            onCancel={(event) => { event.preventDefault(); closeModal(); }}
+            onClick={(event) => { if (event.target === event.currentTarget) closeModal(); }}
           >
             <div
               className="relative w-full max-w-[480px] max-h-[88vh] overflow-y-auto p-[30px_28px] border border-[#41433f] rounded-2xl bg-[#1c1e1b]"
               onClick={(event) => event.stopPropagation()}
             >
               <button
-                className="absolute top-4 right-4 w-8 h-8 border border-[#41433f] rounded-full bg-[#262822] text-[#f2f4ef] text-lg leading-none cursor-pointer hover:border-[#b56cff] hover:text-[#b56cff]"
+                className="mb-3 min-h-11 px-4 border border-[#41433f] rounded-full bg-[#262822] text-[#f2f4ef] text-lg leading-none cursor-pointer hover:border-[#b56cff] hover:text-[#b56cff]"
                 type="button"
                 onClick={closeModal}
                 aria-label="Cerrar"
               >
-                &times;
+                Cerrar detalle
               </button>
 
               {/* Pestañas para Foto / Diagrama */}
@@ -469,7 +464,7 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
                 <strong>Consejo:</strong> {selected.tip}
               </p>
             </div>
-          </div>
+          </dialog>
         );
       })()}
     </main>

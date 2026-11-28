@@ -168,7 +168,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
             </h2>
 
             <p className="mb-5 text-sm text-[#a9afa7]">
-              Tu opinión nos ayuda a mejorar.
+              Las calificaciones de 4 y 5 se publican. Las de 1 a 3 se envían de forma privada al gimnasio.
             </p>
 
             <form onSubmit={handlePublicar}>
@@ -176,21 +176,21 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                 Tu calificación
               </label>
 
-              <div className="mb-5 flex gap-2">
+              <div className="mb-5 flex flex-wrap gap-2">
                 {[1, 2, 3, 4, 5].map((estrella) => (
                   <button
                     key={estrella}
                     type="button"
                     onClick={() => setCalificacion(estrella)}
-                    aria-label={`${estrella} estrellas`}
+                    aria-label={`${estrella} de 5`}
                     aria-pressed={calificacion === estrella}
-                    className={`text-3xl ${
-                      estrella <= calificacion
-                        ? "text-[#d5ad55]"
-                        : "text-[#555951]"
+                    className={`min-h-11 min-w-11 rounded-lg border px-2 text-sm font-bold ${
+                      estrella === calificacion
+                        ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]"
+                        : "border-[#41463f] text-[#f2f4ef]"
                     }`}
                   >
-                    ★
+                    {estrella} de 5
                   </button>
                 ))}
               </div>
@@ -258,10 +258,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                 >
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <span className="text-xl tracking-wider text-[#d5ad55]">
-                      {"★".repeat(resena.calificacion)}
-                      <span className="text-[#555951]">
-                        {"★".repeat(5 - resena.calificacion)}
-                      </span>
+                      {resena.calificacion} de 5
                     </span>
 
                     <span className="text-xs text-[#a9afa7]">

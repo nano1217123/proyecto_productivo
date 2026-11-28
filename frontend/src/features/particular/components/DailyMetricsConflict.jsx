@@ -64,7 +64,7 @@ export default function DailyMetricsConflict({ conflicto, consultarNuevoDia, res
                       setSeleccion((actual) => marcado ? [...actual, campo] : actual.filter((valor) => valor !== campo));
                     }}
                   />
-                  <span>{etiqueta}: {formato(nuevoDia.habits[habit])} → {formato(cambios[campo])}</span>
+                  <span>{etiqueta}: {formato(nuevoDia.habits[habit])} a {formato(cambios[campo])}</span>
                 </label>
               ))}
               <button

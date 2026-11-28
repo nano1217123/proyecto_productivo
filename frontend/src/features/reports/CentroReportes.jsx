@@ -8,7 +8,7 @@ import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import ReportesPersonales from "@/src/features/training/components/ReportesPersonales";
 import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab";
 import { accesoReportes } from "./reportAccess.js";
-import { enlaceReporte, IconoReporte } from "./ReportActions.jsx";
+import { enlaceReporte } from "./ReportActions.jsx";
 
 function ReportePorSede({ perfil, desdePanel, membresias = false }) {
   const { sedes, nombreSede, error } = useSedes();
@@ -53,7 +53,7 @@ export default function CentroReportes({ gym }) {
           : <>
             <ReportesPersonales key={profile.idusuario ?? profile.tipo_usuario} />
             <Link href="/dashboard/entrenamientos/historial#vista-previa-progreso" className={enlaceReporte + " mb-6"}>
-              <IconoReporte tipo="vista" /> Vista previa de progreso
+              Vista previa de progreso
             </Link>
             {permisos.resenas && <div className="grid gap-5" key={profile.idusuario + ":" + profile.tipo_usuario}>
               <ReportePorSede perfil={profile} desdePanel={gym} />

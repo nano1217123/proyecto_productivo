@@ -48,7 +48,7 @@ export default function ExercisesPage({ gym = "jj-poblado" }) {
           <h2>{group.name}</h2>
           {/* El conteo estático corresponde al catálogo de gimnasio; en casa se consulta al abrir el grupo */}
           <p>{modoCasa ? "Variantes sin equipo" : `${group.exercises.length} ejercicios`}</p>
-          <b aria-hidden="true">&rarr;</b>
+
         </Link>
       ))}
     </section>

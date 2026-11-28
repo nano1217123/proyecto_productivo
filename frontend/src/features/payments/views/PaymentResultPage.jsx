@@ -345,18 +345,18 @@ function PaymentResult() {
           )}
           {error?.tipo === "sesion" && (
             <Link href="/login" className="text-sm font-extrabold text-[#d7adff] no-underline rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
-              Iniciar sesión &rarr;
+              Iniciar sesión
             </Link>
           )}
           {(fase === "sin-referencia" ||
             error?.tipo === "no-encontrado" ||
             (pago && ["RECHAZADO", "ANULADO", "ERROR"].includes(pago.estado))) && (
             <Link href="/dashboard/pagos" className="text-sm font-extrabold text-[#d7adff] no-underline hover:text-[#f2f4ef] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
-              Ir a pagos &rarr;
+              Ir a pagos
             </Link>
           )}
           <Link href="/dashboard" className="text-sm font-extrabold text-[#f2f4ef] no-underline hover:text-[#d7adff] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
-            Volver al panel &rarr;
+            Volver al panel
           </Link>
         </div>
       </div>

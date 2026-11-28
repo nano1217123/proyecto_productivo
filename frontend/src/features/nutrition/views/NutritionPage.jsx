@@ -79,7 +79,7 @@ function NutritionCalculator({ gym }) {
               const active = selectedFoods.has(food.name);
               return (
                 <button key={food.name} type="button" className={`grid grid-cols-[22px_1fr_auto] items-center gap-3 p-[12px_14px] border rounded-[10px] bg-[#151714] text-[#f2f4ef] text-left font-inherit cursor-pointer transition hover:border-[#b56cff] ${active ? "border-[#b56cff] bg-[#321d47]" : "border-[#41463f]"}`} onClick={() => toggleFood(food.name)} aria-pressed={active}>
-                  <span className="grid place-items-center w-[22px] h-[22px] border border-[#5a5f56] rounded-md text-[#d7adff] text-[13px] font-extrabold" aria-hidden="true">{active ? "✓" : ""}</span>
+                  <span className="text-xs font-bold">{active ? "Seleccionado" : "Agregar"}</span>
                   <span className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[13.5px] font-semibold">{food.name}</span>
                     <span className="text-[11.5px] text-[#a9afa7]">{food.category} · {food.serving}</span>

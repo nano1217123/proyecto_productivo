@@ -55,7 +55,7 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
-        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>&larr; Rutinas</Link>
+        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>Volver a rutinas</Link>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">{rutina.dia_etiqueta || "RUTINA"}</p>

@@ -12,7 +12,7 @@ const gyms = [
     location: "El Poblado · Medellín",
     plan: "Sede Principal · VIP & Crossfit",
     accent: "emerald",
-    activeUsers: 48,
+
     image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1200&auto=format&fit=crop",
   },
   {
@@ -22,7 +22,7 @@ const gyms = [
     location: "Laureles · Medellín",
     plan: "Zona Powerlifting & Calistenia",
     accent: "orange",
-    activeUsers: 32,
+
     image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1200&auto=format&fit=crop",
   },
   {
@@ -32,7 +32,7 @@ const gyms = [
     location: "Belén · Medellín",
     plan: "Cardio HIIT & Nutrición",
     accent: "violet",
-    activeUsers: 27,
+
     image: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1200&auto=format&fit=crop",
   },
 ];
@@ -44,6 +44,7 @@ export default function Home() {
   const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % gyms.length);
     }, 4500);
@@ -63,7 +64,7 @@ export default function Home() {
           loop
           muted
           playsInline
-          className="w-full h-full object-cover saturate-125 contrast-110"
+          className="w-full h-full object-cover saturate-125 contrast-110 motion-reduce:hidden"
           poster="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1200"
         >
           <source
@@ -77,7 +78,6 @@ export default function Home() {
       {/* Navegación */}
       <nav className="relative z-[2] w-[calc(100%-48px)] max-w-[1160px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
         <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href="/">
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">🏋️‍♂️</span>
           <span>
             JJ <span>GYM SYSTEM</span>
           </span>
@@ -89,7 +89,7 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-[26px]">
           <Link href="/login" className="text-[13px] text-[#a9afa7] no-underline transition hover:text-[#b56cff]">Ingresar</Link>
-          <Link href="/register" className="px-4 py-2.5 bg-[#b56cff] text-[#10110f] border-0 rounded-lg font-bold text-[13px] cursor-pointer whitespace-nowrap transition hover:bg-[#d7adff] hover:-translate-y-px">Unirme Ahora</Link>
+          <Link href="/register" className="px-4 py-2.5 bg-[#b56cff] text-[#10110f] border-0 rounded-lg font-bold text-[13px] cursor-pointer whitespace-nowrap transition hover:bg-[#d7adff] hover:-translate-y-px">Crear cuenta</Link>
         </div>
       </nav>
 
@@ -115,10 +115,10 @@ export default function Home() {
 
             <div className="flex flex-wrap items-center gap-4">
               <Link href="/register" className="px-7 py-3.5 bg-[#b56cff] text-[#10110f] border-0 rounded-lg font-bold text-[13px] cursor-pointer whitespace-nowrap transition hover:bg-[#d7adff] hover:-translate-y-px">
-                Comenzar Entrenamiento
+                Crear cuenta
               </Link>
               <a className="text-[13px] text-[#a9afa7] no-underline transition hover:text-[#b56cff]" href="#sedes">
-                Ver Sedes Disponibles ↓
+                Ver sedes disponibles
               </a>
             </div>
 
@@ -255,14 +255,15 @@ export default function Home() {
             {gyms.map((_, idx) => (
               <button
                 key={idx}
-                className={`w-3 h-3 rounded-full border-0 cursor-pointer transition-all ${
+                className={`min-w-11 min-h-11 rounded-lg border-0 cursor-pointer transition-all ${
                   idx === activeSlide 
                     ? "bg-[#b56cff] scale-110 shadow-[0_0_12px_rgba(181,108,255,0.5)]" 
                     : "bg-[#41433f] hover:bg-[#5a5d57]"
                 }`}
                 onClick={() => setActiveSlide(idx)}
                 aria-label={`Ver ${gyms[idx].name}`}
-              />
+                aria-pressed={activeSlide === idx}
+              >{idx + 1}</button>
             ))}
           </div>
         </div>
@@ -293,10 +294,7 @@ export default function Home() {
                 <span className="grid place-items-center w-12 h-12 rounded-[14px] border border-[rgba(181,108,255,.35)] bg-[#321d47] text-[#b56cff] text-[13px] font-extrabold">
                   {gym.initials}
                 </span>
-                <span className="text-[11px] font-extrabold text-[#b56cff] inline-flex items-center gap-1.5">
-                  <span className="w-[7px] h-[7px] rounded-full bg-[#5bd48f] shadow-[0_0_9px_#5bd48f]" />
-                  {gym.activeUsers} entrenando ahora
-                </span>
+
               </div>
               <div>
                 <p className="m-0 mb-2 text-xs text-[#a9afa7]">{gym.location}</p>
@@ -308,8 +306,7 @@ export default function Home() {
                 href={`/login?gym=${gym.slug}`}
               >
                 Acceder a esta sede 
-                <span className="text-xl text-[#b56cff] transition-transform group-hover:translate-x-1">→</span>
-              </Link>
+                </Link>
             </article>
           ))}
         </div>

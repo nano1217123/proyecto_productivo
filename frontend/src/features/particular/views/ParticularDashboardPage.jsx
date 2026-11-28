@@ -27,13 +27,13 @@ export default function ParticularDashboardPage() {
           <h2 id="herramientas-autogestion" className="text-xl font-semibold mb-6">Herramientas de Autogestión</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-1 gap-4">
             <Link href="/dashboard/ejercicios?modo=casa" className={ESTILO_HERRAMIENTA}>
-              <span className="text-2xl" aria-hidden="true">🏋️‍♂️</span> Catálogo de Ejercicios (En Casa)
+              Catálogo de Ejercicios (En Casa)
             </Link>
             <Link href="/dashboard/nutricion" className={ESTILO_HERRAMIENTA}>
-              <span className="text-2xl" aria-hidden="true">🥗</span> Calcular IMC y Nutrición
+              Calcular IMC y Nutrición
             </Link>
             <Link href="/dashboard/rutinas" className={ESTILO_HERRAMIENTA}>
-              <span className="text-2xl" aria-hidden="true">📋</span> Mis Rutinas Personalizadas
+              Mis Rutinas Personalizadas
             </Link>
           </div>
         </section>
