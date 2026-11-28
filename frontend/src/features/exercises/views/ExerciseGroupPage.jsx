@@ -54,7 +54,7 @@ function mapBackendExercise(item, staticExercises = []) {
 }
 
 export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
-  const { profile, loading, logout } = useAuth();
+  const { profile, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -255,24 +255,6 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
 
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link
-          className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline"
-          href={`/dashboard?gym=${encodeURIComponent(gym)}${modoCasa ? "&modo=casa" : ""}`}
-        >
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">
-            GYM
-          </span>
-          <span>{modoCasa ? "Ejercicios en Casa" : "Ejercicios"}</span>
-        </Link>
-        <button
-          className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]"
-          type="button"
-          onClick={logout}
-        >
-          Cerrar sesion
-        </button>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <Link

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useTrainingSession } from "../hooks/useTrainingSession";
@@ -10,7 +9,7 @@ import TrainingExercisePicker from "../components/TrainingExercisePicker";
 const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
 
 function TrainingPageContent({ gym = "jj-poblado" }) {
-  const { loading, logout } = useAuth();
+  const { loading } = useAuth();
   const {
     catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
@@ -65,19 +64,6 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
 
   return (
     <main className="min-h-screen px-4 pb-[72px] sm:px-6 bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between gap-3 border-b border-[#30332f]">
-        <Link className={`text-sm font-bold text-[#a9afa7] no-underline hover:text-[#b56cff] ${ESTILO_FOCO}`} href={`/dashboard?gym=${encodeURIComponent(gym)}`}>
-          Volver al inicio
-        </Link>
-        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
-          <Link className="text-[13px] text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/entrenamientos/historial?gym=${encodeURIComponent(gym)}`}>
-            Ver historial
-          </Link>
-          <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-8 pb-6">
         <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Registrar entrenamiento</h1>

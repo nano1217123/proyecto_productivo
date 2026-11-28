@@ -7,7 +7,7 @@ import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { routinesApi } from "../api/routinesApi";
 
 export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
-  const { loading, logout } = useAuth();
+  const { loading } = useAuth();
   const router = useRouter();
   const [rutina, setRutina] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -53,15 +53,6 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
 
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span>
-          <span>Rutinas</span>
-        </Link>
-        <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-          Cerrar sesion
-        </button>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>&larr; Rutinas</Link>

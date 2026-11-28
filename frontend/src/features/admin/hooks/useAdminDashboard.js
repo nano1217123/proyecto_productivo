@@ -2,13 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { PESTANA_INICIAL, restaurarPestana } from "../lib/adminTabs.js";
 
+export const claveSedeAdmin = (perfil) => `jjgym:admin:sede:${perfil?.idusuario ?? perfil?.tipo_usuario ?? ""}`;
+
 const CLAVE_PESTANA = "jjgym:admin:pestana";
 // «Miembros» se retiró: el plan, el vencimiento y el cobro del alumno se
 // gestionan fuera de la plataforma (RN-014). Los clientes reales de cada sede
 // están en «Clientes». Una pestaña guardada que ya no existe vuelve a esta.
 
 export function useAdminDashboard() {
-  const { logout, profile } = useAuth();
+  const { profile } = useAuth();
   const esSuperAdmin = profile?.tipo_usuario === "super_admin";
   const esAdmin = profile?.tipo_usuario === "admin";
   
@@ -26,10 +28,18 @@ export function useAdminDashboard() {
   }, [esSuperAdmin, esAdmin]);
   // Sede elegida en el panel. Las opciones salen del servidor: las sedes
   // del admin (admin_sedes) o el catálogo completo para el super_admin.
-  const [gymSeleccionado, setGymSeleccionado] = useState(null);
+  const clave = claveSedeAdmin(profile);
+  const [gymSeleccionado, setGymSeleccionadoEstado] = useState(null);
+  useEffect(() => {
+    try { setGymSeleccionadoEstado(sessionStorage.getItem(clave)); } catch { /* sin almacenamiento */ }
+  }, [clave]);
+  const setGymSeleccionado = useCallback((id) => {
+    setGymSeleccionadoEstado(id);
+    try { sessionStorage.setItem(clave, id); } catch { /* sin almacenamiento */ }
+  }, [clave]);
   
   return {
-    logout, esSuperAdmin,
+    esSuperAdmin,
     tabActiva, setTabActiva,
     gymSeleccionado, setGymSeleccionado,
   };

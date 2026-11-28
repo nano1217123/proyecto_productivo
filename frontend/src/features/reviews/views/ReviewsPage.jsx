@@ -1,13 +1,12 @@
 
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import reviewsApi from "../api/reviewsApi";
 
 export default function ReviewsPage({ gym = "jj-poblado" }) {
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [resenas, setResenas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -130,30 +129,8 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
 
   return (
     <main className="min-h-screen bg-[#171817] px-6 pb-16 text-[#f2f4ef]">
-      <header className="mx-auto flex min-h-[82px] w-full max-w-[1060px] items-center justify-between border-b border-[#30332f]">
-        <Link
-          href={`/dashboard?gym=${encodeURIComponent(gym)}`}
-          className="text-lg font-extrabold tracking-widest text-[#f2f4ef] no-underline"
-        >
-          J&amp;J GYM · RESEÑAS
-        </Link>
-
-        <button
-          type="button"
-          onClick={logout}
-          className="border-b border-[#6f756b] bg-transparent py-2 text-sm text-[#a9afa7] hover:text-white"
-        >
-          Cerrar sesión
-        </button>
-      </header>
 
       <section className="mx-auto w-full max-w-[1060px] pt-12">
-        <Link
-          href={`/dashboard?gym=${encodeURIComponent(gym)}`}
-          className="mb-8 inline-block text-sm text-[#a9afa7] no-underline hover:text-white"
-        >
-          ← Volver al inicio
-        </Link>
 
         <p className="mb-3 text-xs font-extrabold tracking-[2.7px] text-[#d5ad55]">
           OPINIONES DE NUESTROS USUARIOS

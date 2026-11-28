@@ -1,7 +1,8 @@
 "use client";
 
+import { claveSedeAdmin } from "@/src/features/admin/hooks/useAdminDashboard";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import ReportesPersonales from "@/src/features/training/components/ReportesPersonales";
@@ -9,10 +10,16 @@ import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab
 import { accesoReportes } from "./reportAccess.js";
 import { enlaceReporte, IconoReporte } from "./ReportActions.jsx";
 
-function ReportePorSede({ perfil, membresias = false }) {
+function ReportePorSede({ perfil, desdePanel, membresias = false }) {
   const { sedes, nombreSede, error } = useSedes();
   const permisos = accesoReportes(perfil, sedes);
-  const [preferida, setPreferida] = useState("");
+  const clave = claveSedeAdmin(perfil);
+  const [preferida, setPreferida] = useState(desdePanel ?? "");
+  useEffect(() => {
+    if (!desdePanel) {
+      try { setPreferida(sessionStorage.getItem(clave) ?? ""); } catch { /* sin almacenamiento */ }
+    } else setPreferida(desdePanel);
+  }, [clave, desdePanel]);
   const [alcance, setAlcance] = useState("sede");
   const seleccionada = permisos.sedes.includes(preferida) ? preferida : permisos.sedes[0];
   const sede = seleccionada ? { id: seleccionada, nombre: nombreSede(seleccionada) } : undefined;
@@ -32,13 +39,12 @@ function ReportePorSede({ perfil, membresias = false }) {
   );
 }
 
-export default function CentroReportes() {
+export default function CentroReportes({ gym }) {
   const { profile, loading } = useAuth();
   const permisos = accesoReportes(profile);
   return (
     <main className="min-h-screen bg-[#171817] px-5 py-8 text-[var(--ink)]">
       <div className="mx-auto max-w-5xl">
-        <Link href="/dashboard" className={enlaceReporte}>Volver al panel</Link>
         <header className="my-7 border-b border-[var(--green-soft)] pb-5">
           <h1 className="text-3xl font-bold text-[var(--lime)] sm:text-4xl">Centro de reportes</h1>
         </header>
@@ -50,8 +56,8 @@ export default function CentroReportes() {
               <IconoReporte tipo="vista" /> Vista previa de progreso
             </Link>
             {permisos.resenas && <div className="grid gap-5" key={profile.idusuario + ":" + profile.tipo_usuario}>
-              <ReportePorSede perfil={profile} />
-              <ReportePorSede perfil={profile} membresias />
+              <ReportePorSede perfil={profile} desdePanel={gym} />
+              <ReportePorSede perfil={profile} desdePanel={gym} membresias />
             </div>}
           </>}
       </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { NutritionSkeleton } from "@/src/components/ui/Skeleton";
@@ -8,7 +7,7 @@ import { useNutritionCalculator } from "../hooks/useNutritionCalculator";
 import { goals } from "../lib/nutrition";
 
 function NutritionCalculator({ gym }) {
-  const { loading, logout } = useAuth();
+  const { loading } = useAuth();
 
    const {
     weight, setWeight,
@@ -24,13 +23,8 @@ function NutritionCalculator({ gym }) {
   if (loading) return <NutritionSkeleton />;
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817] pb-20">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard?gym=${encodeURIComponent(gym)}`}><span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span><span>Nutricion</span></Link>
-        <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>Cerrar sesion</button>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px] [&_h1]:m-0 [&_h1]:text-[clamp(34px,5vw,54px)] [&_h1]:tracking-[-1.8px] [&_h1]:leading-[1.05] [&_p:last-child]:max-w-[510px] [&_p:last-child]:mt-[15px] [&_p:last-child]:text-[15px] [&_p:last-child]:leading-[1.6] [&_p:last-child]:text-[#a9afa7]">
-        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>&larr; Inicio</Link>
         <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">BIENESTAR</p>
         <h1>Calcula tu proteína diaria</h1>
         <p>Ingresa tu peso, estatura y objetivo para conocer una meta de proteína orientativa, y elige los alimentos que prefieras hasta alcanzarla.</p>

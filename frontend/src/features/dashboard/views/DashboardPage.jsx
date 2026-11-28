@@ -10,14 +10,14 @@ const foco = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visib
 const accion = `inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2.5 text-center text-sm font-bold no-underline ${foco}`;
 
 export default function DashboardPage() {
-  const { profile, logout } = useAuth();
+  const { profile } = useAuth();
   const { sede: datosSede } = useSedes();
   const esCliente = profile?.tipo_usuario === "cliente";
   const esParticular = profile?.tipo_usuario === "usuario_particular";
   const slugSede = esCliente ? profile.sede : null;
   const sede = slugSede ? datosSede(slugSede) : null;
-  const marca = sede?.nombre ?? "JJ GYM";
-  const contexto = esParticular ? "Entrenamiento en casa" : sede?.ubicacion;
+
+  const contexto = esParticular ? "Entrenamiento en casa" : [sede?.nombre, sede?.ubicacion].filter(Boolean).join(" · ");
   const gymQuery = slugSede ? `?gym=${encodeURIComponent(slugSede)}` : "";
 
   const secciones = [
@@ -41,14 +41,6 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-[#171817] px-4 pb-16 text-[#f2f4ef] sm:px-6">
       <div className="mx-auto max-w-[1060px]">
-        <header className="flex min-h-[72px] flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-[#30332f] py-2">
-          <Link href="/" className={`inline-flex min-h-11 items-center rounded-sm text-base font-extrabold no-underline hover:text-[#d7adff] ${foco}`}>
-            {marca}
-          </Link>
-          <button type="button" onClick={logout} className={`min-h-11 cursor-pointer rounded-sm text-sm font-semibold text-[#a9afa7] hover:text-[#f2f4ef] ${foco}`}>
-            Cerrar sesión
-          </button>
-        </header>
 
         <section aria-labelledby="member-title" className="py-7 sm:py-10">
           {contexto && <p className="mb-2 text-sm font-semibold text-[#d7adff]">{contexto}</p>}
@@ -70,7 +62,7 @@ export default function DashboardPage() {
 
         {esCliente && !slugSede && (
           <p role="status" className="mb-6 rounded-lg border border-[rgba(255,196,87,.45)] bg-[rgba(120,86,20,.2)] p-4 text-sm text-[#ffcf70]">
-            Tu cuenta aún no tiene una sede asignada. Pídele a tu gimnasio que te vincule para ver su información y publicar reseñas.
+            Reseñas de mi sede: tu cuenta aún no tiene una sede asignada. Pídele a tu gimnasio que te vincule para ver su información y publicar reseñas.
           </p>
         )}
 
