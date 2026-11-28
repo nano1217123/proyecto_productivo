@@ -15,7 +15,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
     catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
     notas, setNotas,
-    filas, guardando, error, erroresFilas, exito,
+    filas, guardando, error, erroresFilas, focoValidacion, exito,
     actualizarFila, agregarFila, quitarFila,
     guardarEntrenamiento
   } = useTrainingSession();
@@ -28,9 +28,8 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
   const [filaConFoco, setFilaConFoco] = useState(null);
 
   useEffect(() => {
-    const id = Object.keys(erroresFilas)[0];
-    if (id) document.getElementById(`reps-${id}`)?.focus();
-  }, [erroresFilas]);
+    if (focoValidacion) document.getElementById(`reps-${focoValidacion.id}`)?.focus();
+  }, [focoValidacion]);
 
   useEffect(() => {
     if (filaConFoco) repeticionesRef.current?.focus();
