@@ -55,7 +55,7 @@ export function measureLabel(serie) {
   const parts = [];
   if (serie.peso_kg != null) parts.push(`${serie.peso_kg} kg`);
   if (serie.asistencia_kg != null) parts.push(`${serie.asistencia_kg} kg asist.`);
-  if (serie.repeticiones != null) parts.push(`${serie.repeticiones} reps`);
+  if (serie.repeticiones != null) parts.push(`${serie.repeticiones}${serie.repeticiones_max == null ? "" : `–${serie.repeticiones_max}`} reps`);
   if (serie.duracion_seg != null) parts.push(`${serie.duracion_seg} s`);
   if (serie.distancia_km != null) parts.push(`${serie.distancia_km} km`);
   return parts.join(" × ") || "—";

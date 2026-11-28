@@ -3,73 +3,85 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import { normalize } from "@/src/features/training/hooks/trainingSessionModel";
 import { routinesApi } from "../api/routinesApi";
 import RoutineCard from "../components/RoutineCard";
+import { useRoutineActions } from "../hooks/useRoutineActions";
+import { routineUrl, weekdays } from "../routineModel";
+import "./routines.css";
 
 export default function RoutineListPage({ gym = "jj-poblado" }) {
   const { loading } = useAuth();
-  const [rutinas, setRutinas] = useState([]);
-  const [cargando, setCargando] = useState(true);
+  const [view, setView] = useState("active");
+  const [items, setItems] = useState(null);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("updated");
   const [error, setError] = useState("");
-
-  function cargarRutinas() {
-    setCargando(true);
-    routinesApi.getRoutines()
-      .then(setRutinas)
-      .catch((err) => setError(err.message))
-      .finally(() => setCargando(false));
-  }
+  const [reload, setReload] = useState(0);
+  const archived = view === "archived";
+  const actions = useRoutineActions(() => setReload((value) => value + 1));
+  const create = routineUrl(gym, "/nueva");
 
   useEffect(() => {
-    cargarRutinas();
-  }, []);
+    if (loading) return;
+    let current = true;
+    setItems(null);
+    setError("");
+    routinesApi.getRoutines(archived).then((data) => {
+      if (current) setItems(data);
+    }).catch((err) => { if (current) setError(err.message); });
+    return () => { current = false; };
+  }, [archived, reload, loading]);
 
-  async function handleEliminar(id, nombre) {
-    if (!window.confirm(`¿Eliminar la rutina "${nombre}"? Esta acción no se puede deshacer.`)) return;
-    try {
-      await routinesApi.deleteRoutine(id);
-      setRutinas((prev) => prev.filter((r) => r.id !== id));
-    } catch (err) {
-      setError(err.message);
-    }
-  }
+  const filtered = (items ?? []).filter((routine) => normalize(
+    [routine.nombre, routine.descripcion, ...routine.ejercicios.map((item) => item.grupo_nombre)].join(" ")
+  ).includes(normalize(search.trim()))).sort((a, b) => sort === "name"
+    ? a.nombre.localeCompare(b.nombre, "es")
+    : Date.parse(b.actualizadoEn) - Date.parse(a.actualizadoEn));
 
-  if (loading || cargando) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
-        <p className="text-sm text-[#a9afa7]">Cargando...</p>
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
-
-      <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px] flex items-end justify-between gap-8 flex-wrap">
-        <div>
-          <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">ENTRENAMIENTO</p>
-          <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Tus rutinas</h1>
-        </div>
-        <Link
-          href={`/dashboard/rutinas/nueva?gym=${encodeURIComponent(gym)}`}
-          className="px-5 py-3 bg-[#b56cff] text-[#10110f] border-0 rounded-lg font-bold text-[13px] cursor-pointer whitespace-nowrap transition hover:bg-[#d7adff] hover:-translate-y-px no-underline"
-        >
-          + Nueva rutina
-        </Link>
-      </section>
-
-      {error && <div className="w-full max-w-[1060px] mx-auto mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
-
-      <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-[18px] pb-10">
-        {rutinas.length === 0 && (
-          <p className="p-5 border border-[#41433f] rounded-xl bg-[#212320] text-sm text-[#a9afa7]">
-            Todavía no tienes rutinas. Crea la primera con el botón de arriba.
-          </p>
-        )}
-        {rutinas.map((rutina) => (
-          <RoutineCard key={rutina.id} rutina={rutina} gym={gym} onEliminar={handleEliminar} />
-        ))}
-      </section>
-    </main>
-  );
+  return <main className="routine-page">
+    <header className="routine-header">
+      <div><h1>Mis rutinas</h1><p>Prepara tus ejercicios y organiza tu semana de entrenamiento.</p></div>
+      <Link className="routine-primary" href={create}>+ Nueva rutina</Link>
+    </header>
+    <nav className="routine-actions routine-tabs" aria-label="Vistas de rutinas">
+      {[["active", "Activas"], ["archived", "Archivadas"], ["week", "Semana"]].map(([id, label]) =>
+        <button type="button" key={id} aria-pressed={view === id} onClick={() => {
+          if ((id === "archived") !== archived) setItems(null);
+          setView(id);
+        }}>{label}</button>)}
+    </nav>
+    {view !== "week" && <div className="routine-filters">
+      <label>Buscar rutina<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      <label>Ordenar por<select value={sort} onChange={(event) => setSort(event.target.value)}>
+        <option value="updated">Última modificación</option><option value="name">Nombre</option>
+      </select></label>
+    </div>}
+    {actions.notice && <p role="status">{actions.notice}</p>}
+    {actions.actionError && <p className="routine-error" role="alert">{actions.actionError}</p>}
+    {error && <p className="routine-error" role="alert">{error} <button type="button" onClick={() => setReload(reload + 1)}>Reintentar</button></p>}
+    {items === null && !error && <p role="status">Cargando rutinas…</p>}
+    {items && (view === "week" ? <section className="routine-week" aria-label="Planificación semanal">
+      {weekdays.map((day, index) => {
+        const assigned = items.filter((item) => item.dias.includes(index + 1));
+        return <article className="routine-card routine-panel" key={day}>
+          <h2>{day}</h2>
+          {assigned.length ? <ul>{assigned.map((item) => <li key={item.id}>
+            <Link href={routineUrl(gym, `/${item.id}`)}>{item.nombre}</Link>
+          </li>)}</ul> : <p className="routine-muted">Sin rutinas asignadas</p>}
+        </article>;
+      })}
+      <p>Para asignar o mover una rutina, edita sus días desde el detalle.</p>
+    </section> : <>
+      <p role="status" className="routine-muted">{filtered.length} de {items.length} rutinas {archived ? "archivadas" : "activas"}</p>
+      {filtered.length ? <section className="routine-grid" aria-label="Rutinas">
+        {filtered.map((rutina) => <RoutineCard key={rutina.id} rutina={rutina} gym={gym} onChange={actions.change} busy={actions.busy} />)}
+      </section> : <section className="routine-card routine-empty">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 8v8m3-11v14m12-14v14m3-11v8M6 12h12M1 12h2m18 0h2"/></svg>
+        <h2>{items.length ? "Sin coincidencias" : archived ? "No tienes rutinas archivadas" : "Crea tu primera rutina"}</h2>
+        <p>{items.length ? "Prueba otra búsqueda." : archived ? "Las rutinas que archives aparecerán aquí." : "Elige ejercicios del catálogo y guarda tu plan para la próxima sesión."}</p>
+        {!items.length && !archived && <Link className="routine-primary" href={create}>Crear rutina</Link>}
+      </section>}
+    </>)}
+  </main>;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
@@ -9,11 +9,10 @@ import { routinesApi } from "@/src/features/routines/api/routinesApi";
 import { trainingApi } from "../api/trainingApi";
 import ActiveTraining from "../components/ActiveTraining";
 import { useActiveTraining } from "../hooks/useActiveTraining";
-import { duration, formatTime, historyReference, measureLabel, newExercise, repeatContent, sessionStats } from "../hooks/trainingSessionModel";
+import { duration, formatTime, historyReference, measureLabel, repeatContent, sessionStats } from "../hooks/trainingSessionModel";
 import "./training.css";
 
 function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyUrl }) {
-  const [routineStatus, setRoutineStatus] = useState("");
   const { sesion: content } = session;
   const stats = sessionStats(content);
   const names = new Map(catalog.flatMap((group) => group.ejercicios.map((item) => [item.id, item.nombre])));
@@ -24,24 +23,6 @@ function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyU
     const achieved = Math.max(...item.series.map((set) => set.peso_kg ?? 0));
     return best !== null && achieved > best ? [{ id: item.ejercicio_id, achieved }] : [];
   });
-
-  async function saveRoutine() {
-    setRoutineStatus("Guardando rutina…");
-    try {
-      await routinesApi.createRoutine({
-        nombre: content.nombre.slice(0, 60),
-        ejercicioIds: content.ejercicios.map((item) => item.ejercicio_id),
-        planes: content.ejercicios.map((item) => ({
-          tipo: item.tipo, descanso: item.descanso, series: item.series.length,
-          repeticiones: item.series.every((set) => set.repeticiones === item.series[0].repeticiones)
-            ? item.series[0].repeticiones : null,
-        })),
-      });
-      setRoutineStatus("Rutina creada.");
-    } catch (error) {
-      setRoutineStatus(error.message);
-    }
-  }
 
   return <section className="training-card">
     <p className="training-eyebrow" role="status">Entrenamiento guardado</p>
@@ -66,10 +47,9 @@ function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyU
     <div className="training-actions">
       <button type="button" className="training-primary" onClick={onBack}>Volver al panel</button>
       <button type="button" onClick={() => onRepeat(repeatContent(session))}>Repetir</button>
-      <button type="button" onClick={saveRoutine} disabled={["Guardando rutina…", "Rutina creada."].includes(routineStatus)}>Guardar como rutina</button>
+      <Link href={`/dashboard/rutinas/nueva?${historyUrl.split("?")[1]}&entrenamiento=${session.id}`}>Guardar como rutina</Link>
       <Link href={historyUrl}>Ver historial</Link>
     </div>
-    {routineStatus && <p role="status">{routineStatus}</p>}
   </section>;
 }
 
@@ -83,6 +63,9 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
   const [historyError, setHistoryError] = useState("");
   const [routineError, setRoutineError] = useState("");
   const [starting, setStarting] = useState(false);
+  const startRequest = useRef(null);
+  const startingRef = useRef(false);
+  const autoStart = useRef(null);
   const [continueDraft, setContinueDraft] = useState(false);
   const [routineId, setRoutineId] = useState(params.get("rutina") || "");
   const repeatId = params.get("repetir");
@@ -111,34 +94,41 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
   }
 
   async function startRoutine() {
-    if (!routineId || starting) return;
+    if (!routineId || startingRef.current || active.draft) return;
+    startingRef.current = true;
     setRoutineError("");
     setStarting(true);
+    if (startRequest.current?.routineId !== routineId) {
+      startRequest.current = { routineId, id: crypto.randomUUID() };
+    }
     try {
-      const routine = await routinesApi.getRoutineDetail(routineId);
-      const exercises = new Map(catalog.flatMap((group) => group.ejercicios.map((exercise) => [exercise.id, exercise])));
-      const ejercicios = routine.ejercicios.map((item) => {
-        const exercise = newExercise(item.ejercicio_id, exercises.get(item.ejercicio_id));
-        const plan = item.plan || {};
-        exercise.tipo = plan.tipo ?? exercise.tipo;
-        exercise.descanso = plan.descanso ?? exercise.descanso;
-        exercise.series = Array.from({ length: plan.series ?? 1 }, () => ({
-          completada: false,
-          ...(plan.repeticiones && ["fuerza", "corporal", "carga_adicional", "asistido", "movilidad"].includes(exercise.tipo)
-            ? { repeticiones: plan.repeticiones } : {}),
-        }));
-        return exercise;
-      });
-      if (ejercicios.length > 30 || ejercicios.reduce((sum, item) => sum + item.series.length, 0) > 200) {
-        throw new Error("La rutina supera el límite de 30 ejercicios o 200 series.");
+      const { sesion } = await routinesApi.startRoutine(routineId, startRequest.current.id);
+      if (sesion.estado !== "en_curso") {
+        startRequest.current = null;
+        throw new Error("La sesión ya se cerró. Pulsa iniciar para crear otra.");
       }
-      start({ nombre: routine.nombre, notas: "", ejercicios });
+      await active.recoverServer();
+      startRequest.current = null;
+      setContinueDraft(true);
     } catch (error) {
+      if (error.status === 409) await active.recoverServer();
       setRoutineError(error.message);
     } finally {
+      startingRef.current = false;
       setStarting(false);
     }
   }
+
+  useEffect(() => {
+    const requested = params.get("rutina");
+    if (!requested || !active.ready || autoStart.current === requested) return;
+    if (routineId !== requested) {
+      setRoutineId(requested);
+      return;
+    }
+    autoStart.current = requested;
+    if (!active.draft) void startRoutine();
+  }, [params, active.ready, active.draft, routineId, startRoutine]);
 
   const bogotaDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const weekStart = new Date(`${bogotaDate}T00:00:00Z`);
@@ -193,7 +183,10 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
             <h1>Registro de entrenamiento</h1>
             <p>Registra tus series mientras entrenas.</p>
             {active.draft
-              ? <button type="button" className="training-primary" onClick={() => setContinueDraft(true)}>Continuar {active.draft.contenido.nombre || "entrenamiento"}</button>
+              ? <div>
+                <p role="status">Tienes un entrenamiento en curso. Continúalo para finalizarlo o cancelarlo.</p>
+                <button type="button" className="training-primary" onClick={() => setContinueDraft(true)}>Continuar {active.draft.contenido.nombre || "entrenamiento"}</button>
+              </div>
               : <button type="button" className="training-primary" disabled={starting}
                 onClick={() => start({ nombre: "Entrenamiento libre", notas: "", ejercicios: [] })}>+ Iniciar entrenamiento libre</button>}
           </header>
