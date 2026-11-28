@@ -31,7 +31,11 @@ export function AudienceSection() {
       <SectionHeading label="Deportistas y propietarios" id="ll-audience">Una plataforma. Dos experiencias.</SectionHeading>
       <div className="ll-audience">
         <article>
-          <img src="/landing/hero-small.webp" width="560" height="545" loading="lazy" decoding="async" alt="" />
+          <img src="/landing/deportistas-640.webp"
+            srcSet="/landing/deportistas-640.webp 640w, /landing/deportistas-960.webp 960w"
+            sizes="(min-width: 76rem) 36.5rem, (min-width: 40rem) calc(50vw - 1.5rem), calc(100vw - 2rem)"
+            width="640" height="360" loading="lazy" decoding="async"
+            alt="Deportista consultando su teléfono entre series" />
           <div className="ll-card-body">
             <p className="ll-kicker">Para deportistas</p>
             <h3>Tu entrenamiento, bajo control.</h3>

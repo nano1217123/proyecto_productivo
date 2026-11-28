@@ -5,12 +5,12 @@ import { AudienceSection, FeaturesSection, GymsSection, ProductSection } from "@
 
 import { BMISection, FAQSection, FinalCTA, HowItWorks, LandingFooter, PricingSection } from "@/src/features/landing/commercial";
 
-const title = "J&J GYM | Plataforma de entrenamiento y gestión deportiva";
+const title = "J&J GYM | Entrena, progresa y supera tus límites";
 const description = "Organiza tus rutinas, registra tus entrenamientos y gestiona tu actividad deportiva con J&J GYM.";
 
 export const metadata = {
   metadataBase: new URL("https://proyecto-productivo-tjvz-two.vercel.app"),
-  title,
+  title: { absolute: title },
   description,
   alternates: { canonical: "/" },
   openGraph: {
@@ -18,7 +18,6 @@ export const metadata = {
     images: [{ url: "/landing/hero.webp", width: 1080, height: 1050, alt: "Entrenamiento con barra" }],
   },
   twitter: { card: "summary_large_image", title, description, images: ["/landing/hero.webp"] },
-  icons: { icon: "/landing/icon.svg" },
   robots: { index: true, follow: true },
 };
 
@@ -28,15 +27,15 @@ export default function Home() {
     <LandingHeader />
     <main id="contenido" tabIndex={-1}>
       <HeroSection />
+      <BMISection />
       <PlatformStats />
       <FeaturesSection />
       <ProductSection />
       <AudienceSection />
       <GymsSection />
       <HowItWorks />
-      <PricingSection />
-      <BMISection />
       <FAQSection />
+      <PricingSection />
       <FinalCTA />
     </main>
     <LandingFooter />

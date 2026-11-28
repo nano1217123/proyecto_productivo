@@ -76,15 +76,25 @@ export default function DashboardNavigation() {
     <div className="dashboard-sidebar-desktop">
       <Link href={enlace("")} className="dashboard-brand">J&amp;J GYM</Link>
       <nav aria-label="Navegación del panel">{links()}</nav>
-      <button type="button" data-salida-rutina disabled={loggingOut} onClick={salir}><HomeIcon name="exit" /> Cerrar sesión</button>
+      <button type="button" data-salida-rutina disabled={loggingOut} aria-busy={loggingOut} onClick={salir}>
+        {!loggingOut && <HomeIcon name="exit" />}
+        {loggingOut ? "Cerrando sesión…" : "Cerrar sesión"}
+      </button>
       {logoutError && <p role="alert">No se pudo cerrar la sesión. Intenta de nuevo.</p>}
     </div>
-    <details className="dashboard-sidebar-mobile">
+    <details className="dashboard-sidebar-mobile" onKeyDown={(event) => {
+      if (event.key !== "Escape" || !event.currentTarget.open) return;
+      event.currentTarget.open = false;
+      event.currentTarget.querySelector("summary").focus();
+    }}>
       <summary><HomeIcon name="menu" /> <strong>J&amp;J GYM</strong><span>{activo?.[1] ?? "Panel"} · Menú</span></summary>
       <nav aria-label="Navegación del panel">
         {links((event) => { if (!event.defaultPrevented) event.currentTarget.closest("details").open = false; })}
       </nav>
-      <button type="button" data-salida-rutina disabled={loggingOut} onClick={salir}><HomeIcon name="exit" /> Cerrar sesión</button>
+      <button type="button" data-salida-rutina disabled={loggingOut} aria-busy={loggingOut} onClick={salir}>
+        {!loggingOut && <HomeIcon name="exit" />}
+        {loggingOut ? "Cerrando sesión…" : "Cerrar sesión"}
+      </button>
       {logoutError && <p role="alert">No se pudo cerrar la sesión. Intenta de nuevo.</p>}
     </details>
   </aside>;

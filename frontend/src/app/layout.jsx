@@ -3,8 +3,10 @@ import Script from "next/script";
 import { AuthProvider } from "@/src/features/auth/context/AuthContext";
 
 export const metadata = {
-  title: "Módulo de autenticación",
-  description: "Login y registro",
+  title: { default: "J&J GYM", template: "%s | J&J GYM" },
+  description: "Organiza tus rutinas, registra tus entrenamientos y consulta tu progreso con J&J GYM.",
+  applicationName: "J&J GYM",
+  icons: { icon: { url: "/landing/icon.svg", type: "image/svg+xml" } },
 };
 
 export default function RootLayout({ children }) {

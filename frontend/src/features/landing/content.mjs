@@ -8,6 +8,7 @@ export const gyms = [
 ];
 
 export const navigation = [
+  ["#imc", "Calculadora IMC"],
   ["#funcionalidades", "Funcionalidades"],
   ["#sedes", "Gimnasios"],
   ["#como-funciona", "Cómo funciona"],

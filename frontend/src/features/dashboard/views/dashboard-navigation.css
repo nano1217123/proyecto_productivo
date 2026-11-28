@@ -18,11 +18,16 @@
   text-decoration: none;
   cursor: pointer;
   text-align: left;
+  transition: background-color .17s ease, color .17s ease, box-shadow .17s ease, opacity .17s ease, transform .17s ease;
 }
 .dashboard-sidebar :is(nav a, button):hover, .dashboard-sidebar nav a[aria-current] {
   background: var(--green-soft);
   color: var(--lime);
 }
+.dashboard-sidebar nav a[aria-current] { box-shadow: inset 3px 0 var(--green); }
+.dashboard-sidebar button:disabled { opacity: .65; cursor: wait; }
+.dashboard-sidebar :is(nav a, button:enabled, summary):active { transform: translateY(1px); }
+.dashboard-sidebar [role="alert"] { animation: ui-enter .18s ease-out; }
 .dashboard-sidebar :is(.dashboard-brand, summary strong) { color: var(--green); font-weight: 800; }
 .dashboard-brand { text-decoration: none; font-size: 1.5rem; padding: .25rem .7rem .65rem; }
 .dashboard-sidebar .home-icon { width: 19px; height: 19px; flex: none; }

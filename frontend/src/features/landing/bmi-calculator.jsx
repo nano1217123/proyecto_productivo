@@ -27,7 +27,7 @@ export default function BMICalculator() {
     </div>
     <output className="ll-bmi-result" htmlFor="weight height" aria-live="polite">
       <span><strong>Resultado estimado</strong><small>{bmi === null ? "Ingresa peso y altura dentro de los rangos indicados." : getBmiStatus(bmi).label}</small></span>
-      <b>{bmi === null ? "—" : formatter.format(bmi)}</b>
+      <b className="ll-bmi-value" key={bmi}>{bmi === null ? "—" : formatter.format(bmi)}</b>
     </output>
   </div>;
 }

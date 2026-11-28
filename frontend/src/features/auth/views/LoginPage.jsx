@@ -81,7 +81,7 @@ function LoginForm() {
             <Link href={`/forgot-password${recuperacion.size ? "?" + recuperacion : ""}`} className="inline-block mt-2 text-[12.5px] font-semibold text-[#b56cff] no-underline hover:underline">¿Olvidaste tu contraseña?</Link>
           </div>
 
-          <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={submitting}>
+          <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit" aria-busy={submitting} disabled={submitting}>
             {submitting ? "Ingresando..." : "Iniciar sesión"}
           </button>
         </form>
