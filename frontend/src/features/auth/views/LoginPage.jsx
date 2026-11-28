@@ -25,7 +25,15 @@ function LoginForm() {
   useEffect(() => {
     const oauthError = searchParams.get("oauth");
     if (oauthError) {
-      try { sessionStorage.removeItem("jjgym:oauth:sede"); } catch { /* sin almacenamiento */ }
+      try {
+        const sedePendiente = sessionStorage.getItem("jjgym:oauth:sede");
+        sessionStorage.removeItem("jjgym:oauth:sede");
+        if (sedePendiente && !searchParams.has("gym")) {
+          const url = new URL(window.location.href);
+          url.searchParams.set("gym", sedePendiente);
+          window.history.replaceState(null, "", url);
+        }
+      } catch { /* sin almacenamiento */ }
     }
     if (oauthError === "cancelled") {
       setError("Cancelaste el inicio de sesión con Google.");
@@ -35,6 +43,10 @@ function LoginForm() {
       setError("No se pudo completar el inicio de sesión con Google.");
     }
   }, [searchParams, setError]);
+
+  const recuperacion = new URLSearchParams();
+  if (email) recuperacion.set("email", email);
+  if (gym) recuperacion.set("gym", gym);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -66,7 +78,7 @@ function LoginForm() {
                 {mostrarPassword ? "Ocultar" : "Mostrar"}
               </button>
             </div>
-            <Link href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="inline-block mt-2 text-[12.5px] font-semibold text-[#b56cff] no-underline hover:underline">¿Olvidaste tu contraseña?</Link>
+            <Link href={`/forgot-password${recuperacion.size ? "?" + recuperacion : ""}`} className="inline-block mt-2 text-[12.5px] font-semibold text-[#b56cff] no-underline hover:underline">¿Olvidaste tu contraseña?</Link>
           </div>
 
           <button className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={submitting}>

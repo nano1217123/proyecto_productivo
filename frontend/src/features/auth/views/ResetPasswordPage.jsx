@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 
@@ -9,6 +9,16 @@ function ResetPasswordForm() {
   const { updatePassword } = useAuth();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
+  const gymUrl = searchParams.get("gym");
+  const [gymRecuperacion, setGymRecuperacion] = useState(null);
+  useEffect(() => {
+    try {
+      const registro = JSON.parse(localStorage.getItem("jjgym:recuperacion:sede"));
+      if (typeof registro?.gym === "string" && registro.vence > Date.now()) setGymRecuperacion(registro.gym);
+    } catch { /* sin almacenamiento */ }
+  }, []);
+  const gym = gymUrl ?? gymRecuperacion;
+  const querySede = gym ? `?gym=${encodeURIComponent(gym)}` : "";
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -50,7 +60,7 @@ function ResetPasswordForm() {
             Este enlace no es válido. Solicita uno nuevo.
           </p>
           <Link
-            href="/forgot-password"
+            href={`/forgot-password${querySede}`}
             className="w-full mt-1.5 p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px"
             style={{
               display: "block",
@@ -83,7 +93,7 @@ function ResetPasswordForm() {
         {done ? (
           <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#251833] text-[#d7adff] text-[13px] leading-[1.5]">
             Tu contraseña se actualizó correctamente.
-            <Link href="/login" className="mt-2 block font-bold underline">Ir a iniciar sesión</Link>
+            <Link href={`/login${querySede}`} className="mt-2 block font-bold underline">Ir a iniciar sesión</Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

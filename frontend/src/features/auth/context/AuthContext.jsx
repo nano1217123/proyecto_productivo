@@ -19,7 +19,14 @@ export function AuthProvider({ children }) {
         const params = new URLSearchParams(window.location.search);
         if (params.get("oauth") === "ok") {
           await new Promise((r) => setTimeout(r, 400));
-          window.history.replaceState({}, "", window.location.pathname);
+          const destino = new URL(window.location.href);
+          try {
+            const sede = sessionStorage.getItem("jjgym:oauth:sede");
+            sessionStorage.removeItem("jjgym:oauth:sede");
+            if (sede) destino.searchParams.set("gym", sede);
+          } catch { /* sin almacenamiento */ }
+          destino.searchParams.delete("oauth");
+          window.history.replaceState(null, "", destino);
         }
       }
 

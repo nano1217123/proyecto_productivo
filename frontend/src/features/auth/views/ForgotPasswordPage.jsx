@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 function ForgotPasswordForm() {
   const { resetPasswordForEmail } = useAuth();
   const searchParams = useSearchParams();
+  const gym = searchParams.get("gym");
   const [email, setEmail] = useState(searchParams.get("email") || "");
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
@@ -19,6 +20,10 @@ function ForgotPasswordForm() {
     setSubmitting(true);
     try {
       await resetPasswordForEmail(email);
+      try {
+        if (gym) localStorage.setItem("jjgym:recuperacion:sede", JSON.stringify({ gym, vence: Date.now() + 60 * 60 * 1000 }));
+        else localStorage.removeItem("jjgym:recuperacion:sede");
+      } catch { /* sin almacenamiento */ }
       // Mostramos el mismo mensaje exista o no la cuenta, para no revelar
       // qué correos están registrados (buena práctica de seguridad).
       setSent(true);
@@ -66,7 +71,7 @@ function ForgotPasswordForm() {
         )}
 
         <p className="mt-5 text-[13px] text-center text-[#a9afa7]">
-          ¿Ya la recordaste? <Link href="/login">Inicia sesión</Link>
+          ¿Ya la recordaste? <Link href={gym ? `/login?gym=${encodeURIComponent(gym)}` : "/login"}>Inicia sesión</Link>
         </p>
       </div>
     </div>
