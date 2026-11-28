@@ -172,3 +172,72 @@ test("sesiones autenticadas, recuperación, rutinas y cierre transaccional sobre
   assert.equal(previous.sesion, null);
   assert.equal(previous.series[0].peso_kg, 15);
 });
+
+test("CRUD de rutinas, idempotencia, archivo y fotografía independiente del entrenamiento", async () => {
+  const exercise = await prisma.ejercicio.findFirstOrThrow({ where: { slug: exerciseSlug } });
+  const second = await prisma.ejercicio.create({ data: {
+    nombre: "Bicicleta estática", grupoSlug: "cardio", grupoNombre: "Cardio", slug: exerciseSlug, equipo: "Bicicleta",
+  } });
+  const exerciseId = Number(exercise.id);
+  const cardioId = Number(second.id);
+  const input = {
+    nombre: "Fuerza y cardio", descripcion: "Alternar ritmos", objetivo: "Resistencia",
+    notas: "Hidratarse", dias: [1, 5], ejercicioIds: [exerciseId, cardioId],
+    planes: [
+      { tipo: "fuerza", series: 3, repeticiones: 8, repeticionesMax: 12, pesoKg: 40, descanso: 90, notas: "Controlar el descenso" },
+      { tipo: "cardio", duracionSeg: 600, distanciaKm: 2 },
+    ],
+  };
+  await api("POST", "/rutinas", 401, input, null);
+  await api("POST", "/rutinas", 400, { ...input, dias: [2, 2] });
+  await api("POST", "/rutinas", 400, { ...input, ejercicioIds: [exerciseId, Number.MAX_SAFE_INTEGER] });
+  await api("POST", "/rutinas", 400, { ...input, planes: [{ ...input.planes[0], repeticionesMax: 5 }, input.planes[1]] });
+  await api("POST", "/rutinas", 400, { ...input, planes: [input.planes[0], { tipo: "cardio", repeticiones: 4 }] });
+  const solicitudId = randomUUID();
+  const creates = await Promise.all([1, 2].map(() => api("POST", "/rutinas", 201, { ...input, solicitudId })));
+  assert.ok(creates.every(({ id }) => id === solicitudId));
+  const source = `/rutinas/${solicitudId}`;
+  const { rutina } = await api("GET", source, 200);
+  assert.deepEqual(rutina.dias, [1, 5]);
+  assert.deepEqual(rutina.ejercicios.map(({ ejercicio_id }) => ejercicio_id), [exerciseId, cardioId]);
+  const { id: copyId } = await api("POST", "/rutinas", 201, { ...input, nombre: "Una copia" });
+  const copy = `/rutinas/${copyId}`;
+  await api("PUT", copy, 200, { ...input, nombre: "Copia ajustada", ejercicioIds: [cardioId, exerciseId],
+    planes: [...input.planes].reverse(), dias: [2, 5] });
+  assert.deepEqual((await api("GET", copy, 200)).rutina.ejercicios.map(({ ejercicio_id }) => ejercicio_id), [cardioId, exerciseId]);
+  assert.deepEqual((await api("GET", source, 200)).rutina, rutina);
+  await api("PUT", source, 404, input, stranger);
+  await api("DELETE", source, 404, undefined, stranger);
+  await api("PATCH", source + "/estado", 404, { archivada: true }, stranger);
+  await api("POST", source + "/iniciar", 404, { id: randomUUID() }, stranger);
+  await api("PATCH", source + "/estado", 200, { archivada: true });
+  assert.equal((await api("GET", "/rutinas", 200)).rutinas.some(({ id }) => id === solicitudId), false);
+  assert.equal((await api("GET", "/rutinas?estado=archivadas", 200)).rutinas[0].id, solicitudId);
+  await api("POST", source + "/iniciar", 409, { id: randomUUID() });
+  await api("PATCH", source + "/estado", 200, { archivada: false });
+  const id = randomUUID();
+  const starts = await Promise.all([1, 2].map(() => api("POST", source + "/iniciar", 200, { id })));
+  assert.ok(starts.every(({ sesion }) => sesion.id === id));
+  await api("POST", copy + "/iniciar", 409, { id: randomUUID() });
+  const snapshot = starts[0].sesion.sesion;
+  assert.equal(snapshot.nombre, input.nombre);
+  assert.equal(snapshot.notas, input.notas);
+  assert.equal(snapshot.ejercicios[0].objetivo.repeticiones_max, 12);
+  assert.equal(snapshot.ejercicios[0].objetivo.peso_kg, 40);
+  assert.deepEqual(snapshot.ejercicios[0].series, Array.from({ length: 3 }, () => ({ completada: false })));
+  assert.equal(snapshot.ejercicios[1].objetivo.duracion_seg, 600);
+  await api("PUT", source, 200, { ...input, nombre: "Actualizada", ejercicioIds: [exerciseId], planes: [input.planes[0]] });
+  assert.equal((await api("GET", source, 200)).rutina.ejercicios.length, 1);
+  await api("DELETE", source, 200);
+  assert.equal((await api("POST", source + "/iniciar", 200, { id })).sesion.id, id);
+  assert.deepEqual((await api("GET", "/entrenamientos/activa", 200)).sesion.sesion, snapshot);
+  snapshot.ejercicios[0].series[0] = { completada: true, repeticiones: 9, peso_kg: 42 };
+  const active = `/entrenamientos/activa/${id}`;
+  await api("PUT", active, 200, { revision: 0, contenido: snapshot });
+  await api("POST", active + "/finalizar", 200, { revision: 1 });
+  const saved = (await api("GET", "/entrenamientos", 200)).entrenamientos.find((item) => item.id === id);
+  assert.equal(saved.series[0].peso_kg, 42);
+  assert.equal(saved.sesion.ejercicios[0].objetivo.peso_kg, 40);
+  assert.equal((await api("GET", copy, 200)).rutina.nombre, "Copia ajustada");
+  assert.equal(await prisma.ejercicio.count({ where: { slug: exerciseSlug } }), 2);
+});
