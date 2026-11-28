@@ -183,7 +183,7 @@ with ExitStack() as resources:
         key = next(iter(element.values()))
         wd(f"/element/{key}/value", "POST", {"text": value})
     def action(label):
-        wait_for(lambda: js("const el = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === arguments[0] && !b.disabled); if (!el) return false; el.click(); return true;", label), label)
+        wait_for(lambda: js("const el = [...document.querySelectorAll('button,summary')].find(b => b.getAttribute('aria-label') === arguments[0] && !b.disabled && b.getBoundingClientRect().height > 0); if (!el) return false; el.click(); return true;", label), label)
     def fit():
         assert js("return document.documentElement.scrollWidth <= window.innerWidth")
     wd("/url", "POST", {"url": base + "/login"})
@@ -199,7 +199,12 @@ with ExitStack() as resources:
     """, url + "&rutina=training-browser")
     wd("/frame", "POST", {"id": frame})
     has("Rutina móvil")
+    has("Ejercicios de hoy")
+    assert js("return document.querySelectorAll('.training-session-metrics > div').length") == 3
+    assert js("return document.querySelector('.training-exercise-toggle').getAttribute('aria-expanded')") == "true"
+    action("Opciones de Press con mancuernas")
     has("2 s de descanso")
+    action("Opciones de Press con mancuernas")
     fit()
     assert js("return window.innerWidth") == 380
     has("Objetivo · 8 reps")
@@ -210,12 +215,16 @@ with ExitStack() as resources:
     js("document.querySelector('dialog input[type=checkbox]').click()")
     click("Añadir (1)")
     wait_for(lambda: js("return document.querySelectorAll('.training-exercise').length === 2"), "Ejercicio añadido")
-    js("const card = document.querySelectorAll('.training-exercise')[1]; [...card.querySelectorAll('button')].find(button => button.textContent === 'Quitar ejercicio').click()")
+    assert js("return document.querySelectorAll('.training-exercise-toggle')[1].getAttribute('aria-expanded')") == "false"
+    js("document.querySelectorAll('.training-exercise-toggle')[1].click()")
+    action("Opciones de Press con mancuernas")
+    click("Quitar ejercicio")
     wait_for(lambda: js("return document.querySelectorAll('.training-exercise').length === 1"), "Ejercicio eliminado")
     click("+ Añadir serie")
     action("Quitar serie 3 de Press con mancuernas")
     field("Peso (kg), serie 1 de Press con mancuernas", "42.5")
     action("Completar serie 1 de Press con mancuernas")
+    action("Opciones del temporizador")
     click("Pausar")
     click("+15 s")
     click("−15 s")
@@ -223,8 +232,9 @@ with ExitStack() as resources:
     has("Descanso terminado")
     action("Desmarcar serie 1 de Press con mancuernas")
     action("Completar serie 1 de Press con mancuernas")
-    has("Sincronizado")
+    has("Cambios guardados")
     network_error = True
+    action("Opciones del entrenamiento")
     click("Nombre y notas")
     notes = js("return document.querySelector('textarea')")
     notes_key = next(iter(notes.values()))
@@ -233,11 +243,12 @@ with ExitStack() as resources:
     js("location.reload()")
     wait_for(lambda: js("return [...document.querySelectorAll('button')].some(b => b.textContent.startsWith('Continuar'))"), "Sesión pendiente tras recargar")
     click("Continuar Rutina móvil")
+    action("Opciones del entrenamiento")
     click("Nombre y notas")
     assert js("return document.querySelector('textarea').value") == "Nota recuperada"
     network_error = False
     click("Reintentar sincronización")
-    has("Sincronizado")
+    has("Cambios guardados")
     click("Finalizar entrenamiento")
     wd("/alert/accept", "POST", {})
     has("Entrenamiento guardado")
@@ -353,6 +364,7 @@ with ExitStack() as resources:
     assert js("return document.querySelector('[aria-label^=\"Peso (kg)\"]').value") == "42.5"
     assert js("return !document.querySelector('button[aria-pressed=true]')")
     fit()
+    action("Opciones del entrenamiento")
     click("Cancelar sesión")
     wd("/alert/accept", "POST", {})
     has("Iniciar entrenamiento libre")
