@@ -15,9 +15,9 @@ COPY . .
 
 # Generar el cliente de Prisma para la base de datos de Neon
 RUN npx prisma generate --config prisma7.config.ts
+RUN npm run build
 
-# Exponer el puerto por el que corre tu aplicación (ajusta si es necesario)
-EXPOSE 3000
-
-# Comando para iniciar el servidor
-CMD ["npm", "run", "dev"]
+# Ejecuta el servidor compilado con las opciones de seguridad de producción.
+ENV NODE_ENV=production
+EXPOSE 4000
+CMD ["npm", "start"]

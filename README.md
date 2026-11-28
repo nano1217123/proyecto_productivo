@@ -64,6 +64,10 @@ Otros comandos (`backend/package.json`):
 | `npm run build` | Compila a `dist/` |
 | `npm start` | Ejecuta `dist/server.js` |
 
+El Dockerfile del backend ejecuta el servidor compilado en modo producción.
+Configura sus variables en ejecución, incluido `CLIENT_ORIGIN`, y sirve el
+frontend por HTTPS para que el navegador acepte las cookies seguras.
+
 ## 2. Frontend
 
 ```bash
