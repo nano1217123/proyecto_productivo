@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { idSesion, leerSesion } from "../validator/sesionEntrenamiento.validator.js";
 import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
@@ -35,6 +37,18 @@ export const getProgreso: RequestHandler = asyncHandler(async (req, res) => {
 // DELETE /api/entrenamientos/:id
 export const deleteEntrenamiento: RequestHandler = asyncHandler(async (req, res) => {
   if (!req.userId) throw new AppError(401, "No autorizado.");
-  await entrenamientosService.delete(req.params.id, req.userId);
+  await entrenamientosService.delete(leerSesion(idSesion, req.params.id), req.userId);
   return res.status(200).json({ message: "Entrenamiento eliminado." });
+});
+
+const correccion = z.object({
+  nombre: z.string().trim().min(1).max(100),
+  notas: z.string().trim().max(200),
+}).strict();
+
+export const corregirEntrenamiento: RequestHandler = asyncHandler(async (req, res) => {
+  const id = leerSesion(idSesion, req.params.id);
+  const { nombre, notas } = leerSesion(correccion, req.body);
+  await entrenamientosService.corregir(id, req.userId!, nombre, notas);
+  res.status(204).end();
 });

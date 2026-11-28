@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
 import { routinesApi } from "../api/routinesApi";
 
+const firmaEjercicios = (items) => items.map(({ ejercicio_id, plan }) => [ejercicio_id, plan || {}]);
+
 export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
   const router = useRouter();
   const esEdicion = Boolean(rutinaId);
@@ -16,7 +18,7 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
   const [error, setError] = useState("");
 
   const inicial = useRef(JSON.stringify(["", "", []]));
-  const cambiosPendientes = !cargandoDatos && JSON.stringify([nombre, diaEtiqueta, seleccionados.map((item) => item.ejercicio_id)]) !== inicial.current;
+  const cambiosPendientes = !cargandoDatos && JSON.stringify([nombre, diaEtiqueta, firmaEjercicios(seleccionados)]) !== inicial.current;
 
   useEffect(() => {
     if (!cambiosPendientes) return;
@@ -61,10 +63,10 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
 
         if (esEdicion) {
           const rutina = await routinesApi.getRoutineDetail(rutinaId);
-          inicial.current = JSON.stringify([rutina.nombre, rutina.dia_etiqueta || "", rutina.ejercicios.map((item) => item.ejercicio_id)]);
+          inicial.current = JSON.stringify([rutina.nombre, rutina.dia_etiqueta || "", firmaEjercicios(rutina.ejercicios)]);
           setNombre(rutina.nombre);
           setDiaEtiqueta(rutina.dia_etiqueta || "");
-          setSeleccionados(rutina.ejercicios.map((e) => ({ ejercicio_id: e.ejercicio_id, nombre: e.nombre })));
+          setSeleccionados(rutina.ejercicios.map((e) => ({ ejercicio_id: e.ejercicio_id, nombre: e.nombre, plan: e.plan })));
         }
       } catch (err) {
         setError(err.message);
@@ -77,6 +79,12 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
 
   function agregarEjercicio(ejercicio) {
     setSeleccionados((prev) => [...prev, { ejercicio_id: Number(ejercicio.id), nombre: ejercicio.nombre }]);
+  }
+
+  function configurarEjercicio(idx, campo, valor) {
+    setSeleccionados((prev) => prev.map((item, i) => i === idx
+      ? { ...item, plan: { ...item.plan, [campo]: valor === "" ? null : Number(valor) } }
+      : item));
   }
 
   function quitarEjercicio(idx) {
@@ -105,10 +113,11 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
     setGuardando(true);
     try {
       const ejercicioIds = seleccionados.map((s) => s.ejercicio_id);
+      const planes = seleccionados.map((item) => item.plan ?? null);
       if (esEdicion) {
-        await routinesApi.updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds });
+        await routinesApi.updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds, planes });
       } else {
-        await routinesApi.createRoutine({ nombre, diaEtiqueta, ejercicioIds });
+        await routinesApi.createRoutine({ nombre, diaEtiqueta, ejercicioIds, planes });
       }
       const destino = esEdicion ? `/dashboard/rutinas/${encodeURIComponent(rutinaId)}` : "/dashboard/rutinas";
       router.push(`${destino}?gym=${encodeURIComponent(gym)}`);
@@ -124,7 +133,7 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
     diaEtiqueta, setDiaEtiqueta,
     seleccionados,
     guardando, error,
-    agregarEjercicio, quitarEjercicio, moverEjercicio,
+    agregarEjercicio, quitarEjercicio, moverEjercicio, configurarEjercicio,
     guardarRutina
   };
 }

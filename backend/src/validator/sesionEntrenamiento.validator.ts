@@ -3,6 +3,7 @@ import { AppError } from "../errors/AppError.js";
 
 export const idSesion = z.uuid();
 export const revisionSesion = z.number().int().min(0).max(2147483646);
+const texto = (max: number) => z.string().max(max).refine((value) => !value.includes("\u0000"), "El texto contiene un carácter inválido.");
 const campos = {
   peso_kg: z.number().min(0).max(1500),
   repeticiones: z.number().int().min(1).max(999),
@@ -29,11 +30,13 @@ const serie = z.object({
   completada: z.boolean(),
 }).strict();
 
+export const tipoRegistro = z.enum(["fuerza", "corporal", "carga_adicional", "asistido", "isometrico", "cardio", "movilidad", "estiramiento"]);
+
 const ejercicio = z.object({
   ejercicio_id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-  tipo: z.enum(["fuerza", "corporal", "carga_adicional", "asistido", "isometrico", "cardio", "movilidad", "estiramiento"]),
+  tipo: tipoRegistro,
   descanso: z.number().int().min(0).max(3600),
-  notas: z.string().max(200),
+  notas: texto(200),
   series: z.array(serie).max(30),
 }).strict().superRefine((value, ctx) => {
   const permitidos: readonly string[] = formatos[value.tipo];
@@ -50,8 +53,8 @@ const ejercicio = z.object({
 });
 
 export const contenidoSesion = z.object({
-  nombre: z.string().max(100),
-  notas: z.string().max(200),
+  nombre: texto(100),
+  notas: texto(200),
   ejercicios: z.array(ejercicio).max(30),
 }).strict().refine(
   (value) => value.ejercicios.reduce((total, item) => total + item.series.length, 0) <= 200,

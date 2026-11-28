@@ -102,6 +102,10 @@ model RutinaEjercicio {
   rutinaId    String    @map("rutina_id") @db.Uuid
   ejercicioId BigInt    @map("ejercicio_id")
   orden       Int
+  tipo        String?
+  series      Int?
+  repeticiones Int?
+  descanso    Int?
   creadoEn    DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
 
   ejercicio   Ejercicio @relation(fields: [ejercicioId], references: [id])

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trainingApi } from "../api/trainingApi";
 
-export function useActiveTraining(userId) {
+export function useActiveTraining(userId, refreshProfile) {
   const key = `jjgym:training:v1:${userId}`;
   const current = useRef(null);
   const inFlight = useRef(false);
@@ -17,7 +17,7 @@ export function useActiveTraining(userId) {
     current.current = value;
     if (mounted.current) setDraft(value);
     try {
-      if (value && (value.pending || value.dirty || value.action)) {
+      if (value && (value.revision == null || value.pending || value.dirty || value.action)) {
         localStorage.setItem(key, JSON.stringify(value));
       } else {
         localStorage.removeItem(key);
@@ -28,6 +28,15 @@ export function useActiveTraining(userId) {
     }
   }, [key]);
 
+  const request = useCallback(async (operation) => {
+    try {
+      return await operation();
+    } catch (error) {
+      if (error.status !== 401 || !(await refreshProfile())) throw error;
+      return operation();
+    }
+  }, [refreshProfile]);
+
   const sync = useCallback(async () => {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -35,27 +44,27 @@ export function useActiveTraining(userId) {
     setStatus("Sincronizando…");
     try {
       if (!current.current) {
-        const server = await trainingApi.active();
+        const server = await request(() => trainingApi.active());
         if (server) store({ ...server, contenido: server.sesion });
       }
       while (current.current && mounted.current) {
         const item = current.current;
         if (item.revision == null) {
-          const server = await trainingApi.start(item.id, item.initial);
+          const server = await request(() => trainingApi.start(item.id, item.initial));
           if (server.estado !== "en_curso") {
             store(null);
             if (server.estado === "finalizado") setSummary(server);
             break;
           }
           store({ ...current.current, revision: server.revision, iniciadoEn: server.iniciadoEn,
-            dirty: current.current.contenido !== item.initial || item.dirty });
+            dirty: current.current.dirty });
         } else if (item.pending || item.dirty) {
           const pending = item.pending || { revision: item.revision, contenido: item.contenido };
           if (!item.pending) store({ ...item, pending, dirty: false });
-          const server = await trainingApi.sync(item.id, pending.revision, pending.contenido);
+          const server = await request(() => trainingApi.sync(item.id, pending.revision, pending.contenido));
           store({ ...current.current, revision: server.revision, pending: null });
         } else if (item.action) {
-          const server = await trainingApi.close(item.id, item.revision, item.action);
+          const server = await request(() => trainingApi.close(item.id, item.revision, item.action));
           store(null);
           if (server.estado === "finalizado") setSummary(server);
           break;
@@ -76,7 +85,7 @@ export function useActiveTraining(userId) {
     } finally {
       inFlight.current = false;
     }
-  }, [store]);
+  }, [request, store]);
 
   useEffect(() => {
     mounted.current = true;
@@ -104,13 +113,15 @@ export function useActiveTraining(userId) {
     if (current.current || inFlight.current) return;
     setSummary(null);
     store({ id: crypto.randomUUID(), revision: null, contenido, initial: contenido,
-      iniciadoEn: new Date().toISOString(), dirty: true });
+      iniciadoEn: new Date().toISOString(), dirty: false });
     void sync();
   }
 
   function edit(transform) {
     const item = current.current;
-    if (item && !item.action) store({ ...item, contenido: transform(item.contenido), dirty: true });
+    if (!item || item.action) return;
+    const contenido = transform(item.contenido);
+    if (contenido !== item.contenido) store({ ...item, contenido, dirty: true });
   }
 
   function close(action) {
@@ -124,7 +135,7 @@ export function useActiveTraining(userId) {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      const server = await trainingApi.active();
+      const server = await request(() => trainingApi.active());
       store(server ? { ...server, contenido: server.sesion } : null);
       setError("");
       setStatus("Sincronizado");

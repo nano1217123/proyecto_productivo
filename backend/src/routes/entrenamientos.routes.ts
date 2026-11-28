@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   createEntrenamiento,
+  corregirEntrenamiento,
   deleteEntrenamiento,
   getProgreso,
   listEntrenamientos,
@@ -23,6 +24,7 @@ router.post("/activa/:id/cancelar", cerrarSesion("cancelado"));
 router.get("/", listEntrenamientos);
 router.post("/", validateCreateEntrenamiento, createEntrenamiento);
 router.get("/ejercicio/:ejercicioId/progreso", getProgreso);
+router.patch("/:id", corregirEntrenamiento);
 router.delete("/:id", deleteEntrenamiento);
 
 export default router;

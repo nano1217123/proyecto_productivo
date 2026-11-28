@@ -32,4 +32,5 @@ export interface EntrenamientoResumen {
 export interface ProgresoPunto {
   fecha: string;
   peso_max: number;
+  reps_max: number;
 }

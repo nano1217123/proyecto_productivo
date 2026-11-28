@@ -29,8 +29,13 @@ function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyU
     setRoutineStatus("Guardando rutina…");
     try {
       await routinesApi.createRoutine({
-        nombre: content.nombre,
+        nombre: content.nombre.slice(0, 60),
         ejercicioIds: content.ejercicios.map((item) => item.ejercicio_id),
+        planes: content.ejercicios.map((item) => ({
+          tipo: item.tipo, descanso: item.descanso, series: item.series.length,
+          repeticiones: item.series.every((set) => set.repeticiones === item.series[0].repeticiones)
+            ? item.series[0].repeticiones : null,
+        })),
       });
       setRoutineStatus("Rutina creada.");
     } catch (error) {
@@ -68,9 +73,9 @@ function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyU
   </section>;
 }
 
-function TrainingDashboard({ gym, userId }) {
+function TrainingDashboard({ gym, userId, refreshProfile }) {
   const params = useSearchParams();
-  const active = useActiveTraining(userId);
+  const active = useActiveTraining(userId, refreshProfile);
   const [catalog, setCatalog] = useState([]);
   const [catalogError, setCatalogError] = useState("");
   const [history, setHistory] = useState(null);
@@ -114,11 +119,13 @@ function TrainingDashboard({ gym, userId }) {
       const exercises = new Map(catalog.flatMap((group) => group.ejercicios.map((exercise) => [exercise.id, exercise])));
       const ejercicios = routine.ejercicios.map((item) => {
         const exercise = newExercise(item.ejercicio_id, exercises.get(item.ejercicio_id));
-        if (item.descanso != null) exercise.descanso = item.descanso;
-        if (item.series != null) exercise.series = Array.from({ length: item.series }, () => ({
+        const plan = item.plan || {};
+        exercise.tipo = plan.tipo ?? exercise.tipo;
+        exercise.descanso = plan.descanso ?? exercise.descanso;
+        exercise.series = Array.from({ length: plan.series ?? 1 }, () => ({
           completada: false,
-          ...(item.repeticiones && ["fuerza", "corporal", "carga_adicional", "asistido"].includes(exercise.tipo)
-            ? { repeticiones: item.repeticiones } : {}),
+          ...(plan.repeticiones && ["fuerza", "corporal", "carga_adicional", "asistido", "movilidad"].includes(exercise.tipo)
+            ? { repeticiones: plan.repeticiones } : {}),
         }));
         return exercise;
       });
@@ -139,7 +146,22 @@ function TrainingDashboard({ gym, userId }) {
   const weekly = history?.filter((item) => item.fecha >= weekStart.toISOString().slice(0, 10) && item.fecha <= bogotaDate) || [];
   const times = weekly.map(duration).filter((value) => value !== null);
   const weeklyDuration = times.reduce((total, value) => total + value, 0);
-  const repeat = history?.find((item) => item.id === repeatId) || history?.[0];
+  const repeat = repeatId ? history?.find((item) => item.id === repeatId) : history?.[0];
+  const records = new Map();
+  for (const session of history || []) {
+    for (const set of session.series_entrenamiento) {
+      const type = set.tipo ?? "fuerza";
+      if (!["fuerza", "carga_adicional"].includes(type) || set.peso_kg == null) continue;
+      const key = `${set.ejercicio_id}:${type}`;
+      const current = records.get(key);
+      const record = !current || set.peso_kg > current.weight
+        ? { name: set.ejercicios.nombre, weight: set.peso_kg, type, comparisons: current?.comparisons ?? 0 }
+        : current;
+      record.comparisons += 1;
+      records.set(key, record);
+    }
+  }
+  const personalRecords = [...records.values()].filter((item) => item.comparisons > 1).slice(0, 4);
   const syncError = active.error && <div className="training-card training-error" role="alert">
     <p>{active.error}</p>
     <div className="training-actions">
@@ -186,6 +208,11 @@ function TrainingDashboard({ gym, userId }) {
               <div><strong>{times.length ? formatTime(Math.floor(weeklyDuration / times.length)) : "—"}</strong><small>Duración promedio</small></div>
               <div><strong>{history[0].fecha}</strong><small>Último entrenamiento</small></div>
             </div>}
+            {!!personalRecords.length && <details><summary>Récords personales</summary><ul>
+              {personalRecords.map((item, index) => <li key={index}>
+                {item.name} · {item.weight} kg{item.type === "carga_adicional" && " adicionales"}
+              </li>)}
+            </ul></details>}
           </section>
           {!active.draft && <section className="training-card">
             <h2>Iniciar desde una plantilla</h2>
@@ -211,10 +238,10 @@ function TrainingDashboard({ gym, userId }) {
 }
 
 function TrainingPageContent({ gym }) {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshProfile } = useAuth();
   if (loading) return <p className="training-page" role="status">Cargando sesión…</p>;
   if (!user?.idusuario) return <p className="training-page">Inicia sesión para entrenar.</p>;
-  return <TrainingDashboard key={user.idusuario} gym={gym} userId={user.idusuario} />;
+  return <TrainingDashboard key={user.idusuario} gym={gym} userId={user.idusuario} refreshProfile={refreshProfile} />;
 }
 
 export default function TrainingPage({ gym = "jj-poblado" }) {

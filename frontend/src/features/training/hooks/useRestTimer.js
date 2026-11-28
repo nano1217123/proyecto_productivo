@@ -7,7 +7,12 @@ export function useRestTimer() {
 
   useEffect(() => {
     if (!timer?.deadline) return;
-    const tick = () => setNow(Date.now());
+    const deadline = timer.deadline;
+    const tick = () => {
+      const time = Date.now();
+      setNow(time);
+      if (time >= deadline) clearInterval(id);
+    };
     const id = setInterval(tick, 250);
     document.addEventListener("visibilitychange", tick);
     return () => {

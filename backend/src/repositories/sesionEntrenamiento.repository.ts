@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { AppError } from "../errors/AppError.js";
+import { Prisma } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
 import { generateId } from "../lib/uuid.js";
 import { contenidoSesion, leerSesion, type ContenidoSesion } from "../validator/sesionEntrenamiento.validator.js";
@@ -78,7 +79,7 @@ export function createSesionEntrenamientoRepository(db = prisma) {
         } : null;
         const cierre = await tx.entrenamiento.updateMany({
           where: { id, usuarioId, estado: "en_curso", revision },
-          data: { estado, finalizadoEn, nombre: sesion?.nombre, notas: sesion?.notas, sesion: sesion ?? undefined },
+          data: { estado, finalizadoEn, nombre: sesion?.nombre, notas: sesion?.notas, sesion: sesion ?? Prisma.DbNull },
         });
         if (!cierre.count) {
           const concurrente = await tx.entrenamiento.findFirst({ where: { id, usuarioId }, select });
@@ -94,7 +95,7 @@ export function createSesionEntrenamientoRepository(db = prisma) {
             }))),
           });
         }
-        return { ...actual, finalizadoEn, estado, sesion: sesion ?? actual.sesion };
+        return { ...actual, finalizadoEn, estado, sesion };
       });
     },
   };

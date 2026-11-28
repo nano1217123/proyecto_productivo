@@ -129,6 +129,10 @@ export const trainingApi = {
    * @param {number|string} entrenamientoId
    * @returns {Promise<void>}
    */
+  async correctTrainingSession(id, nombre, notas) {
+    return http.patch(`/api/entrenamientos/${id}`, { nombre, notas });
+  },
+
   async deleteTrainingSession(entrenamientoId) {
     try {
       await http.del(`/api/entrenamientos/${entrenamientoId}`);

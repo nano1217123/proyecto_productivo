@@ -1,9 +1,20 @@
+import type { z } from "zod";
+import type { tipoRegistro } from "../validator/sesionEntrenamiento.validator.js";
+
+export interface PlanRutinaEjercicio {
+  tipo?: z.infer<typeof tipoRegistro> | null;
+  series?: number | null;
+  repeticiones?: number | null;
+  descanso?: number | null;
+}
+
 // Tipos de entrada y salida para los endpoints de rutinas.
 
 // Datos limpios para crear una rutina (ya validados).
 export interface CreateRutinaInput {
   nombre: string;
   diaEtiqueta: string | null;
+  planes?: (PlanRutinaEjercicio | null)[];
   ejercicioIds: number[]; // bigint, pero JS los maneja como number
 }
 
@@ -12,6 +23,7 @@ export interface UpdateRutinaInput {
   rutinaId: string;
   nombre: string;
   diaEtiqueta: string | null;
+  planes?: (PlanRutinaEjercicio | null)[];
   ejercicioIds: number[];
 }
 
@@ -33,5 +45,6 @@ export interface RutinaDetalle {
     orden: number;
     nombre: string;
     grupo_nombre: string;
+    plan?: PlanRutinaEjercicio;
   }[];
 }

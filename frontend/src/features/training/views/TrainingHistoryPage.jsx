@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import ReportesPersonales from "../components/ReportesPersonales";
 import { useTrainingHistory } from "../hooks/useTrainingHistory";
+
+import TrainingHistoryList from "../components/TrainingHistoryList";
+import "./training.css";
 
 const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
 const ESTILO_REINTENTO = `px-4 py-2.5 border-0 rounded-lg bg-[#b56cff] text-[#10110f] text-[13px] font-extrabold cursor-pointer transition hover:bg-[#d7adff] aria-disabled:opacity-60 aria-disabled:cursor-wait ${ESTILO_FOCO}`;
@@ -19,6 +22,8 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
     recargarHistorial, seleccionarEjercicio, reintentarProgreso,
   } = useTrainingHistory();
   const selectorId = useId();
+  const [metric, setMetric] = useState("peso_max");
+  const unit = metric === "peso_max" ? "kg" : "reps";
   const selectorRef = useRef(null);
   // Tras un reintento exitoso su botón desaparece: el foco pasa al selector.
   const reintentoRef = useRef(false);
@@ -66,7 +71,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
   }
 
   return (
-    <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
+    <main className="training-page">
       <div className="mx-auto max-w-[1060px]"><ReportesPersonales /></div>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
@@ -106,25 +111,9 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
               Todavía no registras ningún entrenamiento.
             </p>
           )}
-          {sesiones.map((sesion) => (
-            <div key={sesion.id} className="p-5 border border-[#41433f] rounded-xl bg-[#212320]">
-              <div className="flex items-center justify-between mb-3">
-                <strong className="text-[15px]">{new Date(sesion.fecha + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })}</strong>
-                {sesion.notas && <span className="text-xs text-[#a9afa7]">{sesion.notas}</span>}
-              </div>
-              <div className="grid gap-1.5">
-                {(sesion.series_entrenamiento || [])
-                  .slice()
-                  .sort((a, b) => a.id - b.id)
-                  .map((serie) => (
-                    <div key={serie.id} className="flex items-center justify-between text-[13px] text-[#c0c7bd]">
-                      <span>{serie.ejercicios?.nombre || "Ejercicio"} — serie {serie.numero_serie}</span>
-                      <span className="text-[#d7adff] font-semibold">{serie.repeticiones} reps{serie.peso_kg ? ` · ${serie.peso_kg} kg` : ""}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
+          {historialListo && sesiones.length > 0 &&
+            <TrainingHistoryList sessions={sesiones} gym={gym} onRefresh={recargarHistorial} />}
+
         </div>
 
         {/* Columna derecha: gráfico de progreso */}
@@ -153,7 +142,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
           )}
 
           {historialListo && !ejercicioSeleccionado && (
-            <p className="text-sm text-[#a9afa7]">Elige un ejercicio para ver cómo ha evolucionado tu peso.</p>
+            <p className="text-sm text-[#a9afa7]">Elige un ejercicio para consultar tus registros de fuerza.</p>
           )}
 
           {ejercicioSeleccionado && errorProgreso && (
@@ -179,6 +168,11 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
           )}
 
           {ejercicioSeleccionado && progresoListo && progreso.length > 0 && (
+            <>
+            <label className="mb-3">Medida de fuerza<select value={metric} onChange={(event) => setMetric(event.target.value)}>
+              <option value="peso_max">Peso máximo</option>
+              <option value="reps_max">Repeticiones máximas</option>
+            </select></label>
             <div style={{ width: "100%", height: 260 }}>
               <ResponsiveContainer>
                 <LineChart data={progreso} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -188,17 +182,18 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
                     tick={{ fill: "#a9afa7", fontSize: 11 }}
                     tickFormatter={(f) => new Date(f + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit" })}
                   />
-                  <YAxis tick={{ fill: "#a9afa7", fontSize: 11 }} unit=" kg" />
+                  <YAxis tick={{ fill: "#a9afa7", fontSize: 11 }} unit={` ${unit}`} />
                   <Tooltip
                     contentStyle={{ background: "#151714", border: "1px solid #41463f", borderRadius: 8 }}
                     labelStyle={{ color: "#f2f4ef" }}
                     labelFormatter={(f) => new Date(f + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "long" })}
-                    formatter={(value) => [`${value} kg`, "Peso máximo"]}
+                    formatter={(value) => [`${value} ${unit}`, metric === "peso_max" ? "Peso máximo" : "Repeticiones máximas"]}
                   />
-                  <Line type="monotone" dataKey="peso_max" stroke="#b56cff" strokeWidth={2} dot={{ fill: "#b56cff", r: 3 }} />
+                  <Line type="monotone" dataKey={metric} stroke="#b56cff" strokeWidth={2} dot={{ fill: "#b56cff", r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            </>
           )}
         </div>
       </section>

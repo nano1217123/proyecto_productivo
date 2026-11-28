@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { Prisma } from "../generated/prisma/client.js";
 import { AppError } from "../errors/AppError.js";
 import type {
   CreateEntrenamientoInput,
@@ -118,25 +119,40 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
           },
           select: {
             pesoKg: true,
+            repeticiones: true,
             entrenamiento: { select: { fecha: true } },
           },
         });
 
-        const porFecha = new Map<string, number>();
+        const porFecha = new Map<string, { peso_max: number; reps_max: number }>();
         for (const s of series) {
           const fecha = s.entrenamiento.fecha.toISOString().slice(0, 10);
           const peso = s.pesoKg ? Number(s.pesoKg) : 0;
-          const actual = porFecha.get(fecha) ?? 0;
-          if (!porFecha.has(fecha) || peso > actual) porFecha.set(fecha, peso);
+          const actual = porFecha.get(fecha) ?? { peso_max: 0, reps_max: 0 };
+          porFecha.set(fecha, {
+            peso_max: Math.max(peso, actual.peso_max),
+            reps_max: Math.max(s.repeticiones ?? 0, actual.reps_max),
+          });
         }
 
         return Array.from(porFecha.entries())
-          .map(([fecha, peso_max]) => ({ fecha, peso_max }))
+          .map(([fecha, punto]) => ({ fecha, ...punto }))
           .sort((a, b) => a.fecha.localeCompare(b.fecha));
       } catch (error) {
         console.error("Error al cargar progreso:", error);
         throw new AppError(500, "No se pudo cargar el progreso del ejercicio.");
       }
+    },
+
+    async corregir(id: string, usuarioId: string, nombre: string, notas: string): Promise<void> {
+      const resultado = await db.$executeRaw(Prisma.sql`
+        UPDATE "entrenamientos" SET "nombre" = ${nombre}, "notas" = ${notas},
+          "sesion" = CASE WHEN "sesion" IS NULL THEN NULL ELSE
+            "sesion" || jsonb_build_object('nombre', ${nombre}::text, 'notas', ${notas}::text)
+          END
+        WHERE "id" = ${id}::uuid AND "usuario_id" = ${usuarioId}::uuid AND "estado" = 'finalizado'
+      `);
+      if (!resultado) throw new AppError(404, "Entrenamiento no encontrado.");
     },
 
     // Borra un entrenamiento (las series van en cascada).

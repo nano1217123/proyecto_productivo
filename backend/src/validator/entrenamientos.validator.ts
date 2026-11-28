@@ -71,6 +71,11 @@ export function parseCreateEntrenamientoBody(body: unknown): CreateEntrenamiento
     throw new AppError(400, "La fecha debe tener formato YYYY-MM-DD.");
   }
 
+  const fechaParseada = new Date(`${fecha}T00:00:00Z`);
+  if (!Number.isFinite(fechaParseada.getTime()) || fechaParseada.toISOString().slice(0, 10) !== fecha) {
+    throw new AppError(400, "La fecha indicada no existe.");
+  }
+
   let notaLimpia: string | null = null;
   if (notas !== undefined && notas !== null && notas !== "") {
     if (typeof notas !== "string") {

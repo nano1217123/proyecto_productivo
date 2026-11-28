@@ -15,7 +15,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
     diaEtiqueta, setDiaEtiqueta,
     seleccionados,
     guardando, error,
-    agregarEjercicio, quitarEjercicio, moverEjercicio,
+    agregarEjercicio, quitarEjercicio, moverEjercicio, configurarEjercicio,
     guardarRutina
   } = useRoutineForm(gym, rutinaId);
   if (loading || cargandoDatos) {
@@ -82,6 +82,23 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
                     <p className="break-words text-sm text-[#f2f4ef]">
                       <strong className="mr-2 text-[#b56cff]">{idx + 1}.</strong>{ej.nombre}
                     </p>
+                    <details>
+                      <summary className="min-h-11 cursor-pointer py-2 text-sm">Planificar series y descanso</summary>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { key: "series", label: "Series", min: 1, max: 30 },
+                          ...(["isometrico", "cardio", "estiramiento"].includes(ej.plan?.tipo) ? []
+                            : [{ key: "repeticiones", label: "Reps", min: 1, max: 999 }]),
+                          { key: "descanso", label: "Descanso (s)", min: 0, max: 3600 },
+                        ].map(({ key, label, min, max }) => (
+                          <label key={key} className="min-w-0 text-xs text-[#c0c7bd]">{label}
+                            <input type="number" min={min} max={max} value={ej.plan?.[key] ?? ""}
+                              onChange={(event) => configurarEjercicio(idx, key, event.target.value)}
+                              className="mt-1 min-h-11 w-full rounded-md border border-[#41463f] bg-[#151714] p-2 text-[#f2f4ef]" />
+                          </label>
+                        ))}
+                      </div>
+                    </details>
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => moverEjercicio(idx, -1)} disabled={idx === 0} aria-label={`Subir ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Subir</button>
                       <button type="button" onClick={() => moverEjercicio(idx, 1)} disabled={idx === seleccionados.length - 1} aria-label={`Bajar ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Bajar</button>

@@ -100,7 +100,12 @@ export function repeatContent(session) {
     }
     exercises.get(set.ejercicio_id).series.push({ repeticiones: set.repeticiones, peso_kg: set.peso_kg, completada: false });
   }
-  return { nombre: session.nombre || "Entrenamiento repetido", notas: "", ejercicios: [...exercises.values()] };
+  const ejercicios = [...exercises.values()].flatMap((item) => {
+    const chunks = [];
+    for (let i = 0; i < item.series.length; i += 30) chunks.push({ ...item, series: item.series.slice(i, i + 30) });
+    return chunks;
+  });
+  return { nombre: session.nombre || "Entrenamiento repetido", notas: "", ejercicios };
 }
 
 export function historyReference(history, exerciseId, tipo) {
