@@ -11,7 +11,6 @@ export default function ModeBadge({ casa, className = "" }) {
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded text-xs font-bold ${styles} ${className}`}
     >
-      <span aria-hidden="true">{casa ? "🏠" : "🏋️"}</span>
       {casa ? "Modo Autónomo (Casa)" : "Modo Gimnasio"}
     </span>
   );

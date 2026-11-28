@@ -1,13 +1,14 @@
 
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import reviewsApi from "../api/reviewsApi";
 
 export default function ReviewsPage({ gym = "jj-poblado" }) {
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { sede: datosSede } = useSedes();
 
   const [resenas, setResenas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -130,36 +131,14 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
 
   return (
     <main className="min-h-screen bg-[#171817] px-6 pb-16 text-[#f2f4ef]">
-      <header className="mx-auto flex min-h-[82px] w-full max-w-[1060px] items-center justify-between border-b border-[#30332f]">
-        <Link
-          href={`/dashboard?gym=${encodeURIComponent(gym)}`}
-          className="text-lg font-extrabold tracking-widest text-[#f2f4ef] no-underline"
-        >
-          J&amp;J GYM · RESEÑAS
-        </Link>
-
-        <button
-          type="button"
-          onClick={logout}
-          className="border-b border-[#6f756b] bg-transparent py-2 text-sm text-[#a9afa7] hover:text-white"
-        >
-          Cerrar sesión
-        </button>
-      </header>
 
       <section className="mx-auto w-full max-w-[1060px] pt-12">
-        <Link
-          href={`/dashboard?gym=${encodeURIComponent(gym)}`}
-          className="mb-8 inline-block text-sm text-[#a9afa7] no-underline hover:text-white"
-        >
-          ← Volver al inicio
-        </Link>
 
         <p className="mb-3 text-xs font-extrabold tracking-[2.7px] text-[#d5ad55]">
           OPINIONES DE NUESTROS USUARIOS
         </p>
 
-        <h1 className="mb-3 text-4xl font-bold">Reseñas</h1>
+        <h1 className="mb-3 text-4xl font-bold">{sedeResena && rol !== "super_admin" ? `Reseñas de ${datosSede(sedeResena)?.nombre ?? sedeResena}` : "Reseñas"}</h1>
 
         <p className="mb-8 text-sm text-[#a9afa7]">
           Conoce las experiencias y opiniones de nuestra comunidad.
@@ -191,7 +170,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
             </h2>
 
             <p className="mb-5 text-sm text-[#a9afa7]">
-              Tu opinión nos ayuda a mejorar.
+              Las calificaciones de 4 y 5 se publican. Las de 1 a 3 se envían de forma privada al gimnasio.
             </p>
 
             <form onSubmit={handlePublicar}>
@@ -199,21 +178,21 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                 Tu calificación
               </label>
 
-              <div className="mb-5 flex gap-2">
+              <div className="mb-5 flex flex-wrap gap-2">
                 {[1, 2, 3, 4, 5].map((estrella) => (
                   <button
                     key={estrella}
                     type="button"
                     onClick={() => setCalificacion(estrella)}
-                    aria-label={`${estrella} estrellas`}
+                    aria-label={`${estrella} de 5`}
                     aria-pressed={calificacion === estrella}
-                    className={`text-3xl ${
-                      estrella <= calificacion
-                        ? "text-[#d5ad55]"
-                        : "text-[#555951]"
+                    className={`min-h-11 min-w-11 rounded-lg border px-2 text-sm font-bold ${
+                      estrella === calificacion
+                        ? "border-[#b56cff] bg-[#321d47] text-[#d7adff]"
+                        : "border-[#41463f] text-[#f2f4ef]"
                     }`}
                   >
-                    ★
+                    {estrella} de 5
                   </button>
                 ))}
               </div>
@@ -281,10 +260,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
                 >
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <span className="text-xl tracking-wider text-[#d5ad55]">
-                      {"★".repeat(resena.calificacion)}
-                      <span className="text-[#555951]">
-                        {"★".repeat(5 - resena.calificacion)}
-                      </span>
+                      {resena.calificacion} de 5
                     </span>
 
                     <span className="text-xs text-[#a9afa7]">

@@ -7,7 +7,7 @@ import VerifyOtpPage from "@/src/features/auth/views/VerifyOtpPage";
 function VerifyOtpContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
-  return <VerifyOtpPage email={email} />;
+  return <VerifyOtpPage email={email} gym={searchParams.get("gym")} />;
 }
 
 export default function VerifyOtpRoute() {

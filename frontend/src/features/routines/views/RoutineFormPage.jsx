@@ -8,7 +8,7 @@ import { useRoutineForm } from "../hooks/useRoutineForm";
 const orderButtonClass = "min-h-10 px-2.5 py-1 border border-[#41463f] rounded-md text-[#a9afa7] text-xs cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] focus-visible:outline-2 focus-visible:outline-[#b56cff] disabled:opacity-40 disabled:cursor-not-allowed";
 
 export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
-  const { loading, logout } = useAuth();
+  const { loading } = useAuth();
   const {
     esEdicion, catalogo, cargandoDatos,
     nombre, setNombre,
@@ -28,20 +28,15 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
 
   return (
     <main className="min-h-screen px-4 pb-[72px] sm:px-6 bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="text-sm font-bold text-[#a9afa7] no-underline hover:text-[#b56cff] focus-visible:outline-2 focus-visible:outline-[#b56cff]" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>
-          Volver a rutinas
-        </Link>
-        <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-          Cerrar sesión
-        </button>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-8 pb-6">
+        <Link href={`/dashboard/rutinas${esEdicion ? "/" + encodeURIComponent(rutinaId) : ""}?gym=${encodeURIComponent(gym)}`} className="mb-3 inline-flex min-h-11 items-center text-sm font-bold text-[#d7adff] underline">
+          {esEdicion ? "Volver a la rutina" : "Volver a rutinas"}
+        </Link>
         <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">{esEdicion ? "Editar rutina" : "Nueva rutina"}</h1>
       </section>
 
-      {error && <div role="alert" className="w-full max-w-[1060px] mx-auto mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
+
 
       <section className="w-full max-w-[1060px] mx-auto pb-10">
         <form onSubmit={guardarRutina} className="p-4 sm:p-6 border border-[#41433f] rounded-xl bg-[#212320]">
@@ -90,7 +85,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => moverEjercicio(idx, -1)} disabled={idx === 0} aria-label={`Subir ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Subir</button>
                       <button type="button" onClick={() => moverEjercicio(idx, 1)} disabled={idx === seleccionados.length - 1} aria-label={`Bajar ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Bajar</button>
-                      <button type="button" onClick={() => quitarEjercicio(idx)} aria-label={`Quitar ${ej.nombre}, ejercicio ${idx + 1}`} className={`${orderButtonClass} border-[rgba(255,121,121,.4)] text-[#ff7979] hover:bg-[#351b1b]`}>Quitar</button>
+                      <button type="button" onClick={() => quitarEjercicio(idx)} aria-label={`Quitar ${ej.nombre}, ejercicio ${idx + 1}`} className={`${orderButtonClass} border-[rgba(255,121,121,.4)] text-[#ff7979] hover:bg-[#351b1b]`}>Quitar ejercicio</button>
                     </div>
                   </li>
                 ))}
@@ -98,6 +93,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null })
             </section>
           </div>
 
+          {error && <div role="alert" className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
           <button
             type="submit"
             disabled={guardando}

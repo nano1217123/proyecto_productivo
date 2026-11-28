@@ -57,6 +57,7 @@ export default function ClientesSedeTab({ gymSlug, esSuperAdmin }) {
 
   async function vincular() {
     if (!cuenta || bloqueo || procesando) return;
+    if (!window.confirm(`¿Vincular a ${cuenta.nombres} ${cuenta.apellidos} (${cuenta.correo}) a ${nombreSede(gymSlug)}?`)) return;
     setProcesando(true);
     setError("");
     try {
@@ -96,6 +97,7 @@ export default function ClientesSedeTab({ gymSlug, esSuperAdmin }) {
     setBusquedaInicial(correo);
     setClaveBusqueda((n) => n + 1);
     setCuenta(null);
+    document.getElementById("buscar-cliente")?.scrollIntoView({ block: "start" });
   }
 
   if (!gymSlug) {
@@ -105,14 +107,43 @@ export default function ClientesSedeTab({ gymSlug, esSuperAdmin }) {
   return (
     <div className="grid gap-5">
       <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
-        <h2 className="text-xl mt-0 mb-2">Vincular cliente a {nombreSede(gymSlug)}</h2>
+        <h2 className="text-xl mt-0 mb-2">Clientes de {nombreSede(gymSlug)}</h2>
+        {/* RN-014: la membresía del alumno se paga fuera de la plataforma.
+            La pestaña «Suscripción» es otra cosa: el pago del admin a J&JGym. */}
+        <p className="text-sm text-[#a9afa7] mb-4">
+          Cada cliente paga su membresía directamente a su gimnasio.
+        </p>
+        {error && !cuenta && <div role="alert" className={alertaError}>{error}</div>}
+        {exito && <div role="status" className={alertaExito}>{exito}</div>}
+        {cargando && <p className="text-sm text-[#a9afa7]">Cargando clientes...</p>}
+        {!cargando && clientes.length === 0 && (
+          <p className="text-sm text-[#a9afa7]">Esta sede aún no tiene clientes vinculados.</p>
+        )}
+        <ul className="m-0 p-0 list-none grid gap-2.5">
+          {clientes.map((c) => (
+            <li key={c.idusuario} className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-[10px] border border-[#41433f] bg-[#151714]">
+              <div>
+                <p className="m-0 font-bold">{c.nombres} {c.apellidos}</p>
+                <p className="m-0 text-[13px] text-[#a9afa7] break-all">
+                  {c.correo} · {c.provider === "google" ? "Google" : "Correo"} · desde {formatoFecha.format(new Date(c.vinculado_en))}
+                </p>
+              </div>
+              <button type="button" className={botonSecundario} onClick={() => desvincular(c)} disabled={procesando}>
+                Desvincular
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
+        <h2 id="buscar-cliente" className="text-xl mt-0 mb-2">Buscar una cuenta para vincular</h2>
         <p className="text-sm text-[#a9afa7] mb-5">
           La persona se registra antes con su correo o con Google. Cada cliente
           pertenece a una sola sede.
         </p>
 
-        {error && <div role="alert" className={alertaError}>{error}</div>}
-        {exito && <div role="status" className={alertaExito}>{exito}</div>}
+        {error && cuenta && <div role="alert" className={alertaError}>{error}</div>}
 
         <BuscarCuenta key={claveBusqueda} correoInicial={busquedaInicial} onResultado={setCuenta} deshabilitado={procesando} />
 
@@ -133,34 +164,6 @@ export default function ClientesSedeTab({ gymSlug, esSuperAdmin }) {
             )}
           </>
         )}
-      </section>
-
-      <section className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
-        <h2 className="text-xl mt-0 mb-2">Clientes de {nombreSede(gymSlug)}</h2>
-        {/* RN-014: la membresía del alumno se paga fuera de la plataforma.
-            La pestaña «Suscripción» es otra cosa: el pago del admin a J&JGym. */}
-        <p className="text-sm text-[#a9afa7] mb-4">
-          Cada cliente paga su membresía directamente a su gimnasio.
-        </p>
-        {cargando && <p className="text-sm text-[#a9afa7]">Cargando clientes...</p>}
-        {!cargando && clientes.length === 0 && (
-          <p className="text-sm text-[#a9afa7]">Esta sede aún no tiene clientes vinculados.</p>
-        )}
-        <ul className="m-0 p-0 list-none grid gap-2.5">
-          {clientes.map((c) => (
-            <li key={c.idusuario} className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-[10px] border border-[#41433f] bg-[#151714]">
-              <div>
-                <p className="m-0 font-bold">{c.nombres} {c.apellidos}</p>
-                <p className="m-0 text-[13px] text-[#a9afa7] break-all">
-                  {c.correo} · {c.provider === "google" ? "Google" : "Correo"} · desde {formatoFecha.format(new Date(c.vinculado_en))}
-                </p>
-              </div>
-              <button type="button" className={botonSecundario} onClick={() => desvincular(c)} disabled={procesando}>
-                Desvincular
-              </button>
-            </li>
-          ))}
-        </ul>
       </section>
 
       {esSuperAdmin && (

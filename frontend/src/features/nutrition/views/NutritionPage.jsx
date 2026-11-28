@@ -1,14 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { NutritionSkeleton } from "@/src/components/ui/Skeleton";
 import { useNutritionCalculator } from "../hooks/useNutritionCalculator";
 import { goals } from "../lib/nutrition";
 
-function NutritionCalculator({ gym }) {
-  const { loading, logout } = useAuth();
+function NutritionCalculator() {
+  const { loading } = useAuth();
 
    const {
     weight, setWeight,
@@ -24,13 +23,8 @@ function NutritionCalculator({ gym }) {
   if (loading) return <NutritionSkeleton />;
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817] pb-20">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard?gym=${encodeURIComponent(gym)}`}><span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span><span>Nutricion</span></Link>
-        <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>Cerrar sesion</button>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px] [&_h1]:m-0 [&_h1]:text-[clamp(34px,5vw,54px)] [&_h1]:tracking-[-1.8px] [&_h1]:leading-[1.05] [&_p:last-child]:max-w-[510px] [&_p:last-child]:mt-[15px] [&_p:last-child]:text-[15px] [&_p:last-child]:leading-[1.6] [&_p:last-child]:text-[#a9afa7]">
-        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>&larr; Inicio</Link>
         <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">BIENESTAR</p>
         <h1>Calcula tu proteína diaria</h1>
         <p>Ingresa tu peso, estatura y objetivo para conocer una meta de proteína orientativa, y elige los alimentos que prefieras hasta alcanzarla.</p>
@@ -39,6 +33,7 @@ function NutritionCalculator({ gym }) {
       <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] items-start gap-[18px] pb-10">
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Tus datos</h2>
+          <p className="text-sm text-[#a9afa7]">70 kg y 170 cm son valores de ejemplo. Sustitúyelos por tus datos.</p>
           <div className="grid grid-cols-2 gap-[15px] my-[27px_0_22px] [&_label]:text-xs [&_label]:font-bold [&_label]:text-[#c0c7bd]">
             <label htmlFor="nutri-weight">Peso<div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff] [&_input]:w-full [&_input]:min-w-0 [&_input]:py-2 [&_input]:border-0 [&_input]:outline-0 [&_input]:bg-transparent [&_input]:text-[#f2f4ef] [&_input]:text-[22px] [&_input]:font-bold [&_span]:text-[#b56cff] [&_span]:text-xs [&_span]:font-extrabold"><input id="nutri-weight" type="number" min="1" max="500" value={weight} onChange={(event) => setWeight(event.target.value)} /><span>kg</span></div></label>
             <label htmlFor="nutri-height">Estatura<div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff] [&_input]:w-full [&_input]:min-w-0 [&_input]:py-2 [&_input]:border-0 [&_input]:outline-0 [&_input]:bg-transparent [&_input]:text-[#f2f4ef] [&_input]:text-[22px] [&_input]:font-bold [&_span]:text-[#b56cff] [&_span]:text-xs [&_span]:font-extrabold"><input id="nutri-height" type="number" min="1" max="300" value={height} onChange={(event) => setHeight(event.target.value)} /><span>cm</span></div></label>
@@ -69,7 +64,7 @@ function NutritionCalculator({ gym }) {
 
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Elige tus alimentos</h2>
-          <p className="m-[-10px_0_18px] text-[13px] leading-[1.55] text-[#a9afa7]">Son opciones para escoger, no una obligación. Marca los que quieras comer hoy y mira cuánta proteína vas sumando.</p>
+          <p className="m-[-10px_0_18px] text-[13px] leading-[1.55] text-[#a9afa7]">Son opciones para escoger, no una obligación. Marca los que quieras comer hoy. Al cambiar el objetivo, el total solo cuenta los alimentos disponibles para ese objetivo.</p>
 
           <div className="mb-[18px]" aria-live="polite">
             <div className="h-2.5 rounded-md bg-[#151714] overflow-hidden"><div className="h-full rounded-md bg-gradient-to-r from-[#8441c6] to-[#d7adff] transition-[width] duration-200" style={{ width: `${progressPercent}%` }} /></div>
@@ -84,11 +79,11 @@ function NutritionCalculator({ gym }) {
             {availableFoods.map((food) => {
               const active = selectedFoods.has(food.name);
               return (
-                <button key={food.name} type="button" className={`grid grid-cols-[22px_1fr_auto] items-center gap-3 p-[12px_14px] border rounded-[10px] bg-[#151714] text-[#f2f4ef] text-left font-inherit cursor-pointer transition hover:border-[#b56cff] ${active ? "border-[#b56cff] bg-[#321d47]" : "border-[#41463f]"}`} onClick={() => toggleFood(food.name)} aria-pressed={active}>
-                  <span className="grid place-items-center w-[22px] h-[22px] border border-[#5a5f56] rounded-md text-[#d7adff] text-[13px] font-extrabold" aria-hidden="true">{active ? "✓" : ""}</span>
+                <button key={food.name} type="button" className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-[12px_14px] border rounded-[10px] bg-[#151714] text-[#f2f4ef] text-left font-inherit cursor-pointer transition hover:border-[#b56cff] ${active ? "border-[#b56cff] bg-[#321d47]" : "border-[#41463f]"}`} onClick={() => toggleFood(food.name)} aria-pressed={active}>
                   <span className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[13.5px] font-semibold">{food.name}</span>
                     <span className="text-[11.5px] text-[#a9afa7]">{food.category} · {food.serving}</span>
+                    <span className="text-xs font-bold">{active ? "Seleccionado" : "Agregar"}</span>
                   </span>
                   <span className="text-[13px] font-extrabold text-[#d7adff] whitespace-nowrap">{food.proteinPerServing} g</span>
                 </button>
@@ -101,10 +96,10 @@ function NutritionCalculator({ gym }) {
   );
 }
 
-export default function NutritionPage({ gym = "jj-poblado" }) {
+export default function NutritionPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]"><p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Cargando...</p></div>}>
-      <NutritionCalculator gym={gym} />
+      <NutritionCalculator />
     </Suspense>
   );
 }

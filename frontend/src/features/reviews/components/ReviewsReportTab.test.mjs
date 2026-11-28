@@ -10,16 +10,17 @@ const { default: moduloReporte } = await import("./ReviewsReportTab.jsx");
 const AdminTabs = moduloTabs.default ?? moduloTabs;
 const ReviewsReportTab = moduloReporte.default ?? moduloReporte;
 
-test("renderiza Reportes y conserva las acciones administrativas de cada rol", () => {
+test("consolida los reportes en el Centro y conserva las acciones administrativas de cada rol", () => {
   const admin = renderToStaticMarkup(React.createElement(AdminTabs, { esAdmin: true, tabActiva: "clientes" }));
   const superAdmin = renderToStaticMarkup(React.createElement(AdminTabs, {
-    esSuperAdmin: true, tabActiva: "reportes-resenas",
+    esSuperAdmin: true, tabActiva: "clientes",
   }));
   const comun = renderToStaticMarkup(React.createElement(AdminTabs, {}));
-  assert.match(admin, /Reportes de reseñas/);
+  assert.doesNotMatch(admin, /Reportes de reseñas|Anuncios/);
   assert.match(admin, /Suscripción/);
   assert.doesNotMatch(admin, /Asignar administrador/);
-  assert.match(superAdmin, /aria-current="page"[^>]*>Reportes de reseñas/);
+  assert.match(superAdmin, /aria-current="true"[^>]*>Clientes/);
+  assert.doesNotMatch(superAdmin, /Reportes de reseñas|Anuncios/);
   assert.match(superAdmin, /Asignar administrador/);
   assert.doesNotMatch(superAdmin, /Suscripción/);
   assert.doesNotMatch(comun, /Reportes de reseñas/);

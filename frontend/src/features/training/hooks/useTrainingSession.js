@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
 import { trainingApi } from "../api/trainingApi";
+import { validarSeries } from "./validarSeries";
 
 export function useTrainingSession() {
   const searchParams = useSearchParams();
@@ -25,6 +26,8 @@ export function useTrainingSession() {
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [erroresFilas, setErroresFilas] = useState({});
+  const [focoValidacion, setFocoValidacion] = useState(null);
   const [exito, setExito] = useState("");
 
   function nuevaFila(ejercicioId) {
@@ -69,7 +72,12 @@ export function useTrainingSession() {
     };
   }, [cargarCatalogo]);
 
+  function limpiarErrorFila(id) {
+    setErroresFilas(({ [id]: descartado, ...resto }) => resto);
+  }
+
   function actualizarFila(id, campo, valor) {
+    if (campo === "repeticiones") limpiarErrorFila(id);
     setFilas((prev) => prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
   }
 
@@ -80,6 +88,7 @@ export function useTrainingSession() {
   }
 
   function quitarFila(id) {
+    limpiarErrorFila(id);
     setFilas((prev) => prev.filter((f) => f.id !== id));
   }
 
@@ -89,28 +98,18 @@ export function useTrainingSession() {
     setError("");
     setExito("");
 
-    if (filas.length === 0) {
+    const { errores, series } = validarSeries(filas, catalogo);
+    setErroresFilas(errores);
+    const primeraInvalida = Object.keys(errores)[0];
+    if (primeraInvalida) {
+      setFocoValidacion({ id: primeraInvalida });
+      setError("Revisa las series marcadas antes de guardar.");
+      return;
+    }
+    if (series.length === 0) {
       setError("Agrega al menos una serie con ejercicio y repeticiones.");
       return;
     }
-
-    const idsDisponibles = new Set(catalogo.flatMap((grupo) => grupo.ejercicios.map((ejercicio) => String(ejercicio.id))));
-    if (filas.some((fila) => !idsDisponibles.has(fila.ejercicioId))) {
-      setError("Quita las series de los ejercicios que ya no están disponibles.");
-      return;
-    }
-
-    const contador = new Map();
-    const series = filas.map((f) => {
-      const actual = (contador.get(f.ejercicioId) || 0) + 1;
-      contador.set(f.ejercicioId, actual);
-      return {
-        ejercicio_id: Number(f.ejercicioId),
-        numero_serie: actual,
-        repeticiones: Number(f.repeticiones),
-        peso_kg: f.pesoKg ? Number(f.pesoKg) : null,
-      };
-    });
 
     setGuardando(true);
     try {
@@ -129,7 +128,7 @@ export function useTrainingSession() {
     catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
     notas, setNotas,
-    filas, guardando, error, exito,
+    filas, guardando, error, erroresFilas, focoValidacion, exito,
     actualizarFila, agregarFila, quitarFila,
     guardarEntrenamiento
   };

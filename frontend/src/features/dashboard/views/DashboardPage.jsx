@@ -10,26 +10,26 @@ const foco = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visib
 const accion = `inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2.5 text-center text-sm font-bold no-underline ${foco}`;
 
 export default function DashboardPage() {
-  const { profile, logout } = useAuth();
+  const { profile } = useAuth();
   const { sede: datosSede } = useSedes();
   const esCliente = profile?.tipo_usuario === "cliente";
   const esParticular = profile?.tipo_usuario === "usuario_particular";
   const slugSede = esCliente ? profile.sede : null;
   const sede = slugSede ? datosSede(slugSede) : null;
-  const marca = sede?.nombre ?? "JJ GYM";
-  const contexto = esParticular ? "Entrenamiento en casa" : sede?.ubicacion;
+
+  const contexto = esParticular ? "Entrenamiento en casa" : [sede?.nombre, sede?.ubicacion].filter(Boolean).join(" · ");
   const gymQuery = slugSede ? `?gym=${encodeURIComponent(slugSede)}` : "";
 
   const secciones = [
     {
       titulo: esParticular ? "Ejercicios en casa" : "Ejercicios",
       descripcion: esParticular ? "Explora ejercicios sin máquinas ni pesas." : "Encuentra ejercicios por grupo muscular.",
-      href: esParticular ? "/dashboard/ejercicios?modo=casa" : "/dashboard/ejercicios",
+      href: esParticular ? "/dashboard/ejercicios?modo=casa" : `/dashboard/ejercicios${gymQuery}`,
     },
     {
       titulo: "Nutrición",
       descripcion: "Consulta recomendaciones para acompañar tu entrenamiento.",
-      href: "/dashboard/nutricion",
+      href: `/dashboard/nutricion${gymQuery}`,
     },
     {
       titulo: "Centro de reportes",
@@ -41,14 +41,6 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-[#171817] px-4 pb-16 text-[#f2f4ef] sm:px-6">
       <div className="mx-auto max-w-[1060px]">
-        <header className="flex min-h-[72px] flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-[#30332f] py-2">
-          <Link href="/" className={`inline-flex min-h-11 items-center rounded-sm text-base font-extrabold no-underline hover:text-[#d7adff] ${foco}`}>
-            {marca}
-          </Link>
-          <button type="button" onClick={logout} className={`min-h-11 cursor-pointer rounded-sm text-sm font-semibold text-[#a9afa7] hover:text-[#f2f4ef] ${foco}`}>
-            Cerrar sesión
-          </button>
-        </header>
 
         <section aria-labelledby="member-title" className="py-7 sm:py-10">
           {contexto && <p className="mb-2 text-sm font-semibold text-[#d7adff]">{contexto}</p>}
@@ -68,12 +60,6 @@ export default function DashboardPage() {
           </nav>
         </section>
 
-        {esCliente && !slugSede && (
-          <p role="status" className="mb-6 rounded-lg border border-[rgba(255,196,87,.45)] bg-[rgba(120,86,20,.2)] p-4 text-sm text-[#ffcf70]">
-            Tu cuenta aún no tiene una sede asignada. Pídele a tu gimnasio que te vincule para ver su información y publicar reseñas.
-          </p>
-        )}
-
         <nav aria-labelledby="otras-herramientas" className="mb-6">
           <h2 id="otras-herramientas" className="mb-3 text-lg font-bold">Herramientas</h2>
           <ul className="grid gap-3 sm:grid-cols-3">
@@ -85,12 +71,25 @@ export default function DashboardPage() {
                 </Link>
               </li>
             ))}
+            {esCliente && (slugSede ? (
+              <li>
+                <Link href={`/dashboard/resenas${gymQuery}`} className={`block h-full rounded-xl border border-[#41433f] bg-[#212320] p-4 no-underline hover:border-[#b56cff] ${foco}`}>
+                  <p className="font-bold text-[#f2f4ef]">Reseñas de mi sede</p>
+                  <p className="mt-1 text-sm text-[#a9afa7]">Consulta las opiniones y comparte tu experiencia.</p>
+                </Link>
+              </li>
+            ) : (
+              <li className="rounded-xl border border-[#41433f] bg-[#212320] p-4">
+                <p className="font-bold">Reseñas de mi sede</p>
+                <p className="mt-1 text-sm text-[#ffcf70]">Pídele a tu gimnasio que vincule tu cuenta a una sede para ver y publicar reseñas.</p>
+              </li>
+            ))}
           </ul>
         </nav>
 
         {esParticular && (
           <div className="grid gap-4">
-            <DailyTrackerWidget mostrarEntrenamiento={false} />
+            <DailyTrackerWidget />
             <SubscriptionCard />
           </div>
         )}

@@ -29,10 +29,6 @@ export function MemberDashboardSkeleton() {
 export function ExerciseListSkeleton() {
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]" aria-busy="true" aria-label="Cargando grupos musculares">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Block className="w-[140px] h-[22px]" />
-        <Block className="w-[100px] h-8 rounded-[8px]" />
-      </header>
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <Block className="w-[90px] h-3 mb-3.5" />
         <Block className="w-[280px] h-9 mb-2" />
@@ -54,10 +50,6 @@ export function ExerciseListSkeleton() {
 export function ExerciseGroupSkeleton() {
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]" aria-busy="true" aria-label="Cargando ejercicios">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Block className="w-[140px] h-[22px]" />
-        <Block className="w-[100px] h-8 rounded-[8px]" />
-      </header>
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <Block className="w-[90px] h-3 mb-3.5" />
         <Block className="w-[280px] h-9 mb-2" />
@@ -79,10 +71,6 @@ export function ExerciseGroupSkeleton() {
 export function NutritionSkeleton() {
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]" aria-busy="true" aria-label="Cargando nutricion">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Block className="w-[140px] h-[22px]" />
-        <Block className="w-[100px] h-8 rounded-[8px]" />
-      </header>
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <Block className="w-[90px] h-3 mb-3.5" />
         <Block className="w-[300px] h-9 mb-2" />

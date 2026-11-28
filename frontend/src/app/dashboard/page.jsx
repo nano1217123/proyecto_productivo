@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { MemberDashboardSkeleton } from "@/src/components/ui/Skeleton";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import DashboardPage from "@/src/features/dashboard/views/DashboardPage";
@@ -13,5 +14,7 @@ export default function DashboardRoute() {
   // Roles actualizados según la nueva lógica del backend
   const esAdmin = ["admin", "super_admin"].includes(profile?.tipo_usuario);
   
-  return esAdmin ? <AdminDashboardPage /> : <DashboardPage />;
+  return esAdmin ? (
+    <Suspense fallback={<MemberDashboardSkeleton />}><AdminDashboardPage /></Suspense>
+  ) : <DashboardPage />;
 }

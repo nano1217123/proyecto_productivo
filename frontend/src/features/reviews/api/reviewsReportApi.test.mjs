@@ -101,17 +101,18 @@ test("ignora un PDF por sede resuelto después de cambiar al consolidado", async
 });
 import { pestanasAdmin, restaurarPestana } from "../../admin/lib/adminTabs.js";
 
-test("conserva la navegación del PR #27 y restaura solo pestañas permitidas", () => {
+test("restaura las pestañas operativas permitidas por rol", () => {
   const admin = { esAdmin: true, esSuperAdmin: false };
   const superAdmin = { esAdmin: false, esSuperAdmin: true };
   const comun = { esAdmin: false, esSuperAdmin: false };
   const ids = (roles) => pestanasAdmin(roles).map(({ id }) => id);
-  assert.deepEqual(ids(admin).slice(-2), ["reportes-resenas", "suscripcion"]);
-  assert.deepEqual(ids(superAdmin).slice(-2), ["reportes-resenas", "crear-admin"]);
+  assert.deepEqual(ids(admin).slice(-2), ["configuracion", "suscripcion"]);
+  assert.deepEqual(ids(superAdmin).slice(-2), ["configuracion", "crear-admin"]);
   assert.equal(ids(admin)[0], "clientes");
   assert.equal(ids(comun).includes("reportes-resenas"), false);
   for (const rol of [admin, superAdmin]) {
-    assert.equal(restaurarPestana("reportes-resenas", rol), "reportes-resenas");
+    assert.equal(restaurarPestana("reportes-resenas", rol), "clientes");
+    assert.equal(restaurarPestana("comunicacion", rol), "clientes");
     assert.equal(restaurarPestana("miembros", rol), "clientes");
     assert.equal(restaurarPestana(null, rol), "clientes");
   }

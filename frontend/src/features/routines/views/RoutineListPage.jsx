@@ -7,7 +7,7 @@ import { routinesApi } from "../api/routinesApi";
 import RoutineCard from "../components/RoutineCard";
 
 export default function RoutineListPage({ gym = "jj-poblado" }) {
-  const { loading, logout } = useAuth();
+  const { loading } = useAuth();
   const [rutinas, setRutinas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -44,19 +44,9 @@ export default function RoutineListPage({ gym = "jj-poblado" }) {
 
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span>
-          <span>Rutinas</span>
-        </Link>
-        <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-          Cerrar sesion
-        </button>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px] flex items-end justify-between gap-8 flex-wrap">
         <div>
-          <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>&larr; Inicio</Link>
           <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">ENTRENAMIENTO</p>
           <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Tus rutinas</h1>
         </div>

@@ -12,7 +12,7 @@ const ESTILO_REINTENTO = `px-4 py-2.5 border-0 rounded-lg bg-[#b56cff] text-[#10
 const ESTILO_ERROR = "p-4 border border-[rgba(255,121,121,0.32)] rounded-xl bg-[#351b1b]";
 
 export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
-  const { loading, logout } = useAuth();
+  const { loading } = useAuth();
   const {
     sesiones, estadoHistorial, errorHistorial,
     ejercicioId: ejercicioSeleccionado, progreso, estadoProgreso, errorProgreso,
@@ -67,31 +67,22 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
 
   return (
     <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span>
-          <span>Historial</span>
-        </Link>
-        <div className="flex items-center gap-6">
-          <Link className="text-[13px] text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}`}>
-            + Nuevo entrenamiento
-          </Link>
-          <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-            Cerrar sesion
-          </button>
-        </div>
-      </header>
       <div className="mx-auto max-w-[1060px]"><ReportesPersonales /></div>
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
-        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>&larr; Inicio</Link>
         <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">ENTRENAMIENTO</p>
-        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Tu historial</h1>
+        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Historial de entrenamientos</h1>
+        <nav aria-label="En esta pantalla" className="mt-4 flex flex-wrap gap-4 text-sm font-bold text-[#d7adff]">
+          <Link href={`/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}`}>Registrar entrenamiento</Link>
+          <a href="#sesiones-guardadas">Sesiones guardadas</a>
+          <a href="#vista-previa-progreso">Progreso por ejercicio</a>
+        </nav>
       </section>
 
       <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-[18px] pb-10 items-start">
         {/* Columna izquierda: lista de sesiones */}
-        <div className="grid gap-3" aria-busy={cargandoHistorial}>
+        <div id="sesiones-guardadas" className="grid gap-3" aria-busy={cargandoHistorial}>
+          <h2 className="text-xl font-bold">Sesiones guardadas</h2>
           {errorHistorial && (
             <div className={ESTILO_ERROR}>
               <p role="alert" className="m-0 mb-3 text-[13px] text-[#ff7979]">{errorHistorial}</p>

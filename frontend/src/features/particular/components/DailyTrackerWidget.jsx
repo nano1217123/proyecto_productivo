@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { useDailyMetrics } from "../hooks/useDailyMetrics.js";
 import DailyMetricsConflict from "./DailyMetricsConflict.jsx";
@@ -17,12 +16,12 @@ function textoMensaje(mensaje, errorCarga) {
 
 // Solo edita el peso. El hook conserva los demás valores cargados
 // (vasosAgua, entrenamientoCompletado) y decide el cuerpo según el modo.
-export default function DailyTrackerWidget({ mostrarEntrenamiento = true }) {
+export default function DailyTrackerWidget() {
   const tituloRef = useRef(null);
   const tituloId = useId();
   const pesoId = useId();
   const ayudaPesoId = useId();
-  const { habits, cargando, errorCarga, guardando, mensaje, controlesBloqueados, puedeGuardar,
+  const { habits, diaLocal, pesoRegistrado, cargando, errorCarga, guardando, mensaje, controlesBloqueados, puedeGuardar,
     editar, recargar, guardarCambios, conflicto, consultarNuevoDia, resolverConflicto } = useDailyMetrics();
   const [avisoOculto, setAvisoOculto] = useState(null);
   const avisoVisible = mensaje === avisoOculto ? null : mensaje;
@@ -57,11 +56,12 @@ export default function DailyTrackerWidget({ mostrarEntrenamiento = true }) {
           Mi progreso
         </h2>
         <p className="m-0 mt-1 text-xs text-[#a9afa7]">
-          {mostrarEntrenamiento ? "Guarda tu peso y registra tus entrenamientos para seguir tu evolución." : "Guarda tu peso para seguir tu evolución."}
+          {diaLocal && <><time dateTime={diaLocal}>{diaLocal}</time> · {pesoRegistrado === "" ? "Sin peso registrado" : `${pesoRegistrado} kg registrados`}<br /></>}
+          Guarda tu peso para seguir tu evolución.
         </p>
       </header>
 
-      <div className={`grid gap-4 ${mostrarEntrenamiento ? "md:grid-cols-[1.4fr_1fr]" : ""}`}>
+      <div>
         {/* Peso corporal */}
         <section aria-labelledby={`${pesoId}-titulo`} className="p-4 rounded-xl bg-[#171817] border border-[#30332f]">
           <div className="flex items-center justify-between mb-3">
@@ -99,7 +99,7 @@ export default function DailyTrackerWidget({ mostrarEntrenamiento = true }) {
               disabled={guardando || !puedeGuardar}
               className={`w-full sm:w-auto sm:justify-self-start px-6 py-2.5 rounded-xl bg-[#b56cff] hover:bg-[#a24eed] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-sm tracking-wide transition shadow-lg shadow-[#b56cff]/20 cursor-pointer ${ESTILO_FOCO}`}
             >
-              {guardando ? "Guardando..." : "Guardar peso"}
+              {guardando ? "Guardando..." : pesoRegistrado === "" ? "Registrar peso" : "Actualizar peso"}
             </button>
           </form>
 
@@ -122,40 +122,12 @@ export default function DailyTrackerWidget({ mostrarEntrenamiento = true }) {
             )}
           </div>
         </section>
-
-        {mostrarEntrenamiento && (
-          <section aria-labelledby={`${pesoId}-entrenamiento`} className="flex flex-col justify-between gap-4 p-4 rounded-xl bg-[#171817] border border-[#30332f]">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 id={`${pesoId}-entrenamiento`} className="m-0 text-xs font-bold uppercase tracking-wider text-[#a9afa7]">
-                  Entrenamiento
-                </h3>
-              </div>
-              <p className="m-0 text-sm text-[#c8cbc5]">
-                Registra tus series o revisa las sesiones que ya guardaste.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row gap-2">
-              <Link
-                href="/dashboard/entrenamientos"
-                className={`text-center px-4 py-2.5 rounded-xl bg-[#b56cff]/20 hover:bg-[#b56cff]/30 border border-[#b56cff]/50 text-sm font-bold text-[#f2f4ef] no-underline transition ${ESTILO_FOCO}`}
-              >
-                Registrar entrenamiento
-              </Link>
-              <Link
-                href="/dashboard/entrenamientos/historial"
-                className={`text-center px-4 py-2.5 rounded-xl border border-[#41433f] hover:border-[#6f756b] text-sm font-semibold text-[#a9afa7] hover:text-[#f2f4ef] no-underline transition ${ESTILO_FOCO}`}
-              >
-                Ver historial
-              </Link>
-            </div>
-          </section>
-        )}
       </div>
 
       {conflicto && (
         <DailyMetricsConflict
           conflicto={conflicto}
+          diaAnterior={diaLocal}
           consultarNuevoDia={consultarNuevoDia}
           resolverConflicto={resolverConflicto}
           formularioRef={tituloRef}

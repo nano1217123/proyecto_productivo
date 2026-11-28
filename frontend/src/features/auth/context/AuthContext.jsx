@@ -19,7 +19,14 @@ export function AuthProvider({ children }) {
         const params = new URLSearchParams(window.location.search);
         if (params.get("oauth") === "ok") {
           await new Promise((r) => setTimeout(r, 400));
-          window.history.replaceState({}, "", window.location.pathname);
+          const destino = new URL(window.location.href);
+          try {
+            const sede = sessionStorage.getItem("jjgym:oauth:sede");
+            sessionStorage.removeItem("jjgym:oauth:sede");
+            if (sede) destino.searchParams.set("gym", sede);
+          } catch { /* sin almacenamiento */ }
+          destino.searchParams.delete("oauth");
+          window.history.replaceState(null, "", destino);
         }
       }
 
@@ -141,7 +148,11 @@ export function AuthProvider({ children }) {
     return authApi.resetPassword({ token, password: newPassword });
   }
 
-  function loginWithGoogle() {
+  function loginWithGoogle(gym) {
+    try {
+      if (gym) sessionStorage.setItem("jjgym:oauth:sede", gym);
+      else sessionStorage.removeItem("jjgym:oauth:sede");
+    } catch { /* sin almacenamiento */ }
     window.location.href = "/api/auth/oauth/google";
   }
 

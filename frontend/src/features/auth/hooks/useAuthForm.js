@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function useAuthForm(defaultRedirect = "/dashboard") {
+export function useAuthForm(defaultRedirect = "/dashboard", gym) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,7 +16,7 @@ export function useAuthForm(defaultRedirect = "/dashboard") {
       router.push(defaultRedirect);
     } catch (err) {
       if (err.status === 403) {
-        router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
+        router.push(`/verify-otp?email=${encodeURIComponent(email)}${gym ? `&gym=${encodeURIComponent(gym)}` : ""}`);
         return;
       }
       setError(err.message);

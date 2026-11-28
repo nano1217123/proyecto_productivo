@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
 import { routinesApi } from "../api/routinesApi";
@@ -15,6 +15,44 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
+  const inicial = useRef(JSON.stringify(["", "", []]));
+  const cambiosPendientes = !cargandoDatos && JSON.stringify([nombre, diaEtiqueta, seleccionados.map((item) => item.ejercicio_id)]) !== inicial.current;
+
+  useEffect(() => {
+    if (!cambiosPendientes) return;
+    const destinoActual = window.location.href;
+    const estadoActual = window.history.state;
+    const mensaje = "Tienes cambios sin guardar. ¿Quieres descartarlos?";
+
+    function confirmarHistorial(event) {
+      if (window.location.href === destinoActual || window.confirm(mensaje)) return;
+
+      // Next también escucha popstate. Al cancelar, conserva el formulario
+      // montado y repone su entrada de historial antes de que cambie la ruta.
+      event.stopImmediatePropagation();
+      window.history.pushState(estadoActual, "", destinoActual);
+    }
+
+    function confirmarSalida(event) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    function confirmarEnlace(event) {
+      const enlace = event.target.closest?.("a[href]");
+      const cerrarSesion = event.target.closest?.("[data-salida-rutina]");
+      if (!cerrarSesion && (!enlace || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || enlace.target === "_blank" || enlace.href === location.href)) return;
+      if (!window.confirm(mensaje)) event.preventDefault();
+    }
+    window.addEventListener("popstate", confirmarHistorial, true);
+    window.addEventListener("beforeunload", confirmarSalida);
+    document.addEventListener("click", confirmarEnlace, true);
+    return () => {
+      window.removeEventListener("popstate", confirmarHistorial, true);
+      window.removeEventListener("beforeunload", confirmarSalida);
+      document.removeEventListener("click", confirmarEnlace, true);
+    };
+  }, [cambiosPendientes]);
+
   useEffect(() => {
     async function cargar() {
       try {
@@ -23,6 +61,7 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
 
         if (esEdicion) {
           const rutina = await routinesApi.getRoutineDetail(rutinaId);
+          inicial.current = JSON.stringify([rutina.nombre, rutina.dia_etiqueta || "", rutina.ejercicios.map((item) => item.ejercicio_id)]);
           setNombre(rutina.nombre);
           setDiaEtiqueta(rutina.dia_etiqueta || "");
           setSeleccionados(rutina.ejercicios.map((e) => ({ ejercicio_id: e.ejercicio_id, nombre: e.nombre })));
@@ -71,7 +110,8 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
       } else {
         await routinesApi.createRoutine({ nombre, diaEtiqueta, ejercicioIds });
       }
-      router.push(`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`);
+      const destino = esEdicion ? `/dashboard/rutinas/${encodeURIComponent(rutinaId)}` : "/dashboard/rutinas";
+      router.push(`${destino}?gym=${encodeURIComponent(gym)}`);
     } catch (err) {
       setError(err.message);
       setGuardando(false);

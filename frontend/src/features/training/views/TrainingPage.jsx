@@ -10,12 +10,12 @@ import TrainingExercisePicker from "../components/TrainingExercisePicker";
 const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
 
 function TrainingPageContent({ gym = "jj-poblado" }) {
-  const { loading, logout } = useAuth();
+  const { loading } = useAuth();
   const {
     catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
     notas, setNotas,
-    filas, guardando, error, exito,
+    filas, guardando, error, erroresFilas, focoValidacion, exito,
     actualizarFila, agregarFila, quitarFila,
     guardarEntrenamiento
   } = useTrainingSession();
@@ -26,6 +26,10 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
   const fechaRef = useRef(null);
   const repeticionesRef = useRef(null);
   const [filaConFoco, setFilaConFoco] = useState(null);
+
+  useEffect(() => {
+    if (focoValidacion) document.getElementById(`reps-${focoValidacion.id}`)?.focus();
+  }, [focoValidacion]);
 
   useEffect(() => {
     if (filaConFoco) repeticionesRef.current?.focus();
@@ -65,19 +69,6 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
 
   return (
     <main className="min-h-screen px-4 pb-[72px] sm:px-6 bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between gap-3 border-b border-[#30332f]">
-        <Link className={`text-sm font-bold text-[#a9afa7] no-underline hover:text-[#b56cff] ${ESTILO_FOCO}`} href={`/dashboard?gym=${encodeURIComponent(gym)}`}>
-          Volver al inicio
-        </Link>
-        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
-          <Link className="text-[13px] text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/entrenamientos/historial?gym=${encodeURIComponent(gym)}`}>
-            Ver historial
-          </Link>
-          <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
 
       <section className="w-full max-w-[1060px] mx-auto pt-8 pb-6">
         <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Registrar entrenamiento</h1>
@@ -133,6 +124,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
 
               <section aria-labelledby="series-entrenamiento" className="mb-6 grid gap-3">
                 <h2 id="series-entrenamiento" className="text-base font-bold text-[#f2f4ef]">Series del entrenamiento ({filas.length})</h2>
+                {filas.length > 0 && <p className="text-sm text-[#a9afa7]">Ingresa las repeticiones de cada serie o quita las que no hiciste.</p>}
                 {filas.length === 0 && <p className="text-sm text-[#a9afa7]">Agrega un ejercicio para registrar tu primera serie.</p>}
                 {Array.from(filasPorEjercicio, ([ejercicioId, series]) => {
                   const nombre = nombresPorId.get(ejercicioId);
@@ -141,7 +133,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
                     <fieldset key={ejercicioId} className="grid min-w-0 gap-2 rounded-lg border border-[#41463f] p-3">
                       <legend className="px-1 text-sm font-bold text-[#f2f4ef]">{titulo}</legend>
                       {series.map((fila, index) => (
-                        <SetRow key={fila.id} fila={fila} numero={index + 1} ejercicio={titulo}
+                        <SetRow key={fila.id} fila={fila} numero={index + 1} ejercicio={titulo} error={erroresFilas[fila.id]}
                           repeticionesRef={fila.id === filaConFoco ? repeticionesRef : null}
                           onUpdate={actualizarFila} onRemove={quitarFila} />
                       ))}
@@ -160,7 +152,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
             </fieldset>
 
             {error && <p role="alert" className="mb-4 rounded-lg border border-[rgba(255,121,121,0.32)] bg-[#351b1b] p-3 text-sm text-[#ff7979]">{error}</p>}
-            {exito && <p role="status" className="mb-4 rounded-lg border border-[rgba(181,108,255,0.32)] bg-[#321d47] p-3 text-sm text-[#d7adff]">{exito}</p>}
+            {exito && <p role="status" className="mb-4 rounded-lg border border-[rgba(181,108,255,0.32)] bg-[#321d47] p-3 text-sm text-[#d7adff]">{exito} <Link href={`/dashboard/entrenamientos/historial?gym=${encodeURIComponent(gym)}`} className="ml-2 font-bold underline">Ver historial</Link></p>}
             <button
               type="submit"
               disabled={guardando}

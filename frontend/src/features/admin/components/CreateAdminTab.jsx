@@ -96,7 +96,14 @@ export default function CreateAdminTab() {
                   </label>
                 ))}
               </fieldset>
-              <div className="flex gap-3">
+              {seleccion.length > 0 && (
+                <dl className="mb-4 grid gap-1 text-sm">
+                  <div><dt className="inline font-bold">Cuenta: </dt><dd className="inline break-all">{cuenta.correo}</dd></div>
+                  <div><dt className="inline font-bold">Rol: </dt><dd className="inline">Administrador de sede</dd></div>
+                  <div><dt className="inline font-bold">Sedes: </dt><dd className="inline">{seleccion.map(nombreSede).join(", ")}</dd></div>
+                </dl>
+              )}
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
                   className={botonPrimario}
@@ -107,7 +114,7 @@ export default function CreateAdminTab() {
                     ? "Asignando..."
                     : cuenta.tipo_usuario === "admin"
                       ? "Actualizar sedes"
-                      : "Asignar administrador"}
+                      : seleccion.length === 1 ? `Asignar administrador de ${nombreSede(seleccion[0])}` : "Asignar administrador de las sedes seleccionadas"}
                 </button>
                 <button type="button" className={botonSecundario} onClick={() => alEncontrar(null)} disabled={enviando}>
                   Cancelar

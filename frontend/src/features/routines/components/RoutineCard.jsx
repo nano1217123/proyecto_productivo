@@ -18,7 +18,7 @@ export default function RoutineCard({ rutina, gym, onEliminar }) {
       </div>
       <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#30332f]">
         <Link href={`/dashboard/rutinas/${rutina.id}?gym=${encodeURIComponent(gym)}`} className="text-[13px] font-extrabold text-[#f2f4ef] no-underline hover:text-[#d7adff]">
-          Ver rutina →
+          Ver rutina
         </Link>
         <button type="button" onClick={() => onEliminar(rutina.id, rutina.nombre)} className="px-3 py-1.5 bg-transparent border border-[rgba(255,121,121,.4)] rounded-md text-[#ff7979] text-xs font-semibold cursor-pointer transition hover:bg-[#351b1b]">
           Eliminar

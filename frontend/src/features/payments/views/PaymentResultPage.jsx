@@ -331,8 +331,9 @@ function PaymentResult() {
         )}
         </div>
 
+        {!pago && referencia && <p className="mt-3 break-all text-sm text-[#a9afa7]">Referencia: {referencia}</p>}
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-          {(fase === "tiempo-agotado" ||
+          {(pago?.estado === "PENDIENTE" || fase === "tiempo-agotado" ||
             (fase === "detenido" && error?.tipo === "red") ||
             (pago && ["RECHAZADO", "ERROR"].includes(pago.estado) && fase !== "final")) && (
             <button
@@ -345,19 +346,16 @@ function PaymentResult() {
           )}
           {error?.tipo === "sesion" && (
             <Link href="/login" className="text-sm font-extrabold text-[#d7adff] no-underline rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
-              Iniciar sesión &rarr;
+              Iniciar sesión
             </Link>
           )}
-          {(fase === "sin-referencia" ||
+          {(pago?.estado === "APROBADO" || fase === "sin-referencia" ||
             error?.tipo === "no-encontrado" ||
             (pago && ["RECHAZADO", "ANULADO", "ERROR"].includes(pago.estado))) && (
             <Link href="/dashboard/pagos" className="text-sm font-extrabold text-[#d7adff] no-underline hover:text-[#f2f4ef] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
-              Ir a pagos &rarr;
+              {pago?.estado === "APROBADO" ? "Volver a la suscripción" : "Revisar opciones de pago"}
             </Link>
           )}
-          <Link href="/dashboard" className="text-sm font-extrabold text-[#f2f4ef] no-underline hover:text-[#d7adff] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
-            Volver al panel &rarr;
-          </Link>
         </div>
       </div>
     </main>
