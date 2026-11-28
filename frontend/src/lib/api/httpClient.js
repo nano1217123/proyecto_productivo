@@ -1,3 +1,5 @@
+import { sessionFetch } from "./sessionFetch.js";
+
 /**
  * Cliente HTTP base del frontend.
  *
@@ -63,7 +65,7 @@ export async function request(path, options = {}) {
 
   let response;
   try {
-    response = await fetch(url, {
+    response = await sessionFetch(url, {
       method,
       headers: finalHeaders,
       body: finalBody,

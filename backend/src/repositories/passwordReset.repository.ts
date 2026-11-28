@@ -1,13 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-
-const SELECT = {
-  id: true,
-  usuarioId: true,
-  tokenHash: true,
-  expiresAt: true,
-  used: true,
-  creadoEn: true,
-} as const;
+import { usuarioTransaction } from "./usuarioTransaction.js";
 
 // Acceso a la tabla password_reset_tokens (tokens hasheados con SHA-256).
 export function createPasswordResetRepository(db: typeof prisma = prisma) {
@@ -18,15 +10,15 @@ export function createPasswordResetRepository(db: typeof prisma = prisma) {
       tokenHash: string,
       expiresAt: Date
     ): Promise<void> {
-      await db.$transaction([
-        db.passwordResetToken.updateMany({
+      await usuarioTransaction(usuarioId, async (tx) => {
+        await tx.passwordResetToken.updateMany({
           where: { usuarioId, used: false },
           data: { used: true },
-        }),
-        db.passwordResetToken.create({
+        });
+        await tx.passwordResetToken.create({
           data: { usuarioId, tokenHash, expiresAt },
-        }),
-      ]);
+        });
+      }, db);
     },
 
     // Token vigente (no usado y no expirado), o null.
@@ -45,19 +37,21 @@ export function createPasswordResetRepository(db: typeof prisma = prisma) {
       });
     },
 
-    async markUsed(id: string): Promise<void> {
-      await db.passwordResetToken.update({
-        where: { id },
-        data: { used: true },
-      });
-    },
+    async consumeAndReset(id: string, usuarioId: string, passwordHash: string): Promise<boolean> {
+      return usuarioTransaction(usuarioId, async (tx) => {
+        const { count } = await tx.passwordResetToken.updateMany({
+          where: { id, usuarioId, used: false, expiresAt: { gt: new Date() } },
+          data: { used: true },
+        });
+        if (count === 0) return false;
 
-    // Revoca todos los tokens pendientes de un usuario.
-    async revokeAllForUser(usuarioId: string): Promise<void> {
-      await db.passwordResetToken.updateMany({
-        where: { usuarioId, used: false },
-        data: { used: true },
-      });
+        await tx.usuario.update({ where: { idusuario: usuarioId }, data: { passwordHash } });
+        await tx.refreshToken.updateMany({
+          where: { usuarioId, revoked: false },
+          data: { revoked: true },
+        });
+        return true;
+      }, db);
     },
   };
 }

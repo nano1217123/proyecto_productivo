@@ -9,6 +9,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ARG BACKEND_URL
+ARG NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 RUN npm run build
 
 # Etapa 3: Servidor de producción

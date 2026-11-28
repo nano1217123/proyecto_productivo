@@ -50,9 +50,9 @@ function TrainingSummary({ session, catalog, onRepeat, onBack, historyUrl }) {
   </section>;
 }
 
-function TrainingDashboard({ gym, userId, refreshProfile }) {
+function TrainingDashboard({ gym, userId }) {
   const params = useSearchParams();
-  const active = useActiveTraining(userId, refreshProfile);
+  const active = useActiveTraining(userId);
   const [catalog, setCatalog] = useState([]);
   const [catalogError, setCatalogError] = useState("");
   const [history, setHistory] = useState(null);
@@ -239,10 +239,10 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
 }
 
 function TrainingPageContent({ gym }) {
-  const { user, loading, refreshProfile } = useAuth();
+  const { user, loading } = useAuth();
   if (loading) return <p className="training-page" role="status">Cargando sesión…</p>;
   if (!user?.idusuario) return <p className="training-page">Inicia sesión para entrenar.</p>;
-  return <TrainingDashboard key={user.idusuario} gym={gym} userId={user.idusuario} refreshProfile={refreshProfile} />;
+  return <TrainingDashboard key={user.idusuario} gym={gym} userId={user.idusuario} />;
 }
 
 export default function TrainingPage({ gym = "jj-poblado" }) {

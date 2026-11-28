@@ -25,3 +25,12 @@ test("usa un mensaje genérico si 422 no devuelve JSON", async t => {
   await assert.rejects(obtenerReportePersonal({ tipo: "rutinas", formato: "csv", signal: new AbortController().signal }),
     /No se pudo generar el reporte para este período/);
 });
+
+test("descarga un reporte válido aunque el consumidor omita la señal de cancelación", async t => {
+  t.mock.method(globalThis, "fetch", async () => new Response("ejercicio,series\nSentadilla,3", {
+    headers: { "content-type": "text/csv" },
+  }));
+  const resultado = await obtenerReportePersonal({ tipo: "rutinas", formato: "csv" });
+  assert.equal(resultado.nombre, "rutinas.csv");
+  assert.match(await resultado.blob.text(), /Sentadilla,3/);
+});

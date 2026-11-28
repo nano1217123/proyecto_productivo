@@ -113,9 +113,11 @@ def verify_routes():
     for path in ("/login", "/register", "/auth/callback"):
         assert b"noindex, nofollow" in request(SITE + path)
     for path in ("/dashboard", "/dashboard/pagos", "/dashboard/nutricion"):
-        with urlopen(SITE + path, timeout=10) as response:
-            assert urlsplit(response.url).path == "/login"
-    print(f"HTML inicial: {len(html.encode())} bytes. Enlaces, sedes, precios, metadatos y rutas protegidas: correctos.")
+        html_protegido = request(SITE + path)
+        assert b"noindex, nofollow" in html_protegido
+        assert b"Verificando sesi" in html_protegido
+        assert b'class="dashboard-sidebar"' not in html_protegido
+    print(f"HTML inicial: {len(html.encode())} bytes. Enlaces, sedes, precios y metadatos correctos.")
 
 
 def verify_browser(resources):
@@ -222,6 +224,10 @@ def verify_browser(resources):
                 assert request(SITE + image), image
         wd("/frame/parent", "POST", {})
     print("Firefox: 320, 390, 768, 1024 y 1440 px; teclado, menú, FAQ, IMC, selector e imágenes correctos.")
+
+    for path in ("/dashboard", "/dashboard/pagos", "/dashboard/nutricion"):
+        wd("/url", "POST", {"url": SITE + path})
+        wait(lambda: js("return location.pathname === '/login'"))
 
     def recaptcha_fixture():
         js("window.grecaptcha = { ready: callback => callback(), execute: () => Promise.resolve('local-fixture') }")

@@ -1,3 +1,4 @@
+import { sessionFetch } from "../../../lib/api/sessionFetch.js";
 import { HttpError } from "../../../lib/api/httpClient.js";
 
 const mensajes = {
@@ -66,7 +67,7 @@ async function obtenerReportePorSede({
   const mime = formato === "pdf" ? "application/pdf" : "text/csv";
   let respuesta;
   try {
-    respuesta = await fetch(url, { credentials: "include", signal, headers: { Accept: mime } });
+    respuesta = await sessionFetch(url, { credentials: "include", signal, headers: { Accept: mime } });
     if (respuesta.status !== 200) {
       const body = respuesta.ok ? null : await respuesta.json().catch(() => null);
       if (respuesta.ok) await respuesta.body?.cancel();

@@ -12,5 +12,5 @@ export const getPerfil: RequestHandler = asyncHandler(async (req, res) => {
 
   const profile = await perfilService.getProfileById(req.userId);
 
-  return res.status(200).json({ profile });
+  return res.set("Cache-Control", "private, no-store").status(200).json({ profile });
 });
