@@ -53,7 +53,7 @@ export const corregirEntrenamiento: RequestHandler = asyncHandler(async (req, re
     const schema = z.object({ revision: revisionSesion, fecha: z.iso.date(), contenido: contenidoSesion }).strict();
     const { revision, fecha, contenido } = leerSesion(schema, req.body);
     const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
-    if (fecha > hoy || !contenido.nombre.trim() || !contenido.ejercicios.length ||
+    if (fecha.startsWith("0000") || fecha > hoy || !contenido.nombre.trim() || !contenido.ejercicios.length ||
       contenido.ejercicios.some((item) => !item.series.length || item.series.some((serie) => !serie.completada))) {
       throw new AppError(400, "Indica una fecha válida, un nombre y al menos una serie completada por ejercicio.");
     }

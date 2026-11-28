@@ -1,3 +1,4 @@
+import { volumenRegistrado } from "./volumenEntrenamiento.js";
 import type { detalleHistorial } from "../repositories/historial.repository.js";
 
 type Sesion = Awaited<ReturnType<typeof detalleHistorial>>;
@@ -10,12 +11,6 @@ function total(series: Serie[], campo: "repeticiones" | "distancia_km" | "duraci
   const valores = series.map((serie) => serie[campo]);
   return valores.every((valor) => valor != null) && valores.length
     ? valores.reduce<number>((suma, valor) => suma + (valor ?? 0), 0) : null;
-}
-
-export function volumenRegistrado(series: Serie[], tipo: string) {
-  if (tipo !== "fuerza" && tipo !== "carga_adicional") return null;
-  const validas = series.filter((s) => s.completada && s.peso_kg != null && s.peso_kg >= 0 && (s.repeticiones ?? 0) > 0);
-  return validas.length ? validas.reduce((suma, s) => suma + s.peso_kg! * s.repeticiones!, 0) : null;
 }
 
 export function diferencia(anterior: number | null, reciente: number | null) {

@@ -7,8 +7,8 @@ import { asyncHandler } from "../middleware/error.middleware.js";
 import { actividadHistorial, consultarHistorial, detalleHistorial } from "../repositories/historial.repository.js";
 import { idSesion, leerSesion } from "../validator/sesionEntrenamiento.validator.js";
 
-const fecha = z.iso.date();
-const texto = z.string().trim().max(120).optional();
+const fecha = z.iso.date().refine((value) => !value.startsWith("0000"), "El año debe ser mayor a cero.");
+const texto = z.string().trim().max(120).refine((value) => !value.includes("\u0000"), "El texto contiene un carácter inválido.").optional();
 const filtros = z.object({
   pagina: z.coerce.number().int().min(1).max(100000).default(1),
   buscar: texto, desde: fecha.optional(), hasta: fecha.optional(),
@@ -42,7 +42,7 @@ export const repetirHistorial = asyncHandler(async (req, res) => {
   const { id } = leerSesion(z.object({ id: idSesion }).strict(), req.body);
   if (id === origen) throw new AppError(400, "Usa un identificador nuevo para repetir la sesión.");
   const usuarioId = req.userId!;
-  const { sesion } = await detalleHistorial(usuarioId, origen);
+  const { sesion } = await detalleHistorial(usuarioId, origen, false);
   const contenido = leerSesion(contenidoSesion, {
     ...sesion, notas: "", ejercicios: sesion.ejercicios.map((item) => ({
       ...item, series: item.series.map((serie) => ({ ...serie, completada: false })),

@@ -26,11 +26,10 @@ export function createSesionEntrenamientoRepository(db = prisma) {
       return db.entrenamiento.findFirst({ where: { usuarioId, estado: "en_curso" }, select });
     },
 
-    async iniciar(usuarioId: string, id: string, entrada: ContenidoSesion | (() => Promise<ContenidoSesion>),
-      origen?: { id: string; nombre: string }) {
+    async iniciar(usuarioId: string, id: string, entrada: ContenidoSesion | (() => Promise<{ contenido: ContenidoSesion; origen: { id: string; nombre: string } }>)) {
       const existente = await obtener(usuarioId, id);
       if (existente) return existente;
-      const contenido = typeof entrada === "function" ? await entrada() : entrada;
+      const { contenido, origen } = typeof entrada === "function" ? await entrada() : { contenido: entrada, origen: undefined };
       await validarCatalogo(contenido);
       const ahora = new Date();
       const fecha = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(ahora);

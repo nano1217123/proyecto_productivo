@@ -144,6 +144,10 @@ test("sesiones autenticadas, recuperación, rutinas y cierre transaccional sobre
   const { entrenamientos } = await api("GET", root, 200);
   assert.equal(entrenamientos.length, 1);
   assert.equal(entrenamientos[0].series.length, 8);
+  const historialDetallado = await api("GET", root + "/" + id, 200);
+  assert.equal(historialDetallado.sesion.ejercicios.length, 8);
+  assert.equal(historialDetallado.primerasMarcas.length, 2);
+  assert.equal(historialDetallado.mejoras.length, 0);
   assert.equal(entrenamientos[0].series.find((set: { tipo: string }) => set.tipo === "cardio").distancia_km, 2.25);
   assert.ok(entrenamientos[0].sesion.ejercicios.every((item: { descanso: number }) => item.descanso === 90));
   assert.deepEqual((await api("GET", root, 200, undefined, stranger)).entrenamientos, []);
@@ -237,7 +241,92 @@ test("CRUD de rutinas, idempotencia, archivo y fotografía independiente del ent
   await api("POST", active + "/finalizar", 200, { revision: 1 });
   const saved = (await api("GET", "/entrenamientos", 200)).entrenamientos.find((item) => item.id === id);
   assert.equal(saved.series[0].peso_kg, 42);
+  const detalle = await api("GET", "/entrenamientos/" + id, 200);
+  assert.deepEqual(detalle.rutina, { id: solicitudId, nombre: input.nombre });
   assert.equal(saved.sesion.ejercicios[0].objetivo.peso_kg, 40);
   assert.equal((await api("GET", copy, 200)).rutina.nombre, "Copia ajustada");
   assert.equal(await prisma.ejercicio.count({ where: { slug: exerciseSlug } }), 2);
+});
+
+test("historial paginado, calendario civil, corrección, comparación, repetición y marcas privadas", async () => {
+  const root = "/entrenamientos";
+  const ejercicio = await prisma.ejercicio.findFirstOrThrow({ where: { slug: exerciseSlug, grupoSlug: "pecho" } });
+  const ejercicio_id = Number(ejercicio.id);
+  const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
+  const antes = await api("GET", root + "/historial", 200);
+  assert.deepEqual((await api("GET", root + "/historial", 200, undefined, stranger)).entrenamientos, []);
+  await api("GET", root + "/historial", 401, undefined, null);
+  await api("GET", root + "/historial?desde=2026-02-30", 400);
+  await api("GET", root + "/historial?pagina=0", 400);
+  const ids = [randomUUID(), randomUUID()];
+  for (const [index, id] of ids.entries()) {
+    const contenido = { nombre: `Bitácora ${index}`, notas: "", ejercicios: [{
+      ejercicio_id, tipo: "fuerza", descanso: 90, notas: "Control", series: [
+        { completada: true, peso_kg: 100 + index * 10, repeticiones: 8 },
+        { completada: false, peso_kg: 900, repeticiones: 8 },
+      ],
+    }] };
+    await api("POST", root + "/activa", 200, { id, contenido });
+    await api("GET", root + "/" + id, 404);
+    await api("POST", root + "/activa/" + id + "/finalizar", 200, { revision: 0 });
+  }
+  const list = await api("GET", root + "/historial?" + new URLSearchParams({ buscar: "Bitácora", grupo: "Pecho", desde: hoy, hasta: hoy }), 200);
+  assert.deepEqual(list.entrenamientos.map((item) => [item.id, item.series, item.volumen]), [[ids[1], 1, 880], [ids[0], 1, 800]]);
+  assert.equal((await api("GET", root + "/historial?" + new URLSearchParams({ buscar: ejercicio.nombre }), 200)).entrenamientos.length,
+    antes.entrenamientos.length + 2);
+  assert.equal((await api("GET", root + "/historial?" + new URLSearchParams({ buscar: "Bitácora", records: "true" }), 200)).entrenamientos[0].id, ids[1]);
+  const actividad = root + "/actividad?" + new URLSearchParams({ desde: hoy, hasta: hoy, hoy, semana: hoy, mes: hoy });
+  assert.ok((await api("GET", actividad, 200)).dias[0].sesiones >= 2);
+  assert.equal((await api("GET", actividad, 200, undefined, stranger)).resumen.total, 0);
+  const origen = root + "/" + ids[1];
+  const detalle = await api("GET", origen, 200);
+  assert.equal(detalle.sesion.ejercicios[0].series.length, 1);
+  assert.equal(detalle.mejoras.length, 1);
+  await api("GET", origen, 404, undefined, stranger);
+  const comparar = root + "/comparar?" + new URLSearchParams({ anterior: ids[0], reciente: ids[1] });
+  assert.equal((await api("GET", comparar, 200)).general.Volumen.cambio, 80);
+  await api("GET", comparar, 404, undefined, stranger);
+  const distinto = randomUUID();
+  await api("POST", root + "/activa", 200, { id: distinto, contenido: { nombre: "Isometría", notas: "",
+    ejercicios: [{ ejercicio_id, tipo: "isometrico", descanso: 20, notas: "", series: [{ completada: true, duracion_seg: 20 }] }],
+  } });
+  await api("POST", root + "/activa/" + distinto + "/finalizar", 200, { revision: 0 });
+  const incompatibles = root + "/comparar?" + new URLSearchParams({ anterior: ids[0], reciente: distinto });
+  const comparacionSinCarga = await api("GET", incompatibles, 200);
+  assert.equal(comparacionSinCarga.general.Volumen.cambio, null);
+  assert.deepEqual(comparacionSinCarga.ejercicios, []);
+  await api("DELETE", root + "/" + distinto, 200);
+  await prisma.ejercicio.update({ where: { id: ejercicio.id }, data: { nombre: "Nombre actualizado del catálogo" } });
+  assert.equal((await api("GET", origen, 200)).catalogo[ejercicio_id].nombre, ejercicio.nombre);
+  const repeat = { id: randomUUID() };
+  await api("POST", origen + "/repetir", 404, repeat, stranger);
+  const repeats = await Promise.all([1, 2].map(() => api("POST", origen + "/repetir", 200, repeat)));
+  assert.ok(repeats.every(({ sesion }) => sesion.id === repeat.id && !sesion.sesion.ejercicios[0].series[0].completada));
+  await api("POST", origen + "/repetir", 409, { id: randomUUID() });
+  await api("POST", root + "/activa/" + repeat.id + "/cancelar", 200, { revision: 0 });
+  const edit = { fecha: hoy, revision: detalle.revision, contenido: detalle.sesion };
+  edit.contenido.ejercicios[0].series[0].peso_kg = 90;
+  await api("PATCH", origen, 404, edit, stranger);
+  await api("PATCH", origen, 204, edit);
+  await api("PATCH", origen, 409, edit);
+  assert.equal((await api("GET", origen, 200)).mejoras.length, 0);
+  assert.equal((await api("GET", comparar, 200)).general.Volumen.cambio, -80);
+  await api("DELETE", root + "/" + ids[0], 200);
+  await api("GET", root + "/" + ids[0], 404);
+  const restante = await api("GET", origen, 200);
+  assert.equal(restante.sesion.ejercicios[0].series[0].peso_kg, 90);
+  assert.equal(restante.mejoras.length, 1);
+  await api("DELETE", origen, 200);
+
+  const many = Array.from({ length: 1012 }, () => ({
+    id: randomUUID(), usuarioId: stranger, fecha: new Date(hoy), nombre: "Paginación",
+  }));
+  await prisma.entrenamiento.createMany({ data: many });
+  const first = await api("GET", root + "/historial", 200, undefined, stranger);
+  const second = await api("GET", root + "/historial?pagina=2", 200, undefined, stranger);
+  assert.equal(first.entrenamientos.length, 20);
+  assert.equal(first.siguiente, true);
+  assert.equal(second.entrenamientos.length, 20);
+  assert.ok(!second.entrenamientos.some(({ id }) => first.entrenamientos.some((row) => row.id === id)));
+  assert.equal((await api("GET", root + "/historial?pagina=51", 200, undefined, stranger)).entrenamientos.length, 12);
 });

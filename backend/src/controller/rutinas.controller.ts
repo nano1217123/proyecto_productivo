@@ -73,8 +73,9 @@ export const startRoutine: RequestHandler = asyncHandler(async (req, res) => {
   const rutinaId = leerSesion(idSesion, req.params.id);
   const { id } = leerSesion(z.object({ id: idSesion }).strict(), req.body);
   const usuarioId = req.userId!;
-  const rutina = await rutinasService.getById(rutinaId, usuarioId);
-  const sesion = await sesionesEntrenamiento.iniciar(usuarioId, id, async () => rutinaSesion(rutina),
-    { id: rutinaId, nombre: rutina.nombre });
+  const sesion = await sesionesEntrenamiento.iniciar(usuarioId, id, async () => {
+    const rutina = await rutinasService.getById(rutinaId, usuarioId);
+    return { contenido: rutinaSesion(rutina), origen: { id: rutinaId, nombre: rutina.nombre } };
+  });
   res.json({ sesion });
 });

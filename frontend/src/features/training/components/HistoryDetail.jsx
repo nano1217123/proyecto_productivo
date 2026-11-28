@@ -36,6 +36,13 @@ export default function HistoryDetail({ detail, query, onRepeat, onEdit, pending
         {mark.tipo === "carga_adicional" && " de carga adicional"}
       </li>)}</ul>
     </section>}
+    {!!detail.primerasMarcas?.length && <details className="history-panel">
+      <summary>Primeras cargas registradas</summary>
+      <ul>{detail.primerasMarcas.map((mark) => <li key={`${mark.ejercicio_id}-${mark.tipo}`}>
+        {catalogo[mark.ejercicio_id]?.nombre} · {number(mark.peso)} kg
+        {mark.tipo === "carga_adicional" && " de carga adicional"}
+      </li>)}</ul>
+    </details>}
     <h3>Ejercicios realizados</h3>
     {!sesion.ejercicios.length && <p>No hay series disponibles para esta sesión.</p>}
     {sesion.ejercicios.map((item, index) => {

@@ -1,9 +1,9 @@
 import { catalogoHistorico, filasSesion } from "./trainingHistoryData.js";
-import type { ContenidoSesion } from "../validator/sesionEntrenamiento.validator.js";
+import { contenidoSesion, tipoRegistro, type ContenidoSesion } from "../validator/sesionEntrenamiento.validator.js";
+import { tiposConVolumen, volumenRegistrado } from "../service/volumenEntrenamiento.js";
 import { Prisma } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/AppError.js";
-import { contenidoSesion } from "../validator/sesionEntrenamiento.validator.js";
 
 export type FiltrosHistorial = {
   pagina: number; buscar?: string; desde?: string; hasta?: string; grupo?: string;
@@ -16,7 +16,7 @@ const duracion = Prisma.sql`CASE WHEN e.iniciado_en <= e.finalizado_en
 
 // Las cargas se almacenan en kg. El volumen conserva la convención registrada,
 // sin multiplicadores inferidos para mancuernas o movimientos unilaterales.
-const cargaValida = Prisma.sql`s.peso_kg >= 0 AND s.repeticiones > 0 AND coalesce(s.tipo, 'fuerza') IN ('fuerza', 'carga_adicional')`;
+const cargaValida = Prisma.sql`s.peso_kg >= 0 AND s.repeticiones > 0 AND coalesce(s.tipo, 'fuerza') IN (${Prisma.join(tiposConVolumen.map((tipo) => Prisma.sql`${tipo}`))})`;
 
 const nombreEjercicio = Prisma.sql`coalesce(e.catalogo_historico->s.ejercicio_id::text->>'nombre', j.nombre)`;
 const grupoEjercicio = Prisma.sql`coalesce(e.catalogo_historico->s.ejercicio_id::text->>'grupo', j.grupo_nombre)`;
@@ -25,15 +25,16 @@ const marcas = (usuarioId: string) => Prisma.sql`marcas AS (
       SELECT e.id, s.ejercicio_id, coalesce(s.tipo, 'fuerza') AS tipo, max(s.peso_kg) AS peso,
         e.fecha, e.creado_en
       FROM entrenamientos e JOIN series_entrenamiento s ON s.entrenamiento_id = e.id
-      WHERE e.usuario_id = ${usuarioId}::uuid AND e.estado = 'finalizado' AND ${cargaValida}
+      WHERE e.usuario_id = ${usuarioId}::uuid AND s.usuario_id = e.usuario_id AND e.estado = 'finalizado' AND ${cargaValida}
       GROUP BY e.id, s.ejercicio_id, coalesce(s.tipo, 'fuerza')
+    ), marcas_ordenadas AS (
+      SELECT id, ejercicio_id, tipo, peso::float8, (max(peso) OVER (
+        PARTITION BY ejercicio_id, tipo ORDER BY fecha, creado_en, id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+      ))::float8 AS anterior
+      FROM marcas
     ), mejoras AS (
-      SELECT id, ejercicio_id, tipo, peso::float8, anterior::float8 FROM (
-        SELECT id, ejercicio_id, tipo, peso, max(peso) OVER (
-          PARTITION BY ejercicio_id, tipo ORDER BY fecha, creado_en, id
-          ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-        ) AS anterior FROM marcas
-      ) m WHERE peso > anterior
+      SELECT id, ejercicio_id, tipo, peso, anterior FROM marcas_ordenadas WHERE peso > anterior
     )`;
 
 export async function consultarHistorial(usuarioId: string, filtros: FiltrosHistorial) {
@@ -59,6 +60,8 @@ export async function consultarHistorial(usuarioId: string, filtros: FiltrosHist
     volumen: Prisma.sql`CASE WHEN convenciones = 1 AND tipos = ARRAY['fuerza']::text[] THEN volumen END DESC NULLS LAST, fecha DESC`,
   }[filtros.orden];
   const limite = 20;
+  const paginaPrimero = !filtros.records && filtros.orden !== "volumen";
+  const pagina = Prisma.sql`LIMIT ${limite + 1} OFFSET ${(filtros.pagina - 1) * limite}`;
   const filas = await prisma.$queryRaw<unknown[]>(Prisma.sql`
     WITH sesiones AS (
       SELECT e.id, e.fecha::text, e.creado_en AS "creadoEn", e.iniciado_en AS "iniciadoEn",
@@ -66,6 +69,7 @@ export async function consultarHistorial(usuarioId: string, filtros: FiltrosHist
       FROM entrenamientos e
       WHERE e.usuario_id = ${usuarioId}::uuid AND e.estado = 'finalizado'
       ${condiciones.length ? Prisma.sql`AND ${Prisma.join(condiciones, " AND ")}` : Prisma.empty}
+      ${paginaPrimero ? Prisma.sql`ORDER BY ${orden}, id DESC ${pagina}` : Prisma.empty}
     ), ${marcas(usuarioId)}, resumen AS (
       SELECT e.id, e.fecha, e."creadoEn", e."iniciadoEn", e.nombre, e.rutina, e.duracion, count(s.id)::int AS series, coalesce(e.ejercicios, count(DISTINCT s.ejercicio_id)::int) AS ejercicios,
         sum(s.peso_kg * s.repeticiones) FILTER (WHERE ${cargaValida})::float8 AS volumen,
@@ -78,7 +82,7 @@ export async function consultarHistorial(usuarioId: string, filtros: FiltrosHist
       GROUP BY e.id, e.fecha, e."creadoEn", e."iniciadoEn", e.nombre, e.rutina, e.duracion, e.ejercicios, e.catalogo_historico
     )
     SELECT * FROM resumen ${filtros.records ? Prisma.sql`WHERE records > 0` : Prisma.empty}
-    ORDER BY ${orden}, id DESC LIMIT ${limite + 1} OFFSET ${(filtros.pagina - 1) * limite}
+    ORDER BY ${orden}, id DESC ${paginaPrimero ? Prisma.empty : pagina}
   `);
   return { entrenamientos: filas.slice(0, limite), siguiente: filas.length > limite };
 }
@@ -109,7 +113,7 @@ export async function actividadHistorial(usuarioId: string, semana: string, mes:
   return { resumen: (resumen as unknown[])[0], dias, grupos };
 }
 
-export async function detalleHistorial(usuarioId: string, id: string) {
+export async function detalleHistorial(usuarioId: string, id: string, incluirMejoras = true) {
   const registro = await prisma.entrenamiento.findFirst({
     where: { id, usuarioId, estado: "finalizado" },
     include: { seriesEntrenamiento: {
@@ -118,18 +122,33 @@ export async function detalleHistorial(usuarioId: string, id: string) {
     } },
   });
   if (!registro) throw new AppError(404, "Entrenamiento no encontrado.");
-  const mejoras = await prisma.$queryRaw<{ ejercicio_id: number; tipo: string; peso: number; anterior: number }[]>(Prisma.sql`
+  const marcasSesion = incluirMejoras ? await prisma.$queryRaw<{
+    ejercicio_id: number; tipo: string; peso: number; anterior: number | null;
+  }[]>(Prisma.sql`
     WITH ${marcas(usuarioId)}
-    SELECT ejercicio_id::float8, tipo, peso, anterior FROM mejoras WHERE id = ${id}::uuid
-  `);
+    SELECT ejercicio_id::float8, tipo, peso, anterior FROM marcas_ordenadas
+    WHERE id = ${id}::uuid AND (anterior IS NULL OR peso > anterior)
+  `) : [];
+  const mejoras = marcasSesion.filter((marca) => marca.anterior !== null);
+  const primerasMarcas = marcasSesion.filter((marca) => marca.anterior === null);
   const parsed = contenidoSesion.safeParse(registro.sesion);
   const series = registro.seriesEntrenamiento;
-  const ejercicios = parsed.success ? parsed.data.ejercicios : [...new Set(series.map((s) => s.ejercicioId))].map((ejercicioId) => ({
-    ejercicio_id: Number(ejercicioId), tipo: series.some((s) => s.ejercicioId === ejercicioId && s.pesoKg !== null) ? "fuerza" as const : "corporal" as const, descanso: 0, notas: "",
-    series: series.filter((s) => s.ejercicioId === ejercicioId).map((s) => ({
-      completada: true, peso_kg: s.pesoKg === null ? null : Number(s.pesoKg), repeticiones: s.repeticiones,
-    })),
-  }));
+  const ejercicios: ContenidoSesion["ejercicios"] = parsed.success ? parsed.data.ejercicios : [];
+  if (!parsed.success) {
+    for (const serie of series) {
+      const ejercicio_id = Number(serie.ejercicioId);
+      const tipo = tipoRegistro.safeParse(serie.tipo).data ?? (serie.pesoKg === null ? "corporal" : "fuerza");
+      const anterior = ejercicios.at(-1);
+      const item = anterior?.ejercicio_id === ejercicio_id && anterior.tipo === tipo &&
+        serie.numeroSerie > 1 && anterior.series.length < 30 ? anterior : { ejercicio_id, tipo, descanso: 0, notas: "", series: [] };
+      if (item !== anterior) ejercicios.push(item);
+      item.series.push({
+        completada: true, peso_kg: serie.pesoKg === null ? null : Number(serie.pesoKg), repeticiones: serie.repeticiones,
+        duracion_seg: serie.duracionSeg, distancia_km: serie.distanciaKm === null ? null : Number(serie.distanciaKm),
+        asistencia_kg: serie.asistenciaKg === null ? null : Number(serie.asistenciaKg),
+      });
+    }
+  }
   const catalogo = Object.fromEntries(series.map(({ ejercicio }) => [String(ejercicio.id), {
     nombre: ejercicio.nombre, grupo: ejercicio.grupoNombre, musculo: ejercicio.musculoPrincipal,
     equipo: ejercicio.equipo, imagen: ejercicio.imagenUrl,
@@ -137,7 +156,8 @@ export async function detalleHistorial(usuarioId: string, id: string) {
   return {
     id, fecha: registro.fecha.toISOString().slice(0, 10), nombre: registro.nombre,
     notas: registro.notas, iniciadoEn: registro.iniciadoEn, finalizadoEn: registro.finalizadoEn,
-    mejoras, estado: registro.estado, revision: registro.revision, creadoEn: registro.creadoEn,
+    volumenPorEjercicio: ejercicios.map((item) => volumenRegistrado(item.series, item.tipo)),
+    mejoras, primerasMarcas, estado: registro.estado, revision: registro.revision, creadoEn: registro.creadoEn,
     sesion: { nombre: registro.nombre || "Entrenamiento", notas: registro.notas || "", ejercicios },
     rutina: registro.rutinaOrigen, actualizadoEn: registro.actualizadoEn,
     catalogo: { ...catalogo, ...(registro.catalogoHistorico as typeof catalogo | null) },
