@@ -29,12 +29,6 @@ export async function proxy(request) {
   const url = request.nextUrl.clone();
   const user = await verifySession(request);
 
-  // Ruta protegida sin sesión → /login
-  if (!user && url.pathname.startsWith("/dashboard")) {
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
   // Logueado en /login o /register → /dashboard
   if (user && (url.pathname === "/login" || url.pathname === "/register")) {
     url.pathname = "/dashboard";
@@ -45,5 +39,5 @@ export async function proxy(request) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register"],
+  matcher: ["/login", "/register"],
 };

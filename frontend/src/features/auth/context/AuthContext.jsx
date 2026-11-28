@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { SESSION_ENDED, withSessionLock } from "@/src/lib/api/sessionFetch";
 import { authApi } from "../api/authApi";
 
 const AuthContext = createContext(null);
@@ -9,85 +9,61 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function cargarSesion() {
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("oauth") === "ok") {
-          await new Promise((r) => setTimeout(r, 400));
-          const destino = new URL(window.location.href);
-          try {
-            const sede = sessionStorage.getItem("jjgym:oauth:sede");
-            sessionStorage.removeItem("jjgym:oauth:sede");
-            if (sede) destino.searchParams.set("gym", sede);
-          } catch { /* sin almacenamiento */ }
-          destino.searchParams.delete("oauth");
-          window.history.replaceState(null, "", destino);
-        }
-      }
-
-      try {
-        const { profile } = await authApi.getProfile();
-        if (!cancelled) setUser(profile);
-      } catch (err) {
-        if (err.status === 401) {
-          try {
-            await authApi.refresh();
-            const { profile } = await authApi.getProfile();
-            if (!cancelled) setUser(profile);
-          } catch {
-            if (!cancelled) setUser(null);
-          }
-        } else {
-          if (!cancelled) setUser(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    cargarSesion();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // El rol y la sede se leen del servidor. Si cambian con la sesión abierta
-  // (por ejemplo, un admin vincula esta cuenta a su sede), el panel se
-  // actualiza al volver a la pestaña, sin cerrar sesión. El backend ya
-  // aplica el nuevo rol desde la siguiente petición.
+  const [sessionError, setSessionError] = useState(false);
   const ultimaRecarga = useRef(0);
+  const revisionSesion = useRef(0);
+
   const refreshProfile = useCallback(async () => {
+    const revision = ++revisionSesion.current;
     ultimaRecarga.current = Date.now();
     try {
       const { profile } = await authApi.getProfile();
+      if (revision !== revisionSesion.current) return null;
       setUser(profile);
+      setSessionError(false);
       return profile;
     } catch (err) {
-      // Otros errores (red, 5xx): se conserva el perfil actual y el panel.
-      if (err?.status !== 401) return null;
-    }
-    // Access token vencido: mismo flujo que al cargar la sesión. Se renueva
-    // con el refresh token y se reintenta una sola vez.
-    try {
-      await authApi.refresh();
-      const { profile } = await authApi.getProfile();
-      setUser(profile);
-      return profile;
-    } catch (err) {
-      // Error de red al renovar: no se cierra la sesión por eso.
-      if (err?.status === 0 || err?.status === undefined) return null;
-      // La renovación falló (refresh vencido o revocado): sesión terminada.
-      setUser(null);
-      router.replace("/login");
+      if (revision !== revisionSesion.current) return null;
+      if (err?.status === 401) {
+        setUser(null);
+        setSessionError(false);
+      } else {
+        setSessionError(true);
+      }
       return null;
+    } finally {
+      if (revision === revisionSesion.current) setLoading(false);
     }
-  }, [router]);
+  }, []);
 
+  useEffect(() => {
+    function endSession() {
+      revisionSesion.current++;
+      setUser(null);
+      setSessionError(false);
+      setLoading(false);
+    }
+
+    const destino = new URL(window.location.href);
+    if (destino.searchParams.get("oauth") === "ok") {
+      try {
+        const sede = sessionStorage.getItem("jjgym:oauth:sede");
+        sessionStorage.removeItem("jjgym:oauth:sede");
+        if (sede) destino.searchParams.set("gym", sede);
+      } catch { /* sin almacenamiento */ }
+      destino.searchParams.delete("oauth");
+      window.history.replaceState(null, "", destino);
+    }
+
+    window.addEventListener(SESSION_ENDED, endSession);
+    void refreshProfile();
+    return () => {
+      revisionSesion.current++;
+      window.removeEventListener(SESSION_ENDED, endSession);
+    };
+  }, [refreshProfile]);
+
+  // Relee el rol y la sede al volver a la pestaña.
   useEffect(() => {
     if (!user) return;
     function alVolver() {
@@ -107,11 +83,14 @@ export function AuthProvider({ children }) {
     return authApi.register({ nombres, apellidos, email, password });
   }
 
-   async function verifyOtp(email, code) {
-    const result = await authApi.verifyEmail({ email, code });
+  async function verifyOtp(email, code) {
+    const result = await withSessionLock(() => authApi.verifyEmail({ email, code }));
     // El backend ya seteó las cookies → cargamos el perfil.
     const { profile } = await authApi.getProfile();
+    revisionSesion.current++;
     setUser(profile);
+    setSessionError(false);
+    setLoading(false);
     return result;
   }
 
@@ -120,24 +99,18 @@ export function AuthProvider({ children }) {
   }
 
   async function login(email, password) {
-    const result = await authApi.login({ email, password });
+    const result = await withSessionLock(() => authApi.login({ email, password }));
     const { profile } = await authApi.getProfile();
+    revisionSesion.current++;
     setUser(profile);
+    setSessionError(false);
+    setLoading(false);
     return result;
   }
 
   async function logout() {
-    try {
-      await authApi.logout();
-    } catch (err) {
-      console.error("Error al cerrar sesión:", err);
-    } finally {
-      setUser(null);
-      await new Promise((r) => setTimeout(r, 100));
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-    }
+    await withSessionLock(authApi.logout);
+    window.dispatchEvent(new Event(SESSION_ENDED));
   }
 
   async function resetPasswordForEmail(email) {
@@ -145,7 +118,9 @@ export function AuthProvider({ children }) {
   }
 
   async function updatePassword(token, newPassword) {
-    return authApi.resetPassword({ token, password: newPassword });
+    const result = await withSessionLock(() => authApi.resetPassword({ token, password: newPassword }));
+    if (user) void refreshProfile();
+    return result;
   }
 
   function loginWithGoogle(gym) {
@@ -162,6 +137,7 @@ export function AuthProvider({ children }) {
         user,
         profile: user,
         loading,
+        sessionError,
         signUp,
         verifyOtp,
         resendOtp,

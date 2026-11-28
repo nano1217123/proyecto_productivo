@@ -36,13 +36,11 @@ export const authApi = {
 
   logout: () => http.post("/api/auth/logout"),
 
-  refresh: () => http.post("/api/auth/refresh"),
-
   forgotPassword: (data) => http.post("/api/auth/forgot-password", data),
 
   resetPassword: (data) => http.post("/api/auth/reset-password", data),
 
-  getProfile: () => http.get("/api/perfil"),
+  getProfile: () => http.get("/api/perfil", { cache: "no-store" }),
 };
 
 export default authApi;

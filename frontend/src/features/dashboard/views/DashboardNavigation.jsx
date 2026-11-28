@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
@@ -10,6 +11,8 @@ const base = "/dashboard";
 
 export default function DashboardNavigation() {
   const { profile, logout } = useAuth();
+  const [logoutError, setLogoutError] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const ruta = usePathname();
   const params = useSearchParams();
   const rol = profile?.tipo_usuario;
@@ -56,22 +59,33 @@ export default function DashboardNavigation() {
     ));
   }
 
-  function salir(event) {
-    if (!event.defaultPrevented) logout();
+  async function salir(event) {
+    if (event.defaultPrevented || loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError(false);
+    try {
+      await logout();
+    } catch {
+      setLogoutError(true);
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   return <aside className="dashboard-sidebar">
     <div className="dashboard-sidebar-desktop">
       <Link href={enlace("")} className="dashboard-brand">J&amp;J GYM</Link>
       <nav aria-label="Navegación del panel">{links()}</nav>
-      <button type="button" data-salida-rutina onClick={salir}><HomeIcon name="exit" /> Cerrar sesión</button>
+      <button type="button" data-salida-rutina disabled={loggingOut} onClick={salir}><HomeIcon name="exit" /> Cerrar sesión</button>
+      {logoutError && <p role="alert">No se pudo cerrar la sesión. Intenta de nuevo.</p>}
     </div>
     <details className="dashboard-sidebar-mobile">
       <summary><HomeIcon name="menu" /> <strong>J&amp;J GYM</strong><span>{activo?.[1] ?? "Panel"} · Menú</span></summary>
       <nav aria-label="Navegación del panel">
         {links((event) => { if (!event.defaultPrevented) event.currentTarget.closest("details").open = false; })}
       </nav>
-      <button type="button" data-salida-rutina onClick={salir}><HomeIcon name="exit" /> Cerrar sesión</button>
+      <button type="button" data-salida-rutina disabled={loggingOut} onClick={salir}><HomeIcon name="exit" /> Cerrar sesión</button>
+      {logoutError && <p role="alert">No se pudo cerrar la sesión. Intenta de nuevo.</p>}
     </details>
   </aside>;
 }

@@ -23,6 +23,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 today = datetime.now(ZoneInfo("America/Bogota")).date().isoformat()
 mode = "new"
+session_mode = None
+renewals = 0
 routine_ids = ["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"]
 last_id = "00000000-0000-4000-8000-000000000003"
 active = None
@@ -36,14 +38,21 @@ def workout(name, identifier):
 class API(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
-    def reply(self, body, status=200):
+    def reply(self, body, status=200, cookies=()):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        for cookie in cookies:
+            self.send_header("Set-Cookie", cookie)
         self.end_headers()
         if status != 204:
             self.wfile.write(json.dumps(body).encode())
     def do_GET(self):
         path, _, query = self.path.partition("?")
+        if session_mode and (path == "/api/perfil" or path.startswith("/api/rutinas")):
+            if session_mode == "offline":
+                return self.reply({}, 503)
+            if session_mode == "expired" or "access_token=browser-fixture" not in self.headers.get("Cookie", ""):
+                return self.reply({}, 401)
         profile = {"idusuario": "browser-test", "nombres": "Emiliano", "apellidos": "Prueba",
                    "tipo_usuario": "cliente" if mode == "client" else "admin" if mode == "admin" else "usuario_particular",
                    "sede": "jj-poblado" if mode == "client" else None}
@@ -105,8 +114,16 @@ class API(BaseHTTPRequestHandler):
         else:
             self.reply({}, 404)
     def do_POST(self):
-        global active, weight_post_count
+        global active, weight_post_count, renewals
         path = self.path.split("?")[0]
+        if path == "/api/auth/refresh":
+            if session_mode == "active" and "refresh_token=browser-refresh" in self.headers.get("Cookie", ""):
+                renewals += 1
+                return self.reply({}, cookies=("access_token=browser-fixture; Path=/; HttpOnly; SameSite=Lax",))
+            return self.reply({}, 401)
+        if path == "/api/auth/logout":
+            return self.reply({}, cookies=("access_token=; Path=/; Max-Age=0",
+                                           "refresh_token=; Path=/api/auth; Max-Age=0"))
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if path == "/api/progreso/peso":
             weight_post_count += 1
@@ -191,6 +208,49 @@ with ExitStack() as resources:
         """, value), value)
     def navigate(path="/dashboard"):
         wd("/url", "POST", {"url": base + path})
+    session_mode = "active"
+    navigate("/dashboard/rutinas")
+    has("Ingresa tus credenciales")
+    wd("/cookie", "POST", {"cookie": {"name": "refresh_token", "value": "browser-refresh",
+                                      "path": "/api/auth", "httpOnly": True}})
+    navigate("/dashboard/rutinas")
+    wait_for(lambda: js("return !!document.querySelector('.dashboard-sidebar')"), "Panel tras renovar")
+    assert renewals == 1
+    assert js("return location.pathname") == "/dashboard/rutinas"
+    assert not js("return document.cookie.includes('token=')")
+
+    original = wd("/window")
+    tab = wd("/window/new", "POST", {"type": "tab"})["handle"]
+    wd("/window", "POST", {"handle": tab})
+    navigate("/dashboard")
+    has("Comienza tu camino de entrenamiento")
+    assert renewals == 1
+    wd("/window", "DELETE")
+    wd("/window", "POST", {"handle": original})
+
+    session_mode = "offline"
+    navigate("/dashboard/rutinas")
+    has("No se pudo verificar tu sesión")
+    assert js("return location.pathname") == "/dashboard/rutinas"
+    session_mode = "active"
+    js("document.querySelector('[role=alert] button').click()")
+    wait_for(lambda: js("return !!document.querySelector('.dashboard-sidebar')"), "Panel tras reconexión")
+    js("document.querySelector('.dashboard-sidebar a[href^=\"/dashboard/nutricion\"]').click()")
+    wait_for(lambda: js("return location.pathname === '/dashboard/nutricion'"), "Navegación al módulo")
+    assert renewals == 1
+
+    js("document.querySelector('.dashboard-sidebar [data-salida-rutina]').click()")
+    has("Ingresa tus credenciales")
+    assert not wd("/cookie")
+
+    wd("/cookie", "POST", {"cookie": {"name": "refresh_token", "value": "browser-refresh", "path": "/api/auth"}})
+    session_mode = "expired"
+    navigate("/dashboard/rutinas")
+    has("Ingresa tus credenciales")
+    assert renewals == 1
+    print("Sesión: URL directa, rotación, cookies HttpOnly, pestañas, 503, navegación, logout y expiración")
+
+    session_mode = None
     navigate("/login")
     wd("/cookie", "POST", {"cookie": {"name": "access_token", "value": "browser-fixture", "path": "/"}})
     wd("/window/rect", "POST", {"width": 1280, "height": 900})

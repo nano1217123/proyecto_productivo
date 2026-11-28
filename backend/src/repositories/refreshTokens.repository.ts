@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { usuarioTransaction } from "./usuarioTransaction.js";
 
 export interface RefreshTokenRow {
   id: string;
@@ -32,10 +33,10 @@ export function createRefreshTokensRepository(db: typeof prisma = prisma) {
 
     // Se usa ante reutilización de un token ya revocado (posible robo).
     async revokeAllForUser(usuarioId: string): Promise<void> {
-      await db.refreshToken.updateMany({
+      await usuarioTransaction(usuarioId, (tx) => tx.refreshToken.updateMany({
         where: { usuarioId, revoked: false },
         data: { revoked: true },
-      });
+      }), db);
     },
 
     // Revoca el token usado y crea el nuevo, de forma atómica.
@@ -44,16 +45,19 @@ export function createRefreshTokensRepository(db: typeof prisma = prisma) {
       usuarioId: string,
       newHash: string,
       expiresAt: Date
-    ): Promise<void> {
-      await db.$transaction([
-        db.refreshToken.update({
-          where: { id: oldId },
+    ): Promise<boolean> {
+      return usuarioTransaction(usuarioId, async (tx) => {
+        const { count } = await tx.refreshToken.updateMany({
+          where: { id: oldId, usuarioId, revoked: false, expiresAt: { gt: new Date() } },
           data: { revoked: true },
-        }),
-        db.refreshToken.create({
+        });
+        if (count === 0) return false;
+
+        await tx.refreshToken.create({
           data: { usuarioId, tokenHash: newHash, expiresAt },
-        }),
-      ]);
+        });
+        return true;
+      }, db);
     },
   };
 }

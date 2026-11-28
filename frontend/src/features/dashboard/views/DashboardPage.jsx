@@ -20,7 +20,7 @@ const messages = [
   "Tu entrenamiento se adapta a tu día.",
 ];
 
-function Home({ profile, refreshProfile }) {
+function Home({ profile }) {
   const [now, setNow] = useState(() => new Date());
   const [offset, setOffset] = useState(0);
   const [historyVersion, refreshHistory] = useState(0);
@@ -28,7 +28,7 @@ function Home({ profile, refreshProfile }) {
   const [nutritionVersion, refreshNutrition] = useState(0);
   const today = localHomeDate(now);
   const id = profile.idusuario;
-  const active = useActiveTraining(id, refreshProfile);
+  const active = useActiveTraining(id);
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 15000);
     return () => clearInterval(timer);
@@ -71,7 +71,7 @@ function Home({ profile, refreshProfile }) {
 }
 
 export default function DashboardPage() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   if (!profile?.idusuario) return null;
-  return <Home key={profile.idusuario} {...{ profile, refreshProfile }} />;
+  return <Home key={profile.idusuario} {...{ profile }} />;
 }

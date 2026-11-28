@@ -1,4 +1,5 @@
-import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from "../lib/cookies.js";
+import { ACCESS_COOKIE, REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from "../lib/cookies.js";
+import { verifyAccessToken } from "../lib/tokens.js";
 import type { RequestHandler } from "express";
 import { authService } from "../service/auth.service.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
@@ -66,8 +67,8 @@ export const forgotPassword: RequestHandler = asyncHandler(async (req, res) => {
 });
 
 export const resetPassword: RequestHandler = asyncHandler(async (req, res) => {
-  const result = await authService.resetPassword(
-    req.body as ResetPasswordInput
-  );
-  return res.status(200).json(result);
+  const { message, usuarioId } = await authService.resetPassword(req.body as ResetPasswordInput);
+  const currentToken = req.cookies?.[ACCESS_COOKIE];
+  if (currentToken && verifyAccessToken(currentToken)?.sub === usuarioId) clearAuthCookies(res);
+  return res.status(200).json({ message });
 });

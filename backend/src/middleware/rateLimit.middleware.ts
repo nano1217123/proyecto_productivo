@@ -1,4 +1,5 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { REFRESH_COOKIE } from "../lib/cookies.js";
 
 // Limita los intentos sobre endpoints sensibles de autenticación,
 // contados por IP. Responde siempre con la forma { message }.
@@ -80,9 +81,11 @@ export const loginLimiter = rateLimit({
 });
 
 // Renovación y cierre de sesión: 30 por IP cada 15 min.
+// Las visitas anónimas no consumen la cuota compartida de una sede.
 export const refreshLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
+  skip: (req) => !req.cookies?.[REFRESH_COOKIE],
   message: { message: "Demasiadas solicitudes. Intenta más tarde." },
   standardHeaders: true,
   legacyHeaders: false,
