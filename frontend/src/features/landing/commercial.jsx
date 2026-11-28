@@ -43,10 +43,10 @@ export function PricingSection() {
 }
 
 export function BMISection() {
-  return <section className="ll-section" id="imc" aria-labelledby="ll-imc">
+  return <section className="ll-section ll-bmi-section" id="imc" aria-labelledby="ll-imc">
     <div className="ll-wrap ll-bmi">
       <div>
-        <SectionHeading label="Índice de masa corporal" id="ll-imc">Calculadora IMC</SectionHeading>
+        <SectionHeading label="Índice de masa corporal" id="ll-imc">Calculadora de IMC</SectionHeading>
         <p>Introduce tu peso y tu altura para calcular una estimación de tu IMC.</p>
         <p>El IMC es un indicador orientativo. No constituye un diagnóstico médico ni una evaluación completa de la composición corporal.</p>
       </div>
@@ -68,6 +68,9 @@ export function FAQSection() {
 
 export function FinalCTA() {
   return <section className="ll-section ll-final" aria-labelledby="ll-final">
+    <img className="ll-final-photo" src="/landing/cta-entrenamiento-640.webp"
+      srcSet="/landing/cta-entrenamiento-640.webp 640w, /landing/cta-entrenamiento-1440.webp 1440w"
+      sizes="100vw" width="1440" height="560" loading="lazy" decoding="async" alt="" />
     <div className="ll-wrap">
       <h2 id="ll-final">Tu próximo paso comienza aquí.</h2>
       <p>Descubre una nueva forma de organizar tu entrenamiento y gestionar tu actividad deportiva.</p>

@@ -27,15 +27,15 @@ export default function Home() {
     <LandingHeader />
     <main id="contenido" tabIndex={-1}>
       <HeroSection />
+      <BMISection />
       <PlatformStats />
       <FeaturesSection />
       <ProductSection />
       <AudienceSection />
       <GymsSection />
       <HowItWorks />
-      <PricingSection />
-      <BMISection />
       <FAQSection />
+      <PricingSection />
       <FinalCTA />
     </main>
     <LandingFooter />
