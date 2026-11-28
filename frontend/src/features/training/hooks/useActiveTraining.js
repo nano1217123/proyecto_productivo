@@ -78,6 +78,15 @@ export function useActiveTraining(userId, refreshProfile) {
       }
     } catch (err) {
       if (mounted.current) {
+        if (err.status === 400 && current.current) {
+          const item = current.current;
+          const next = item.revision == null
+            ? { ...item, rejectedStart: true, action: null }
+            : item.pending
+            ? { ...item, pending: null, dirty: true, action: null }
+            : { ...item, action: null };
+          store(next);
+        }
         setError(err.message);
         setStatus(err.status === 409 ? "Conflicto de sincronización" : "Pendiente de sincronizar");
         if (current.current) setReady(true);
@@ -121,7 +130,9 @@ export function useActiveTraining(userId, refreshProfile) {
     const item = current.current;
     if (!item || item.action) return;
     const contenido = transform(item.contenido);
-    if (contenido !== item.contenido) store({ ...item, contenido, dirty: true });
+    if (contenido !== item.contenido) {
+      store({ ...item, contenido, dirty: true, initial: item.rejectedStart ? contenido : item.initial });
+    }
   }
 
   function close(action) {

@@ -1,21 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TrainingCatalogDialog from "./TrainingCatalogDialog";
 import TrainingExerciseCard from "./TrainingExerciseCard";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { formatTime, historyReference, newExercise, sessionStats } from "../hooks/trainingSessionModel";
 
-export default function ActiveTraining({ draft, edit, close, catalog, catalogError, retryCatalog, history }) {
-  const [picker, setPicker] = useState(null);
+function ElapsedTime({ start }) {
   const [now, setNow] = useState(() => Date.now());
-  const rest = useRestTimer();
-  const { contenido } = draft;
-  const stats = sessionStats(contenido);
-  const elapsed = Math.max(0, Math.floor((now - Date.parse(draft.iniciadoEn)) / 1000));
-  const metadata = new Map(catalog.flatMap((group) => group.ejercicios.map((exercise) => [exercise.id, exercise])));
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  return <strong>{formatTime(Math.max(0, Math.floor((now - Date.parse(start)) / 1000)))}</strong>;
+}
+
+export default function ActiveTraining({ draft, edit, close, catalog, catalogError, retryCatalog, history }) {
+  const [picker, setPicker] = useState(null);
+  const rest = useRestTimer();
+  const { contenido } = draft;
+  const stats = sessionStats(contenido);
+  const metadata = useMemo(() => new Map(catalog.flatMap((group) =>
+    group.ejercicios.map((exercise) => [exercise.id, exercise]))), [catalog]);
+  const references = useMemo(() => {
+    const result = new Map();
+    for (const item of contenido.ejercicios) {
+      const key = `${item.ejercicio_id}:${item.tipo}`;
+      if (!result.has(key)) result.set(key, historyReference(history, item.ejercicio_id, item.tipo));
+    }
+    return result;
+  }, [contenido.ejercicios, history]);
 
   function updateExercises(transform) {
     edit((previous) => {
@@ -37,7 +49,7 @@ export default function ActiveTraining({ draft, edit, close, catalog, catalogErr
         <p className="training-eyebrow">Entrenamiento en curso</p>
         <h1>{contenido.nombre || "Entrenamiento libre"}</h1>
         <div className="training-metrics">
-          <div><strong>{formatTime(elapsed)}</strong><small>Tiempo</small></div>
+          <div><ElapsedTime start={draft.iniciadoEn} /><small>Tiempo</small></div>
           <div><strong>{stats.exercises}</strong><small>Ejercicios</small></div>
           <div><strong>{stats.done}/{stats.total}</strong><small>Series</small></div>
           {stats.volume > 0 && <div><strong>{stats.volume.toLocaleString("es-CO")}</strong><small>Volumen (kg × reps)</small></div>}
@@ -70,7 +82,7 @@ export default function ActiveTraining({ draft, edit, close, catalog, catalogErr
         {!contenido.ejercicios.length && <p className="training-muted">Añade un ejercicio para registrar tu primera serie.</p>}
         {contenido.ejercicios.map((item, index) => (
           <TrainingExerciseCard key={index} item={item} metadata={metadata.get(item.ejercicio_id)}
-            reference={historyReference(history, item.ejercicio_id, item.tipo)} index={index} count={stats.exercises}
+            reference={references.get(`${item.ejercicio_id}:${item.tipo}`)} index={index} count={stats.exercises}
             onChange={(next) => updateExercises((list) => list.map((value, i) => i === index ? next : value))}
             onMove={(direction) => updateExercises((list) => {
               const next = [...list];
@@ -83,6 +95,7 @@ export default function ActiveTraining({ draft, edit, close, catalog, catalogErr
                 updateExercises((list) => list.filter((_, i) => i !== index));
               }
             }}
+            onStartRest={rest.start}
             onComplete={(seconds) => { if (rest.automatic) rest.start(seconds); }} />
         ))}
         <div className="training-actions">

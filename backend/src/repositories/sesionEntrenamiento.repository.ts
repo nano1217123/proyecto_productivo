@@ -54,7 +54,12 @@ export function createSesionEntrenamientoRepository(db = prisma) {
         where: { id, usuarioId, estado: "en_curso", revision },
         data: { revision: revision + 1, sesion: contenido },
       });
-      if (!guardado.count) throw new AppError(409, "El entrenamiento cambió en otra pestaña o dispositivo.");
+      if (!guardado.count) {
+        const concurrente = await obtener(usuarioId, id);
+        if (concurrente?.estado === "en_curso" && concurrente.revision === revision + 1 &&
+          isDeepStrictEqual(concurrente.sesion, contenido)) return concurrente;
+        throw new AppError(409, "El entrenamiento cambió en otra pestaña o dispositivo.");
+      }
       return { ...actual, revision: revision + 1, sesion: contenido };
     },
 

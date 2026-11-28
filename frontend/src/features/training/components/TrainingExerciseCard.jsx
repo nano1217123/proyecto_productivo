@@ -1,7 +1,7 @@
 import { fields, measureLabel, modes, changeMeasure, validSet } from "../hooks/trainingSessionModel";
 
 export default function TrainingExerciseCard({
-  item, metadata, reference, index, count, onChange, onMove, onReplace, onRemove, onComplete,
+  item, metadata, reference, index, count, onChange, onMove, onReplace, onRemove, onComplete, onStartRest,
 }) {
   const mode = modes[item.tipo];
   const nombre = metadata?.nombre || `Ejercicio ${item.ejercicio_id}`;
@@ -46,7 +46,10 @@ export default function TrainingExerciseCard({
             }} /></label>
         </div>
         <label>Notas del ejercicio<input value={item.notas} maxLength={200} onChange={(event) => onChange({ ...item, notas: event.target.value })} /></label>
+        {item.tipo === "fuerza" && metadata?.equipo?.toLowerCase().includes("mancuerna") &&
+          <p className="training-muted">Si usas dos mancuernas a la vez, registra la suma de ambas.</p>}
         <div className="training-actions">
+          <button type="button" disabled={!item.descanso} onClick={() => onStartRest(item.descanso)}>Iniciar descanso de {item.descanso} s</button>
           <button type="button" disabled={!index} onClick={() => onMove(-1)}>Subir</button>
           <button type="button" disabled={index === count - 1} onClick={() => onMove(1)}>Bajar</button>
           <button type="button" onClick={onReplace}>Sustituir</button>

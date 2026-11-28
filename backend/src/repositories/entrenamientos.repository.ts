@@ -14,7 +14,7 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
       try {
         const sesiones = await db.entrenamiento.findMany({
           where: { usuarioId, estado: "finalizado" },
-          orderBy: [{ fecha: "desc" }, { creadoEn: "desc" }],
+          orderBy: [{ fecha: "desc" }, { creadoEn: "desc" }, { id: "desc" }],
           select: {
             id: true,
             fecha: true,
@@ -24,7 +24,7 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
             finalizadoEn: true,
             sesion: true,
             seriesEntrenamiento: {
-              orderBy: { creadoEn: "asc" },
+              orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
               select: {
                 id: true,
                 ejercicioId: true,
@@ -71,6 +71,9 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
       input: CreateEntrenamientoInput,
       generateId: () => string
     ): Promise<string> {
+      const ejercicioIds = [...new Set(input.series.map((serie) => BigInt(serie.ejercicio_id)))];
+      const catalogados = await db.ejercicio.count({ where: { id: { in: ejercicioIds } } });
+      if (catalogados !== ejercicioIds.length) throw new AppError(400, "Hay ejercicios que no están en el catálogo.");
       const entrenamientoId = generateId();
 
       try {
