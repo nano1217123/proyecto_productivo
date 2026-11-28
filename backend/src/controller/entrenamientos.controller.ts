@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { idSesion, leerSesion } from "../validator/sesionEntrenamiento.validator.js";
+import { corregirDetalle } from "../repositories/historial.repository.js";
+import { contenidoSesion, idSesion, leerSesion, revisionSesion } from "../validator/sesionEntrenamiento.validator.js";
 import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
@@ -48,6 +49,17 @@ const correccion = z.object({
 
 export const corregirEntrenamiento: RequestHandler = asyncHandler(async (req, res) => {
   const id = leerSesion(idSesion, req.params.id);
+  if (req.body && Object.hasOwn(req.body, "contenido")) {
+    const schema = z.object({ revision: revisionSesion, fecha: z.iso.date(), contenido: contenidoSesion }).strict();
+    const { revision, fecha, contenido } = leerSesion(schema, req.body);
+    const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
+    if (fecha > hoy || !contenido.nombre.trim() || !contenido.ejercicios.length ||
+      contenido.ejercicios.some((item) => !item.series.length || item.series.some((serie) => !serie.completada))) {
+      throw new AppError(400, "Indica una fecha válida, un nombre y al menos una serie completada por ejercicio.");
+    }
+    await corregirDetalle(req.userId!, id, revision, fecha, contenido);
+    return res.status(204).end();
+  }
   const { nombre, notas } = leerSesion(correccion, req.body);
   await entrenamientosService.corregir(id, req.userId!, nombre, notas);
   res.status(204).end();
