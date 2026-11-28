@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  changeArchive,
   createRutina,
   deleteRutina,
   getRutina,
@@ -22,6 +23,7 @@ router.get("/", listRutinas);
 router.post("/", validateCreateRutina, createRutina);
 router.get("/:id", getRutina);
 router.put("/:id", validateUpdateRutina, updateRutina);
+router.patch("/:id/estado", changeArchive);
 router.delete("/:id", deleteRutina);
 
 export default router;

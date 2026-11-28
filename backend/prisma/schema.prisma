@@ -91,9 +91,17 @@ model Rutina {
   diaEtiqueta      String?           @map("dia_etiqueta")
   creadoEn         DateTime          @default(now()) @map("creado_en") @db.Timestamptz(6)
 
+  descripcion      String?
+  objetivo         String?
+  notas            String?
+  dias             Int[]             @default([])
+  archivada        Boolean           @default(false)
+  actualizadoEn    DateTime?         @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+
   rutinaEjercicios RutinaEjercicio[]
   usuario          Usuario           @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
+  @@index([usuarioId, archivada])
   @@map("rutinas")
 }
 
@@ -106,6 +114,12 @@ model RutinaEjercicio {
   series      Int?
   repeticiones Int?
   descanso    Int?
+  repeticionesMax Int? @map("repeticiones_max")
+  pesoKg          Float? @map("peso_kg")
+  asistenciaKg    Float? @map("asistencia_kg")
+  duracionSeg     Int? @map("duracion_seg")
+  distanciaKm     Float? @map("distancia_km")
+  notas           String?
   creadoEn    DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
 
   ejercicio   Ejercicio @relation(fields: [ejercicioId], references: [id])

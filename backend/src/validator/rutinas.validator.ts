@@ -8,14 +8,50 @@ import type {
   UpdateRutinaInput,
 } from "../types/rutinas.types.js";
 
+const texto = (max: number) => z.string().trim().max(max)
+  .refine((value) => !value.includes("\u0000"), "El texto contiene un carácter inválido.")
+  .transform((value) => value || null).nullish();
+
 const planEjercicio = z.object({
   tipo: tipoRegistro.nullish(),
   series: z.number().int().min(1).max(30).nullish(),
   repeticiones: z.number().int().min(1).max(999).nullish(),
   descanso: z.number().int().min(0).max(3600).nullish(),
-}).strict().refine((plan) => plan.repeticiones == null ||
-  !plan.tipo || !["isometrico", "cardio", "estiramiento"].includes(plan.tipo),
-  "El tipo de ejercicio usa duración.");
+  repeticionesMax: z.number().int().min(1).max(999).nullish(),
+  pesoKg: z.number().min(0).max(1500).nullish(),
+  asistenciaKg: z.number().min(0).max(1500).nullish(),
+  duracionSeg: z.number().int().min(1).max(86400).nullish(),
+  distanciaKm: z.number().min(0).max(1000).nullish(),
+  notas: texto(200),
+}).strict().superRefine((plan, ctx) => {
+  const reject = (message: string) => ctx.addIssue({ code: "custom", message });
+  const { tipo, repeticiones, repeticionesMax, duracionSeg, pesoKg, asistenciaKg, distanciaKm } = plan;
+  if (repeticionesMax != null && (repeticiones == null || repeticiones > repeticionesMax)) {
+    reject("El máximo debe ser igual o superior a las repeticiones mínimas.");
+  }
+  if (!tipo) {
+    if ([duracionSeg, pesoKg, asistenciaKg, distanciaKm].some((value) => value != null)) reject("Selecciona el tipo de ejercicio.");
+    return;
+  }
+  const porTiempo = ["isometrico", "cardio", "estiramiento"].includes(tipo);
+  if ((porTiempo && repeticiones != null) ||
+      (!porTiempo && tipo !== "movilidad" && duracionSeg != null) ||
+      (tipo === "movilidad" && duracionSeg != null && repeticiones != null) ||
+      (pesoKg != null && !["fuerza", "carga_adicional"].includes(tipo)) ||
+      (asistenciaKg != null && tipo !== "asistido") ||
+      (distanciaKm != null && tipo !== "cardio") ||
+      (tipo === "cardio" && plan.series != null && plan.series !== 1)) {
+    reject("La configuración contiene medidas incompatibles con el tipo de ejercicio.");
+  }
+});
+
+const metadata = z.object({
+  descripcion: texto(500),
+  objetivo: texto(120),
+  notas: texto(200),
+  dias: z.array(z.number().int().min(1).max(7)).max(7)
+    .refine((dias) => new Set(dias).size === dias.length, "Los días deben ser únicos.").optional(),
+});
 
 const LIMITES = {
   nombreMax: 60,
@@ -37,8 +73,8 @@ function parseEjercicioIds(value: unknown): number[] {
   }
 
   const ids = value.map((v) => {
-    const n = typeof v === "number" ? v : Number(v);
-    if (!Number.isInteger(n) || n <= 0) {
+    const n = typeof v === "string" && /^\d+$/.test(v) ? Number(v) : v;
+    if (typeof n !== "number" || !Number.isSafeInteger(n) || n <= 0) {
       throw new AppError(400, "Los IDs de ejercicio deben ser enteros positivos.");
     }
     return n;
@@ -64,6 +100,7 @@ export function parseCreateRutinaBody(body: unknown): CreateRutinaInput {
   }
 
   const nombreLimpio = sanitizeString(nombre);
+  if (!nombreLimpio) throw new AppError(400, "La rutina necesita un nombre.");
   if (nombreLimpio.length > LIMITES.nombreMax) {
     throw new AppError(
       400,
@@ -95,6 +132,7 @@ export function parseCreateRutinaBody(body: unknown): CreateRutinaInput {
   }
 
   return {
+    ...leerSesion(metadata, body),
     planes: configuracion,
     nombre: nombreLimpio,
     diaEtiqueta: etiquetaLimpia,
