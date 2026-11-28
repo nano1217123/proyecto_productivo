@@ -20,6 +20,19 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
 
   useEffect(() => {
     if (!cambiosPendientes) return;
+    const destinoActual = window.location.href;
+    const estadoActual = window.history.state;
+    const mensaje = "Tienes cambios sin guardar. ¿Quieres descartarlos?";
+
+    function confirmarHistorial(event) {
+      if (window.location.href === destinoActual || window.confirm(mensaje)) return;
+
+      // Next también escucha popstate. Al cancelar, conserva el formulario
+      // montado y repone su entrada de historial antes de que cambie la ruta.
+      event.stopImmediatePropagation();
+      window.history.pushState(estadoActual, "", destinoActual);
+    }
+
     function confirmarSalida(event) {
       event.preventDefault();
       event.returnValue = "";
@@ -28,11 +41,13 @@ export function useRoutineForm(gym = "jj-poblado", rutinaId = null) {
       const enlace = event.target.closest?.("a[href]");
       const cerrarSesion = event.target.closest?.("[data-salida-rutina]");
       if (!cerrarSesion && (!enlace || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || enlace.target === "_blank" || enlace.href === location.href)) return;
-      if (!window.confirm("Tienes cambios sin guardar. ¿Quieres descartarlos?")) event.preventDefault();
+      if (!window.confirm(mensaje)) event.preventDefault();
     }
+    window.addEventListener("popstate", confirmarHistorial, true);
     window.addEventListener("beforeunload", confirmarSalida);
     document.addEventListener("click", confirmarEnlace, true);
     return () => {
+      window.removeEventListener("popstate", confirmarHistorial, true);
       window.removeEventListener("beforeunload", confirmarSalida);
       document.removeEventListener("click", confirmarEnlace, true);
     };

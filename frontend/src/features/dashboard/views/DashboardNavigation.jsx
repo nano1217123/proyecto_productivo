@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 
@@ -13,17 +12,6 @@ export default function DashboardNavigation() {
   const ruta = usePathname();
   const params = useSearchParams();
   const rol = profile?.tipo_usuario;
-  useEffect(() => {
-    if (ruta !== base || params.get("oauth") !== "ok") return;
-    try {
-      const sede = sessionStorage.getItem("jjgym:oauth:sede");
-      sessionStorage.removeItem("jjgym:oauth:sede");
-      const destino = new URL(window.location.href);
-      destino.searchParams.delete("oauth");
-      if (sede) destino.searchParams.set("gym", sede);
-      window.history.replaceState(null, "", destino);
-    } catch { /* sin almacenamiento */ }
-  }, [params, ruta]);
   if (!rol) return null;
 
   const admin = rol === "admin" || rol === "super_admin";
@@ -37,21 +25,27 @@ export default function DashboardNavigation() {
     ...(rol === "cliente" && profile.sede ? [["/resenas", "Reseñas de mi sede"]] : []),
     ...(rol === "usuario_particular" ? [["/particular", "Mi progreso"], ["/pagos", "Suscripción"]] : []),
   ];
-  const destinos = [["", "Inicio"], ...(admin ? [] : personal), ["/reportes", "Reportes"]];
+  const destinosAdmin = ruta === base + "/reportes" ? [
+    ["", "Clientes", "clientes"],
+    ["", "Imágenes de ejercicios", "imagenes"],
+    ["", "Información de la sede", "configuracion"],
+  ] : [];
+  const destinos = [["", "Inicio"], ...(admin ? destinosAdmin : personal), ["/reportes", "Reportes"]];
   const activo = destinos.filter(([path]) => path ? ruta === base + path || ruta.startsWith(base + path + "/") : ruta === base)
     .sort(([a], [b]) => b.length - a.length)[0]?.[0];
 
-  function enlace(path) {
+  function enlace(path, seccion) {
     const query = new URLSearchParams();
     const gym = rol === "cliente" ? profile.sede : params.get("gym");
+    if (seccion) query.set("seccion", seccion);
     if (gym && !admin) query.set("gym", gym);
     if (enCasa && !admin) query.set("modo", "casa");
     return base + path + (query.size ? "?" + query : "");
   }
 
   function links(cerrar) {
-    return destinos.map(([path, nombre]) => (
-      <Link key={path} href={enlace(path)} aria-current={activo === path ? "page" : undefined}
+    return destinos.map(([path, nombre, seccion]) => (
+      <Link key={seccion ?? path} href={enlace(path, seccion)} aria-current={activo === path ? "page" : undefined}
         onClick={cerrar} className={`${estilo} ${activo === path ? "bg-[#321d47] text-[#d7adff] underline underline-offset-4" : "text-[#f2f4ef]"}`}>
         {nombre}
       </Link>
