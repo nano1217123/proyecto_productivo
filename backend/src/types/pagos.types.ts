@@ -69,6 +69,11 @@ export interface PagoIntentoWebhook {
   estado: EstadoPago;
   wompiTransaccionId: string | null;
   wompiEventoEn: Date | null;
+  // Titular del pago guardado al iniciar el checkout: la sede beneficiaria
+  // sale de aquí, nunca del evento ni de la URL de retorno.
+  plan: PlanSuscripcion;
+  gymSlug: string | null;
+  ambiente: string;
 }
 
 // Cambio de estado que el webhook aplica de forma condicional.
@@ -79,6 +84,10 @@ export interface AplicarEstadoWompiInput {
   // Estados desde los que se permite pasar a `estado`.
   estadosPrevios: readonly EstadoPago[];
   eventoEn: Date;
+  // Momento de aprobación verificado con Wompi (finalized_at). Si el pago
+  // de una sede queda APROBADO, su período cuenta desde aquí o desde el
+  // vencimiento vigente.
+  aprobadoEn: Date;
 }
 
 // Aprobación posterior con otra transacción de la misma referencia
@@ -90,6 +99,40 @@ export interface RecuperarAprobacionWompiInput {
   estadosPrevios: readonly EstadoPago[];
   transaccionId: string;
   eventoEn: Date;
+  aprobadoEn: Date;
+}
+
+// Período de suscripción de sede concedido por un pago aprobado.
+export interface PeriodoSedeOutput {
+  tipo: "activacion" | "renovacion" | "reactivacion";
+  desde: Date;
+  hasta: Date;
+}
+
+// Resultado de aplicar un estado verificado. `periodo` solo viene cuando la
+// misma transacción de PostgreSQL aprobó un pago de sede y le concedió
+// vigencia.
+export interface ResultadoAplicacionWompi {
+  aplicado: boolean;
+  periodo: PeriodoSedeOutput | null;
+}
+
+// Transacción aprobada que no concedió vigencia y se guarda para revisión.
+export interface TransaccionEnRevisionInput {
+  pagoId: string;
+  transaccionId: string;
+  transaccionAplicadaId: string | null;
+  motivo: "segunda_aprobacion";
+  origen: string;
+}
+
+// Estado de la suscripción de una sede tal como se muestra.
+export interface SuscripcionSedeOutput {
+  gym_slug: string;
+  estado: "activa" | "vencida" | "sin_suscripcion";
+  vigente_hasta: Date | null;
+  // Período que concedió el pago consultado (null si no concedió ninguno).
+  periodo_pago?: PeriodoSedeOutput | null;
 }
 
 // Respuesta del webhook cuando el evento se acepta (HTTP 200):
@@ -153,6 +196,7 @@ export interface NuevoPagoIntento {
   tasaUsdCop: string;
   montoEnCentavos: number;
   moneda: typeof MONEDA_PAGOS;
+  ambiente: string;
 }
 
 // Intento de pago tal como se expone al cliente.
@@ -170,6 +214,9 @@ export interface PagoIntentoOutput {
   estado: string;
   creado_en: Date;
   actualizado_en: Date;
+  // Solo en pagos de sede: estado y vigencia actuales de la sede y período
+  // que concedió este pago. Los pagos particulares no lo incluyen.
+  suscripcion?: SuscripcionSedeOutput;
 }
 
 // Opción de pago disponible para el usuario autenticado.
@@ -183,4 +230,6 @@ export interface OpcionPago {
   moneda: typeof MONEDA_PAGOS;
   disponible: boolean;
   motivo_no_disponible: string | null;
+  // Solo en opciones de sede: estado y vencimiento actuales.
+  suscripcion?: Omit<SuscripcionSedeOutput, "periodo_pago">;
 }

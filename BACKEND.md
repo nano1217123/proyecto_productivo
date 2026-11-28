@@ -345,8 +345,9 @@ conserva sus credenciales; el rol se lee de la base en cada petición
 ### Cambio de rol y suscripciones personales (pendiente)
 
 Hoy no existe un mecanismo que determine si una suscripción personal está
-activa: el webhook de Wompi solo actualiza el intento de pago y la
-activación o renovación de suscripciones aún no está implementada. Por eso
+activa: para el plan particular, el webhook de Wompi solo actualiza el
+intento de pago. (La suscripción por sede sí registra su vigencia; ver
+`backend/docs/suscripcion-sede.md`.) Por eso
 vincular a un particular como cliente, o asignarle admin, **no se bloquea**.
 La vista previa de la cuenta muestra `pagos_personales_aprobados` para que
 quien asigna lo vea.

@@ -61,6 +61,48 @@ export function nombrePeriodo(periodo) {
   return periodo === "mensual" ? "mes" : periodo;
 }
 
+// --- Suscripción de sede ---------------------------------------------------
+// El estado y las fechas vienen del backend. Las fechas se muestran en hora
+// de Colombia, la misma zona con la que el backend calcula el vencimiento.
+export const ESTADOS_SUSCRIPCION = {
+  activa: { etiqueta: "Activa", tono: "exito" },
+  vencida: { etiqueta: "Vencida", tono: "error" },
+  sin_suscripcion: { etiqueta: "Sin suscripción", tono: "neutro" },
+};
+
+export function estadoSuscripcion(suscripcion) {
+  return ESTADOS_SUSCRIPCION[suscripcion?.estado] ?? ESTADOS_SUSCRIPCION.sin_suscripcion;
+}
+
+// «Renovar» si la sede está vigente; «Pagar» si nunca se pagó o ya venció.
+export function accionSuscripcion(suscripcion) {
+  return suscripcion?.estado === "activa" ? "Renovar" : "Pagar";
+}
+
+const formatoFechaColombia = new Intl.DateTimeFormat("es-CO", {
+  dateStyle: "long",
+  timeStyle: "short",
+  timeZone: "America/Bogota",
+});
+
+export function formatearFechaColombia(fecha) {
+  const d = fecha ? new Date(fecha) : null;
+  return d && Number.isFinite(d.getTime()) ? formatoFechaColombia.format(d) : null;
+}
+
+// Texto que explica desde cuándo contará el mes que se va a pagar.
+export function explicacionVigencia(suscripcion) {
+  const vence = formatearFechaColombia(suscripcion?.vigente_hasta);
+  // La fecha puede terminar en «p. m.»: el texto no pone un punto justo después.
+  if (suscripcion?.estado === "activa" && vence) {
+    return `La sede está vigente hasta el ${vence}; si Wompi aprueba el pago, se suma un mes desde ese vencimiento.`;
+  }
+  if (suscripcion?.estado === "vencida" && vence) {
+    return `La suscripción venció el ${vence}; si Wompi aprueba el pago, la sede queda vigente un mes desde la aprobación.`;
+  }
+  return "Si Wompi aprueba el pago, la sede queda vigente un mes desde la aprobación.";
+}
+
 // Solo se redirige a URLs HTTPS de Wompi.
 export function esUrlCheckoutWompi(url) {
   try {

@@ -59,6 +59,10 @@ export interface WompiConfig {
   // en cada intento (ver lib/pagosPrecios.ts). Solo para Sandbox: la
   // política de conversión de producción está pendiente.
   tasaUsdCop: string;
+  // Ambiente de Wompi ("test" = Sandbox). Se guarda en cada intento y se
+  // compara con el de los eventos y con el de la API que verifica la
+  // transacción. Las llaves de producción se rechazan al arrancar.
+  ambiente: "test" | "prod";
 }
 
 export const wompiConfig: WompiConfig = {
@@ -70,4 +74,5 @@ export const wompiConfig: WompiConfig = {
   privateKey: leerLlaveSandbox("WOMPI_PRIVATE_KEY", "prv_test_"),
   apiUrl: (process.env.WOMPI_API_URL?.trim() || API_URL_POR_DEFECTO).replace(/\/+$/, ""),
   tasaUsdCop: process.env.USD_COP_TASA?.trim() ?? "",
+  ambiente: "test",
 };
