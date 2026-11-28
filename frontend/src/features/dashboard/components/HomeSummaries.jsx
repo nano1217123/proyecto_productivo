@@ -33,7 +33,7 @@ export function HomeNutrition({ nutrition, retry, url }) {
   </HomePanel>;
 }
 
-export function HomeProgress({ today, history, retry, url, particular }) {
+export function HomeProgress({ today, history, retry, url }) {
   return <HomePanel title="Mi progreso" className="home-progress">
     <SectionState result={history} retry={retry}>{({ dias }) => {
       const weeks = progressWeeks(today, dias);
@@ -50,8 +50,7 @@ export function HomeProgress({ today, history, retry, url, particular }) {
         </ul>
       </>;
     }}</SectionState>
-    <Link className="home-link" href={url("/reportes")}>Ver mi progreso</Link>
-    {particular && <Link className="home-link" href={url("/particular")}>Seguimiento diario</Link>}
+    <Link className="home-link" href={url("/particular")}>Ver mi progreso</Link>
   </HomePanel>;
 }
 
