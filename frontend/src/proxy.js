@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { dashboardReturnTo } from "./features/auth/returnTo.js";
 
 const API_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
 const ACCESS_COOKIE = "access_token";
@@ -31,7 +32,10 @@ export async function proxy(request) {
 
   // Logueado en /login o /register → /dashboard
   if (user && (url.pathname === "/login" || url.pathname === "/register")) {
+    const destination = url.pathname === "/login" && dashboardReturnTo(url.searchParams.get("returnTo"));
+    if (destination) return NextResponse.redirect(new URL(destination, request.url));
     url.pathname = "/dashboard";
+    url.searchParams.delete("returnTo");
     return NextResponse.redirect(url);
   }
 

@@ -1,4 +1,5 @@
 import CentroReportes from "@/src/features/reports/CentroReportes";
+import "@/src/features/reports/reports.css";
 
 export const metadata = { title: "Centro de reportes" };
 

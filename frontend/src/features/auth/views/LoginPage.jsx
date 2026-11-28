@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuthForm } from "../hooks/useAuthForm";
 import { useAuth } from "../context/AuthContext";
+import { dashboardReturnTo } from "../returnTo.js";
 
 function LoginForm() {
   const [mostrarPassword, setMostrarPassword] = useState(false);
@@ -15,9 +16,9 @@ function LoginForm() {
   const gym = searchParams.get("gym");
   const { sede } = useSedes();
   const nombreSede = gym ? sede(gym)?.nombre : null;
-  const destination = gym
+  const destination = dashboardReturnTo(searchParams.get("returnTo")) || (gym
     ? `/dashboard?gym=${encodeURIComponent(gym)}`
-    : "/dashboard";
+    : "/dashboard");
 
   const { email, setEmail, password, setPassword, error, setError, submitting, handleLogin } = useAuthForm(destination, gym);
 

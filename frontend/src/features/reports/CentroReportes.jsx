@@ -7,52 +7,73 @@ import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import ReportesPersonales from "@/src/features/training/components/ReportesPersonales";
 import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab";
 import { accesoReportes } from "./reportAccess.js";
+import { campoReporte, panelReporte } from "./ReportActions.jsx";
+import { HomeIcon } from "../dashboard/components/HomePanel.jsx";
 
 function ReportePorSede({ perfil, desdePanel, membresias = false }) {
-  const { sedes, nombreSede, error } = useSedes();
+  const { sedes, nombreSede, error, cargando } = useSedes();
   const permisos = accesoReportes(perfil, sedes);
   const clave = claveSedeAdmin(perfil);
-  const [preferida, setPreferida] = useState(() => desdePanel ?? leerSedeAdmin(clave) ?? "");
+  const [preferida, setPreferida] = useState(desdePanel ?? "");
   useEffect(() => {
-    setPreferida(desdePanel ?? leerSedeAdmin(clave) ?? "");
+    if (desdePanel == null) setPreferida(leerSedeAdmin(clave) ?? "");
   }, [clave, desdePanel]);
   const [alcance, setAlcance] = useState("sede");
   const seleccionada = permisos.sedes.includes(preferida) ? preferida : permisos.sedes[0];
   const sede = seleccionada ? { id: seleccionada, nombre: nombreSede(seleccionada) } : undefined;
-  return (
-    <div className="rounded-2xl border border-[#41433f] bg-[var(--surface)] p-4 sm:p-6">
-      {alcance === "sede" && permisos.sedes.length > 0 && (
-        <label className="mb-4 flex flex-wrap items-center gap-3 text-sm">Sede del reporte
-          <select value={seleccionada} onChange={event => setPreferida(event.target.value)}
-            className="rounded-lg border border-[#41463f] bg-[#151714] px-3 py-2 focus-visible:outline-2 focus-visible:outline-[var(--lime)]">
-            {permisos.sedes.map(slug => <option key={slug} value={slug}>{nombreSede(slug)}</option>)}
-          </select>
-        </label>
-      )}
-      <ReviewsReportTab sede={sede} errorSedes={error} esSuperAdmin={permisos.consolidado} membresias={membresias}
-        alcance={alcance} setAlcance={setAlcance} />
-    </div>
+  const selectorSede = sede && (
+    <label className="grid min-w-0 gap-1 text-sm">Sede del reporte
+      <select value={seleccionada} onChange={event => setPreferida(event.target.value)} className={campoReporte}>
+        {permisos.sedes.map(slug => <option key={slug} value={slug}>{nombreSede(slug)}</option>)}
+      </select>
+    </label>
   );
+  return (
+    <ReviewsReportTab sede={sede} selectorSede={selectorSede} errorSedes={error} cargandoSedes={cargando}
+      esSuperAdmin={permisos.consolidado} membresias={membresias} alcance={alcance} setAlcance={setAlcance} />
+  );
+}
+
+const categorias = [
+  ["personales", "Mis reportes", "Progreso, rutinas y ejercicios", "routine"],
+  ["resenas", "Reseñas", "Opiniones y calificaciones por sede", "reviews"],
+  ["membresias", "Membresías", "Vínculos actuales por sede", "card"],
+];
+
+function ReportesDisponibles({ perfil, gym, permisos }) {
+  const [categoria, setCategoria] = useState(gym && permisos.resenas ? "resenas" : "personales");
+  return <div className="reports-grid">
+    <section className="reports-categories" aria-labelledby="reports-categories-title">
+      <h2 id="reports-categories-title">Categoría de reporte</h2>
+      <div role="group" aria-labelledby="reports-categories-title">
+        {(permisos.resenas ? categorias : categorias.slice(0, 1)).map(([valor, etiqueta, detalle, icono]) => (
+          <button key={valor} type="button" aria-label={etiqueta} aria-pressed={categoria === valor}
+            onClick={() => setCategoria(valor)} className="reports-category">
+            <HomeIcon name={icono} />
+            <span><strong>{etiqueta}</strong><small>{detalle}</small></span>
+          </button>
+        ))}
+      </div>
+    </section>
+    {categoria === "personales" || !permisos.resenas ? <ReportesPersonales enCentro /> :
+      <ReportePorSede key={categoria} perfil={perfil} desdePanel={gym} membresias={categoria === "membresias"} />}
+  </div>;
 }
 
 export default function CentroReportes({ gym }) {
   const { profile, loading } = useAuth();
   const permisos = accesoReportes(profile);
   return (
-    <main className="min-h-screen bg-[#171817] px-5 py-8 text-[var(--ink)]">
-      <div className="mx-auto max-w-5xl">
-        <header className="my-7 border-b border-[var(--green-soft)] pb-5">
-          <h1 className="text-3xl font-bold text-[var(--lime)] sm:text-4xl">Centro de reportes</h1>
+    <main className="reports-center">
+      <div className="reports-shell">
+        <header className="reports-header">
+          <h1>Centro de reportes</h1>
+          <p>Configura y descarga reportes {permisos.resenas ? "de tu actividad, reseñas o membresías." : "de tu actividad."}</p>
         </header>
-        {loading ? <p role="status">Cargando permisos de reportes…</p>
-          : !permisos.personales ? <p role="status">Necesitas una sesión habilitada para consultar reportes.</p>
-          : <>
-            <ReportesPersonales key={profile.idusuario ?? profile.tipo_usuario} />
-            {permisos.resenas && <div className="grid gap-5" key={profile.idusuario + ":" + profile.tipo_usuario}>
-              <ReportePorSede perfil={profile} desdePanel={gym} />
-              <ReportePorSede perfil={profile} desdePanel={gym} membresias />
-            </div>}
-          </>}
+        {loading ? <p className={panelReporte} role="status">Cargando permisos de reportes…</p>
+          : !permisos.personales ? <p className={panelReporte} role="status">Necesitas una sesión habilitada para consultar reportes.</p>
+          : <ReportesDisponibles key={JSON.stringify([profile.idusuario, profile.tipo_usuario, gym])}
+              perfil={profile} gym={gym} permisos={permisos} />}
       </div>
     </main>
   );
