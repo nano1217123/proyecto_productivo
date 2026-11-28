@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import type { RequestHandler } from 'express';
 
+export const pesoCorporal = z.number().min(20).max(300);
+
 const camposMetricas = z.object({
-  pesoActualKg: z.number().min(20).max(300).optional(),
+  pesoActualKg: pesoCorporal.optional(),
   vasosAgua: z.number().int().min(0).max(20),
   entrenamientoCompletado: z.boolean(),
 });

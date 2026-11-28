@@ -22,6 +22,7 @@ model Usuario {
   bloqueadoHasta            DateTime?            @map("bloqueado_hasta") @db.Timestamptz(6)
   intentosFallidos          Int                  @default(0) @map("intentos_fallidos")
 
+  alturaCm                  Int?                 @map("altura_cm")
   nutricion                  NutricionPerfil?
   referenciasNutricion       NutricionReferencia[]
   registrosNutricion         NutricionRegistro[]
@@ -223,11 +224,13 @@ model MetricaDiaria {
   fecha                   DateTime @default(now()) @db.Timestamptz(6)
   diaLocal                DateTime? @map("dia_local") @db.Date
   pesoActualKg            Float?   @map("peso_actual_kg")
+  pesoActualizadoEn       DateTime? @map("peso_actualizado_en") @db.Timestamptz
   vasosAgua               Int      @default(0) @map("vasos_agua")
   entrenamientoCompletado Boolean  @default(false) @map("entrenamiento_completado")
 
   usuario                 Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
+  @@index([usuarioId, fecha(sort: Desc), id(sort: Desc)])
   @@map("metricas_diarias")
 }
 
