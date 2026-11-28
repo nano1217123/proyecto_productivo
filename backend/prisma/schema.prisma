@@ -33,6 +33,12 @@ model Usuario {
   seriesEntrenamiento       SerieEntrenamiento[]
   verificationCodes         VerificationCode[]
   resenas                   Resena[]
+  votosUtilesResenas        VotoUtilResena[]
+  denunciasPrivadas        DenunciaResenaPrivada[]
+  decisionesResenas        DecisionModeracionResena[]
+  respuestasResenaCreadas    RespuestaResena[]     @relation("RespuestaResenaCreador")
+  respuestasResenaEditadas   RespuestaResena[]     @relation("RespuestaResenaEditor")
+  respuestasResenaRetiradas  RespuestaResena[]     @relation("RespuestaResenaRetiro")
   metricasDiarias           MetricaDiaria[]
   adminSedes                AdminSede[]
   pagosIntentos             PagoIntento[]
@@ -210,11 +216,153 @@ model Resena {
   comentario   String   @db.Text
   creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
 
-  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  usuario   Usuario         @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  respuesta RespuestaResena?
+  votosUtiles VotoUtilResena[]
+  visibilidad VisibilidadResena @default(VISIBLE)
+  revision Int @default(1)
+  denuncias DenunciaResena[]
+  denunciasPrivadas DenunciaResenaPrivada[]
+  decisiones DecisionModeracionResena[]
 
   @@index([usuarioId])
   @@index([gymSlug, creadoEn])
+  @@index([visibilidad, gymSlug, creadoEn])
   @@map("resenas")
+}
+
+enum VisibilidadResena {
+  VISIBLE
+  OCULTA
+}
+
+enum MotivoDenunciaResena {
+  ACOSO
+  SPAM
+  DATOS_PERSONALES
+  FRAUDE
+  OTRO
+}
+
+enum EstadoDenunciaResena {
+  PENDIENTE
+  DERIVADA
+  RESUELTA
+}
+
+enum AccionModeracionResena {
+  DERIVAR
+  RESOLVER
+  OCULTAR
+  RESTAURAR
+}
+
+enum MotivoModeracionResena {
+  ACOSO
+  SPAM
+  DATOS_PERSONALES
+  FRAUDE
+  SIN_INFRACCION
+  CONTENIDO_CORREGIDO
+  REQUIERE_REVISION
+}
+
+model DenunciaResena {
+  id String @id @default(uuid(7)) @db.Uuid
+  resenaId String? @map("resena_id") @db.Uuid
+  gymSlug String @map("gym_slug") @db.VarChar(64)
+  motivo MotivoDenunciaResena
+  estado EstadoDenunciaResena @default(PENDIENTE)
+  revision Int
+  prioritaria Boolean @default(false)
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  revisarEn DateTime @map("revisar_en") @db.Timestamptz(6)
+  resueltoEn DateTime? @map("resuelto_en") @db.Timestamptz(6)
+  eliminarEn DateTime? @map("eliminar_en") @db.Timestamptz(6)
+  resena Resena? @relation(fields: [resenaId], references: [id], onDelete: SetNull)
+  datosPrivados DenunciaResenaPrivada?
+  decisiones DecisionModeracionResena[]
+
+  @@index([gymSlug, estado, creadoEn])
+  @@index([resenaId])
+  @@index([estado, revisarEn])
+  @@index([eliminarEn])
+  @@map("denuncias_resenas")
+}
+
+model DenunciaResenaPrivada {
+  denunciaId String @id @map("denuncia_id") @db.Uuid
+  resenaId String @map("resena_id") @db.Uuid
+  denuncianteId String @map("denunciante_id") @db.Uuid
+  descripcion String? @db.VarChar(500)
+  vencerEn DateTime @map("vencer_en") @db.Timestamptz(6)
+  denuncia DenunciaResena @relation(fields: [denunciaId], references: [id], onDelete: Cascade)
+  resena Resena @relation(fields: [resenaId], references: [id], onDelete: Cascade)
+  denunciante Usuario @relation(fields: [denuncianteId], references: [idusuario], onDelete: Cascade)
+
+  @@unique([resenaId, denuncianteId])
+  @@index([denuncianteId])
+  @@index([vencerEn])
+  @@map("denuncias_resenas_privadas")
+}
+
+model DecisionModeracionResena {
+  id String @id @default(uuid(7)) @db.Uuid
+  denunciaId String? @map("denuncia_id") @db.Uuid
+  resenaId String? @map("resena_id") @db.Uuid
+  actorId String? @map("actor_id") @db.Uuid
+  gymSlug String @map("gym_slug") @db.VarChar(64)
+  accion AccionModeracionResena
+  motivo MotivoModeracionResena
+  anterior VisibilidadResena?
+  posterior VisibilidadResena?
+  estado EstadoDenunciaResena?
+  revision Int?
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  eliminarEn DateTime? @map("eliminar_en") @db.Timestamptz(6)
+  denuncia DenunciaResena? @relation(fields: [denunciaId], references: [id], onDelete: Cascade)
+  resena Resena? @relation(fields: [resenaId], references: [id], onDelete: SetNull)
+  actor Usuario? @relation(fields: [actorId], references: [idusuario], onDelete: SetNull)
+
+  @@index([denunciaId, creadoEn])
+  @@index([resenaId, creadoEn])
+  @@index([actorId])
+  @@index([eliminarEn])
+  @@map("decisiones_moderacion_resenas")
+}
+
+model VotoUtilResena {
+  resenaId  String   @map("resena_id") @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  resena  Resena  @relation(fields: [resenaId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@id([resenaId, usuarioId])
+  @@index([usuarioId])
+  @@map("votos_utiles_resenas")
+}
+
+model RespuestaResena {
+  resenaId         String    @id @map("resena_id") @db.Uuid
+  texto            String    @db.Text
+  creadoEn         DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn    DateTime  @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+  creadoPorId      String?   @map("creado_por_id") @db.Uuid
+  actualizadoPorId String?   @map("actualizado_por_id") @db.Uuid
+  eliminadoEn      DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  eliminadoPorId   String?   @map("eliminado_por_id") @db.Uuid
+
+  resena      Resena   @relation(fields: [resenaId], references: [id], onDelete: Cascade)
+  creador     Usuario? @relation("RespuestaResenaCreador", fields: [creadoPorId], references: [idusuario], onDelete: SetNull)
+  editor      Usuario? @relation("RespuestaResenaEditor", fields: [actualizadoPorId], references: [idusuario], onDelete: SetNull)
+  retiradoPor Usuario? @relation("RespuestaResenaRetiro", fields: [eliminadoPorId], references: [idusuario], onDelete: SetNull)
+
+  @@index([creadoPorId])
+  @@index([actualizadoPorId])
+  @@index([eliminadoPorId])
+  @@map("respuestas_resenas")
 }
 
 model MetricaDiaria {
