@@ -21,12 +21,14 @@ function cargar() {
 export function useSedes() {
   const [sedes, setSedes] = useState(cache ?? []);
   const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(cache === null);
 
   useEffect(() => {
     let activo = true;
     cargar()
       .then((data) => activo && setSedes(data))
-      .catch((err) => activo && setError(err.message));
+      .catch((err) => activo && setError(err.message))
+      .finally(() => activo && setCargando(false));
     return () => {
       activo = false;
     };
@@ -36,6 +38,7 @@ export function useSedes() {
   return {
     sedes,
     error,
+    cargando,
     nombreSede: (slug) => porSlug[slug]?.nombre ?? slug,
     sede: (slug) => porSlug[slug] ?? null,
   };

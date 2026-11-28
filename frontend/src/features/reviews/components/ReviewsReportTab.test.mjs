@@ -51,3 +51,17 @@ test("solo el superadministrador puede elegir el consolidado y descargar ambos f
     assert.doesNotMatch(vista, new RegExp(`<button[^>]* disabled=""[^>]*>.*Descargar ${formato}`));
   }
 });
+
+test("distingue catálogo en carga, error y sede disponible", () => {
+  const render = props => renderToStaticMarkup(React.createElement(ReviewsReportTab, props));
+  assert.match(render({ cargandoSedes: true }), /role="status">Cargando sedes/);
+  assert.match(render({ errorSedes: "sin conexión" }), /role="alert">No se pudo cargar el catálogo/);
+  const conSede = render({
+    sede: { id: "propia", nombre: "Propia" },
+    selectorSede: React.createElement("label", null, "Sede del reporte"),
+    membresias: true,
+  });
+  assert.match(conSede, /Reportes de membresías/);
+  assert.match(conSede, /Sede del reporte/);
+  assert.match(conSede, /día de vinculación en Bogotá/);
+});

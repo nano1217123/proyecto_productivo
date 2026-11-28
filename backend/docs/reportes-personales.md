@@ -1,6 +1,6 @@
 # Reportes personales de entrenamiento
 
-Desde **Historial de entrenamientos → Descargar mis reportes**, el titular puede
+Desde **Centro de reportes → Mis reportes** o **Progreso por ejercicio**, el titular puede
 exportar CSV o PDF. El backend obtiene su identidad de la sesión y filtra por
 propietario, también si la sesión pertenece a un administrador. Los reportes
 excluyen nutrición, hidratación, identificadores de usuarios y notas libres.
@@ -8,8 +8,18 @@ excluyen nutrición, hidratación, identificadores de usuarios y notas libres.
 | GET bajo `/api/reportes/personales` | Datos |
 | --- | --- |
 | `/progreso.csv` y `/progreso.pdf` | Fecha local, peso corporal y entrenamiento completado. |
-| `/rutinas.csv` y `/rutinas.pdf` | Fecha de creación, nombre, día y ejercicios en orden. Incluye rutinas sin ejercicios. |
-| `/ejercicios.csv` y `/ejercicios.pdf` | Fecha de sesión, ejercicio, número de serie, repeticiones y peso registrado. |
+| `/rutinas.csv` y `/rutinas.pdf` | Fecha de creación, nombre, etiqueta histórica de día, orden y ejercicio, seguidos de días planificados y estado. Incluye rutinas propias activas, archivadas y sin ejercicios. |
+| `/ejercicios.csv` y `/ejercicios.pdf` | Fecha de sesión, ejercicio, número de serie, repeticiones y peso registrado, seguidos de tipo, duración en segundos, distancia en kilómetros y asistencia en kilogramos. Solo incluye sesiones finalizadas. |
+
+En los CSV de rutinas y ejercicios, las cinco columnas anteriores conservan
+su nombre, posición y significado. Los consumidores que exigen una cantidad
+fija de columnas deben aceptar las columnas añadidas al final. Las rutinas
+muestran los días semanales de lunes a domingo. Si no hay días planificados,
+la columna queda vacía y se conserva la etiqueta histórica en `Día`.
+Ejercicios prefiere el nombre guardado en el catálogo histórico de la sesión
+y usa el nombre actual cuando la captura no contiene un nombre de texto
+válido. Las mediciones y el tipo ausentes se muestran como celda vacía en CSV
+y como «—» en PDF. El cero registrado se conserva.
 
 `desde` y `hasta` son fechas ISO opcionales e inclusivas. Para marcas de tiempo
 se aplica America/Bogota. La fecha de entrenamiento ya es una fecha calendario.
@@ -32,5 +42,7 @@ BOM y neutralizan fórmulas. El PDF representa
 como códigos Unicode los caracteres fuera de la cobertura de la fuente.
 
 El alcance de este módulo es el reporte personal sobre datos ya registrados.
-La exportación de membresías de ALC-07 y el registro durable de DAT-15 quedan
-pendientes. El flujo personal actual no requiere migraciones.
+La exportación de membresías y el registro de auditoría están documentados
+en [Reportes de membresías](reportes-membresias.md) y [DAT-15](auditoria-reportes.md).
+Este ajuste no añade migraciones y utiliza las columnas de las migraciones
+existentes de rutinas, series e historial.

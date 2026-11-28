@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
+import { loginUrl } from "../returnTo.js";
 
 export default function RequireSession({ children }) {
   const { user, loading, sessionError, refreshProfile } = useAuth();
@@ -10,8 +11,8 @@ export default function RequireSession({ children }) {
 
   useEffect(() => {
     if (!loading && !user && !sessionError) {
-      const gym = new URLSearchParams(window.location.search).get("gym");
-      router.replace(gym ? `/login?gym=${encodeURIComponent(gym)}` : "/login");
+      const { pathname, search } = window.location;
+      router.replace(loginUrl(pathname, search));
     }
   }, [loading, user, sessionError, router]);
 

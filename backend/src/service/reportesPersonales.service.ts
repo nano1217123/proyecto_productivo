@@ -5,8 +5,8 @@ import { consultarReportePersonal, type TipoReportePersonal, type FiltrosReporte
 
 const columnas = {
   progreso: ["Fecha", "Peso corporal (kg)", "Entrenamiento completado"],
-  rutinas: ["Fecha de creación", "Rutina", "Día", "Orden", "Ejercicio"],
-  ejercicios: ["Fecha", "Ejercicio", "Serie", "Repeticiones", "Peso (kg)"],
+  rutinas: ["Fecha de creación", "Rutina", "Día", "Orden", "Ejercicio", "Días planificados", "Estado"],
+  ejercicios: ["Fecha", "Ejercicio", "Serie", "Repeticiones", "Peso (kg)", "Tipo", "Duración (s)", "Distancia (km)", "Asistencia (kg)"],
 };
 const mensajes = {
   sin_datos: "No hay datos suficientes para descargar este reporte en el período seleccionado.",

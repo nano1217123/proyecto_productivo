@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -7,7 +7,21 @@ globalThis.React = React;
 const acceso = await import("./reportAccess.js");
 const { accesoReportes } = acceso.default ?? acceso;
 const acciones = await import("./ReportActions.jsx");
-const { BotonesDescarga } = acciones.default ?? acciones;
+const { BotonesDescarga, EstadoDescarga, FechasReporte } = acciones.default ?? acciones;
+
+let perfil;
+let cargandoSesion = false;
+mock.module(new URL("../auth/context/AuthContext.jsx", import.meta.url).href, {
+  namedExports: { useAuth: () => ({ profile: perfil, loading: cargandoSesion }) },
+});
+mock.module(new URL("../sedes/hooks/useSedes.js", import.meta.url).href, {
+  namedExports: { useSedes: () => ({
+    sedes: [{ slug: "propia" }, { slug: "otra" }, { slug: "ajena" }],
+    nombreSede: slug => slug,
+  }) },
+});
+const centro = await import("./CentroReportes.jsx");
+const CentroReportes = centro.default.default ?? centro.default;
 
 test("limita los reportes y las sedes del Centro según el perfil", () => {
   const catalogo = [{ slug: "propia" }, { slug: "ajena" }];
@@ -33,4 +47,53 @@ test("expone acciones con nombre, foco visible y carga sin botones activos", () 
   const cargando = render({ cargando: true });
   assert.equal((cargando.match(/ disabled=""/g) ?? []).length, 2);
   assert.match(cargando, /Preparando PDF/);
+});
+
+test("conserva el acceso personal y el enlace a Progreso para clientes y particulares", () => {
+  for (const tipo_usuario of ["cliente", "usuario_particular"]) {
+    perfil = { tipo_usuario };
+    const vista = renderToStaticMarkup(React.createElement(CentroReportes, { gym: "ajena" }));
+    assert.match(vista, /Tipo de reporte personal/);
+    assert.match(vista, /Ejercicios realizados/);
+    assert.match(vista, /href="\/dashboard\/entrenamientos\/progreso#vista-previa-progreso"/);
+    assert.doesNotMatch(vista, /Categorías de reportes|Sede del reporte/);
+  }
+});
+
+test("el acceso desde Reseñas abre el reporte con una sede permitida y respeta el rol", () => {
+  perfil = { tipo_usuario: "admin", sedes_administradas: ["propia", "otra"] };
+  const render = gym => renderToStaticMarkup(React.createElement(CentroReportes, { gym }));
+  assert.match(render(), /aria-pressed="true"[^>]*>Personales/);
+  const desdeResenas = render("otra");
+  assert.match(desdeResenas, /aria-pressed="true"[^>]*>Reseñas/);
+  assert.match(desdeResenas, /value="otra" selected/);
+  assert.doesNotMatch(desdeResenas, /value="ajena"|Consolidado/);
+  assert.match(render("ajena"), /value="propia" selected/);
+  perfil = { tipo_usuario: "super_admin" };
+  assert.match(render("ajena"), /value="ajena" selected/);
+  assert.match(render("ajena"), /Consolidado/);
+});
+
+test("distingue comprobación de sesión, ausencia de permiso y estados de descarga", () => {
+  perfil = null;
+  cargandoSesion = true;
+  assert.match(renderToStaticMarkup(React.createElement(CentroReportes)), /role="status">Cargando permisos/);
+  cargandoSesion = false;
+  const anonimo = renderToStaticMarkup(React.createElement(CentroReportes));
+  assert.match(anonimo, /Necesitas una sesión habilitada/);
+  assert.doesNotMatch(anonimo, /Descargar CSV/);
+  const estado = resultado => renderToStaticMarkup(React.createElement(EstadoDescarga, { resultado }));
+  assert.match(estado({ estado: "cargando" }), /role="status"[^>]*>Preparando el archivo/);
+  assert.match(estado({ estado: "error", mensaje: "Error de red" }), /role="alert"[^>]*>Error de red/);
+  assert.match(estado({ estado: "exito", mensaje: "Descarga iniciada" }), /role="status"[^>]*>Descarga iniciada/);
+});
+
+test("las fechas son opcionales, tienen etiquetas y acotan el rango en ambos sentidos", () => {
+  const vista = renderToStaticMarkup(React.createElement(FechasReporte, {
+    desde: "2026-01-01", hasta: "2026-01-31", setDesde() {}, setHasta() {},
+  }));
+  assert.match(vista, /<input(?=[^>]*name="desde")(?=[^>]*max="2026-01-31")/);
+  assert.match(vista, /<input(?=[^>]*name="hasta")(?=[^>]*min="2026-01-01")/);
+  assert.match(vista, /Fechas opcionales/);
+  assert.doesNotMatch(vista, / required/);
 });
