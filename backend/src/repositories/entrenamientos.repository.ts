@@ -12,12 +12,16 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
     async findAllByUsuario(usuarioId: string): Promise<EntrenamientoResumen[]> {
       try {
         const sesiones = await db.entrenamiento.findMany({
-          where: { usuarioId },
+          where: { usuarioId, estado: "finalizado" },
           orderBy: [{ fecha: "desc" }, { creadoEn: "desc" }],
           select: {
             id: true,
             fecha: true,
             notas: true,
+            nombre: true,
+            iniciadoEn: true,
+            finalizadoEn: true,
+            sesion: true,
             seriesEntrenamiento: {
               orderBy: { creadoEn: "asc" },
               select: {
@@ -26,7 +30,8 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
                 numeroSerie: true,
                 repeticiones: true,
                 pesoKg: true,
-                ejercicio: { select: { nombre: true } },
+                tipo: true, duracionSeg: true, distanciaKm: true, asistenciaKg: true,
+                ejercicio: { select: { nombre: true, grupoNombre: true } },
               },
             },
           },
@@ -36,10 +41,18 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
           id: s.id,
           fecha: s.fecha.toISOString().slice(0, 10),
           notas: s.notas,
+          nombre: s.nombre,
+          iniciadoEn: s.iniciadoEn,
+          finalizadoEn: s.finalizadoEn,
+          sesion: s.sesion,
           series: s.seriesEntrenamiento.map((serie) => ({
             id: serie.id,
             ejercicio_id: Number(serie.ejercicioId),
             ejercicio_nombre: serie.ejercicio.nombre,
+            grupo: serie.ejercicio.grupoNombre,
+            tipo: serie.tipo, duracion_seg: serie.duracionSeg,
+            distancia_km: serie.distanciaKm === null ? null : Number(serie.distanciaKm),
+            asistencia_kg: serie.asistenciaKg === null ? null : Number(serie.asistenciaKg),
             numero_serie: serie.numeroSerie,
             repeticiones: serie.repeticiones,
             peso_kg: serie.pesoKg ? Number(serie.pesoKg) : null,
@@ -99,6 +112,9 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
           where: {
             usuarioId,
             ejercicioId: BigInt(ejercicioId),
+            pesoKg: { not: null },
+            OR: [{ tipo: null }, { tipo: "fuerza" }],
+            entrenamiento: { usuarioId, estado: "finalizado" },
           },
           select: {
             pesoKg: true,
@@ -111,7 +127,7 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
           const fecha = s.entrenamiento.fecha.toISOString().slice(0, 10);
           const peso = s.pesoKg ? Number(s.pesoKg) : 0;
           const actual = porFecha.get(fecha) ?? 0;
-          if (peso > actual) porFecha.set(fecha, peso);
+          if (!porFecha.has(fecha) || peso > actual) porFecha.set(fecha, peso);
         }
 
         return Array.from(porFecha.entries())
@@ -127,7 +143,7 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
     async delete(entrenamientoId: string, usuarioId: string): Promise<void> {
       try {
         const resultado = await db.entrenamiento.deleteMany({
-          where: { id: entrenamientoId, usuarioId },
+          where: { id: entrenamientoId, usuarioId, estado: "finalizado" },
         });
 
         if (resultado.count === 0) {
