@@ -70,9 +70,17 @@ model Entrenamiento {
   notas               String?
   creadoEn            DateTime             @default(now()) @map("creado_en") @db.Timestamptz(6)
 
+  nombre              String?
+  estado              String               @default("finalizado")
+  iniciadoEn          DateTime?            @map("iniciado_en") @db.Timestamptz(6)
+  finalizadoEn        DateTime?            @map("finalizado_en") @db.Timestamptz(6)
+  revision            Int                  @default(0)
+  sesion              Json?
+
   usuario             Usuario              @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
   seriesEntrenamiento SerieEntrenamiento[]
 
+  @@index([usuarioId, estado, fecha, creadoEn])
   @@map("entrenamientos")
 }
 
@@ -94,6 +102,10 @@ model RutinaEjercicio {
   rutinaId    String    @map("rutina_id") @db.Uuid
   ejercicioId BigInt    @map("ejercicio_id")
   orden       Int
+  tipo        String?
+  series      Int?
+  repeticiones Int?
+  descanso    Int?
   creadoEn    DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
 
   ejercicio   Ejercicio @relation(fields: [ejercicioId], references: [id])
@@ -109,14 +121,20 @@ model SerieEntrenamiento {
   ejercicioId     BigInt        @map("ejercicio_id")
   usuarioId       String        @map("usuario_id") @db.Uuid
   numeroSerie     Int           @map("numero_serie")
-  repeticiones    Int
+  repeticiones    Int?
   pesoKg          Decimal?      @map("peso_kg") @db.Decimal
+  tipo            String?
+  duracionSeg     Int?          @map("duracion_seg")
+  distanciaKm     Decimal?      @map("distancia_km") @db.Decimal
+  asistenciaKg    Decimal?      @map("asistencia_kg") @db.Decimal
   creadoEn        DateTime      @default(now()) @map("creado_en") @db.Timestamptz(6)
 
   ejercicio       Ejercicio     @relation(fields: [ejercicioId], references: [id])
   entrenamiento   Entrenamiento @relation(fields: [entrenamientoId], references: [id], onDelete: Cascade)
   usuario         Usuario       @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
+  @@index([usuarioId, ejercicioId])
+  @@index([entrenamientoId])
   @@map("series_entrenamiento")
 }
 

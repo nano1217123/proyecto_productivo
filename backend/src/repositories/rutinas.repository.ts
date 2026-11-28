@@ -3,6 +3,7 @@ import { AppError } from "../errors/AppError.js";
 import type {
   CreateRutinaInput,
   RutinaDetalle,
+  PlanRutinaEjercicio,
   RutinaResumen,
   UpdateRutinaInput,
 } from "../types/rutinas.types.js";
@@ -53,6 +54,7 @@ export function createRutinasRepository(db: typeof prisma = prisma) {
             select: {
               ejercicioId: true,
               orden: true,
+              tipo: true, series: true, repeticiones: true, descanso: true,
               ejercicio: {
                 select: { nombre: true, grupoNombre: true },
               },
@@ -70,6 +72,8 @@ export function createRutinasRepository(db: typeof prisma = prisma) {
         ejercicios: rutina.rutinaEjercicios.map((re) => ({
           ejercicio_id: Number(re.ejercicioId),
           orden: re.orden,
+          plan: { tipo: re.tipo as PlanRutinaEjercicio["tipo"], series: re.series,
+            repeticiones: re.repeticiones, descanso: re.descanso },
           nombre: re.ejercicio.nombre,
           grupo_nombre: re.ejercicio.grupoNombre,
         })),
@@ -99,6 +103,7 @@ export function createRutinasRepository(db: typeof prisma = prisma) {
               rutinaId,
               ejercicioId: BigInt(ejercicioId),
               orden: idx + 1,
+              ...input.planes?.[idx],
             })),
           }),
         ]);
@@ -119,16 +124,26 @@ export function createRutinasRepository(db: typeof prisma = prisma) {
         // Verifica que la rutina existe y es del usuario.
         const existe = await db.rutina.findFirst({
           where: { id: input.rutinaId, usuarioId },
-          select: { id: true },
+          select: { id: true, rutinaEjercicios: {
+            orderBy: { orden: "asc" },
+            select: { ejercicioId: true, tipo: true, series: true, repeticiones: true, descanso: true },
+          } },
         });
 
         if (!existe) {
           throw new AppError(404, "Rutina no encontrada.");
         }
 
+        const anteriores = new Map<bigint, PlanRutinaEjercicio[]>();
+        for (const { ejercicioId, tipo, series, repeticiones, descanso } of existe.rutinaEjercicios) {
+          const lista = anteriores.get(ejercicioId) ?? [];
+          lista.push({ tipo: tipo as PlanRutinaEjercicio["tipo"], series, repeticiones, descanso });
+          anteriores.set(ejercicioId, lista);
+        }
+
         await db.$transaction([
           db.rutina.update({
-            where: { id: input.rutinaId },
+            where: { id: input.rutinaId, usuarioId },
             data: {
               nombre: input.nombre,
               diaEtiqueta: input.diaEtiqueta,
@@ -142,6 +157,7 @@ export function createRutinasRepository(db: typeof prisma = prisma) {
               rutinaId: input.rutinaId,
               ejercicioId: BigInt(ejercicioId),
               orden: idx + 1,
+              ...(input.planes ? input.planes[idx] : anteriores.get(BigInt(ejercicioId))?.shift()),
             })),
           }),
         ]);

@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { leerSesion, tipoRegistro } from "./sesionEntrenamiento.validator.js";
 import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { sanitizeString, containsSuspiciousPatterns } from "../lib/sanitize.js";
@@ -5,6 +7,15 @@ import type {
   CreateRutinaInput,
   UpdateRutinaInput,
 } from "../types/rutinas.types.js";
+
+const planEjercicio = z.object({
+  tipo: tipoRegistro.nullish(),
+  series: z.number().int().min(1).max(30).nullish(),
+  repeticiones: z.number().int().min(1).max(999).nullish(),
+  descanso: z.number().int().min(0).max(3600).nullish(),
+}).strict().refine((plan) => plan.repeticiones == null ||
+  !plan.tipo || !["isometrico", "cardio", "estiramiento"].includes(plan.tipo),
+  "El tipo de ejercicio usa duración.");
 
 const LIMITES = {
   nombreMax: 60,
@@ -42,7 +53,7 @@ export function parseCreateRutinaBody(body: unknown): CreateRutinaInput {
     throw new AppError(400, "Faltan campos requeridos: nombre, ejercicioIds.");
   }
 
-  const { nombre, diaEtiqueta, ejercicioIds } = body as Record<string, unknown>;
+  const { nombre, diaEtiqueta, ejercicioIds, planes } = body as Record<string, unknown>;
 
   if (typeof nombre !== "string" || !nombre.trim()) {
     throw new AppError(400, "La rutina necesita un nombre.");
@@ -77,7 +88,14 @@ export function parseCreateRutinaBody(body: unknown): CreateRutinaInput {
 
   const ids = parseEjercicioIds(ejercicioIds);
 
+  const configuracion = planes === undefined ? undefined
+    : leerSesion(z.array(planEjercicio.nullable()).length(ids.length), planes);
+  if (configuracion && configuracion.reduce((total, plan) => total + (plan?.series ?? 1), 0) > 200) {
+    throw new AppError(400, "La rutina admite hasta 200 series.");
+  }
+
   return {
+    planes: configuracion,
     nombre: nombreLimpio,
     diaEtiqueta: etiquetaLimpia,
     ejercicioIds: ids,

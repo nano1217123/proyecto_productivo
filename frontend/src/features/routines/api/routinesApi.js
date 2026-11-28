@@ -60,7 +60,7 @@ export const routinesApi = {
    * @param {{ nombre: string, diaEtiqueta?: string, ejercicioIds: number[] }} input
    * @returns {Promise<object>}
    */
-  async createRoutine({ nombre, diaEtiqueta, ejercicioIds }) {
+  async createRoutine({ nombre, diaEtiqueta, ejercicioIds, planes }) {
     if (!nombre?.trim()) throw new HttpError("La rutina necesita un nombre.");
     if (!ejercicioIds || ejercicioIds.length === 0) {
       throw new HttpError("Agrega al menos un ejercicio a la rutina.");
@@ -71,6 +71,7 @@ export const routinesApi = {
         nombre: nombre.trim(),
         diaEtiqueta: diaEtiqueta?.trim() || null,
         ejercicioIds,
+        planes,
       });
     } catch (err) {
       // 400 = validación del backend: preservamos el mensaje del servidor.
@@ -84,7 +85,7 @@ export const routinesApi = {
    * @param {{ rutinaId: string|number, nombre: string, diaEtiqueta?: string, ejercicioIds: number[] }} input
    * @returns {Promise<void>}
    */
-  async updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds }) {
+  async updateRoutine({ rutinaId, nombre, diaEtiqueta, ejercicioIds, planes }) {
     if (!nombre?.trim()) throw new HttpError("La rutina necesita un nombre.");
     if (!ejercicioIds || ejercicioIds.length === 0) {
       throw new HttpError("La rutina debe tener al menos un ejercicio.");
@@ -95,6 +96,7 @@ export const routinesApi = {
         nombre: nombre.trim(),
         diaEtiqueta: diaEtiqueta?.trim() || null,
         ejercicioIds,
+        planes,
       });
     } catch (err) {
       // 400 / 404: preservamos el mensaje del servidor.

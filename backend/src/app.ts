@@ -25,6 +25,7 @@ app.use(
   })
 );
 
+app.use("/api/entrenamientos/activa", express.json({ limit: "64kb" }));
 app.use(express.json({ limit: "10kb" }));
 
 // Lee las cookies (access_token / refresh_token) en req.cookies.
