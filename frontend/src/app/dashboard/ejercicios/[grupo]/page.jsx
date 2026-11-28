@@ -1,6 +1,8 @@
 // app/dashboard/ejercicios/[grupo]/page.jsx
 import ExerciseGroupPage from "@/src/features/exercises/views/ExerciseGroupPage";
 
+export const metadata = { title: "Ejercicios por grupo muscular" };
+
 export default async function Page({ params, searchParams }) {
   const { grupo } = await params;
   const { gym } = await searchParams;
