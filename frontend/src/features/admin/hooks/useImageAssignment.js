@@ -77,11 +77,13 @@ export function createImageAssignmentState({
   cargarCatalogo = () => exercisesApi.getExerciseCatalog(),
   subir = (archivo) => adminApi.uploadImage(archivo),
   asignar = (ejercicioId, url) => adminApi.assignImageToExercise(ejercicioId, url),
+  quitarImagen = (ejercicioId, imagenActual) => adminApi.removeExerciseImage(ejercicioId, imagenActual),
 } = {}) {
   const listeners = new Set();
   let solicitudCatalogo = 0;
   let catalogoEnCurso = false;
   let operacion = 0;
+  let operacionQuitar = 0;
   let estado = {
     estadoCatalogo: "cargando",
     errorCatalogo: "",
@@ -94,6 +96,7 @@ export function createImageAssignmentState({
     errorEnvio: "",
     pendiente: null, // { url, destino } tras subir con éxito
     destinoEnvio: null, // { ejercicioId, ejercicioNombre, grupoNombre }
+    quitar: QUITAR_INICIAL,
   };
 
   function actualizar(cambios) {
@@ -102,6 +105,8 @@ export function createImageAssignmentState({
   }
 
   const enviando = () => ENVIANDO.has(estado.fase);
+  // Mientras se sube o se quita una imagen, la selección queda bloqueada.
+  const ocupado = () => enviando() || estado.quitar.fase === "quitando";
 
   async function recargarCatalogo() {
     if (catalogoEnCurso) return;
@@ -123,21 +128,21 @@ export function createImageAssignmentState({
   // Cualquier cambio de destino o archivo descarta el resultado anterior.
   function descartarOperacion() {
     operacion++;
-    return { fase: "inactivo", errorEnvio: "", pendiente: null, destinoEnvio: null };
+    return { fase: "inactivo", errorEnvio: "", pendiente: null, destinoEnvio: null, quitar: QUITAR_INICIAL };
   }
 
   function seleccionarGrupo(grupoSlug) {
-    if (enviando()) return;
+    if (ocupado()) return;
     actualizar({ grupoSlug: grupoSlug || "", ejercicioId: "", ...descartarOperacion() });
   }
 
   function seleccionarEjercicio(ejercicioId) {
-    if (enviando()) return;
+    if (ocupado()) return;
     actualizar({ ejercicioId: ejercicioId ? String(ejercicioId) : "", ...descartarOperacion() });
   }
 
   function seleccionarArchivo(archivo) {
-    if (enviando()) return;
+    if (ocupado()) return;
     const errorArchivo = validarArchivoImagen(archivo);
     actualizar({ archivo: archivo && !errorArchivo ? archivo : null, errorArchivo, ...descartarOperacion() });
   }
@@ -171,12 +176,12 @@ export function createImageAssignmentState({
   }
 
   async function enviar() {
-    if (enviando() || !estado.archivo) return;
+    if (ocupado() || !estado.archivo) return;
     const destino = destinoActual();
     if (!destino) return;
     const actual = ++operacion;
     const archivo = estado.archivo;
-    actualizar({ fase: "subiendo", errorEnvio: "", pendiente: null, destinoEnvio: destino });
+    actualizar({ fase: "subiendo", errorEnvio: "", pendiente: null, destinoEnvio: destino, quitar: QUITAR_INICIAL });
     let url;
     try {
       const respuesta = await subir(archivo);
@@ -199,10 +204,58 @@ export function createImageAssignmentState({
     await asignarPendiente(actual, url, destino);
   }
 
+  // Abre la confirmación con la imagen que el administrador está viendo.
+  // No se ofrece mientras hay una subida en curso o una asignación pendiente
+  // de reintento, para no mezclar las dos operaciones.
+  function pedirQuitar() {
+    if (ocupado() || estado.fase === "error-asignacion") return;
+    const destino = destinoActual();
+    const ejercicio = destino && buscarEjercicio(estado.grupos, destino.ejercicioId);
+    if (!ejercicio?.imagen_url) return;
+    actualizar({ quitar: {
+      ...QUITAR_INICIAL, fase: "confirmando", destino, imagenVista: ejercicio.imagen_url,
+      compartidaCon: ejerciciosConImagen(estado.grupos, ejercicio.imagen_url, ejercicio.id),
+    } });
+  }
+
+  // Cancelar no envía nada al servidor.
+  function cancelarQuitar() {
+    if (estado.quitar.fase === "confirmando") actualizar({ quitar: QUITAR_INICIAL });
+  }
+
+  async function confirmarQuitar() {
+    const peticion = estado.quitar;
+    if (peticion.fase !== "confirmando") return;
+    const actual = ++operacionQuitar;
+    const { ejercicioId } = peticion.destino;
+    actualizar({ quitar: { ...peticion, fase: "quitando" } });
+    try {
+      await quitarImagen(ejercicioId, peticion.imagenVista);
+      if (actual !== operacionQuitar) return;
+      actualizar({ grupos: conImagen(estado.grupos, ejercicioId, null), quitar: { ...peticion, fase: "exito" } });
+    } catch (err) {
+      if (actual !== operacionQuitar) return;
+      if (err?.status === 409) {
+        // Otro administrador la cambió: el panel muestra la imagen vigente.
+        const vigente = typeof err.body?.imagenUrl === "string" ? err.body.imagenUrl : null;
+        actualizar({
+          grupos: conImagen(estado.grupos, ejercicioId, vigente),
+          quitar: { ...peticion, fase: "conflicto", imagenVigente: vigente, mensaje: err.message },
+        });
+        return;
+      }
+      const mensaje = err?.status === 404
+        ? "Este ejercicio ya no existe en el catálogo. Recarga la página para ver el catálogo actual."
+        : err?.message || "No se pudo quitar la imagen.";
+      actualizar({ quitar: { ...peticion, fase: "error", mensaje } });
+    }
+  }
+
   function cancelar() {
     solicitudCatalogo++;
     catalogoEnCurso = false;
     operacion++;
+    operacionQuitar++;
   }
 
   return {
@@ -217,8 +270,47 @@ export function createImageAssignmentState({
     seleccionarArchivo,
     enviar,
     reintentarAsignacion,
+    pedirQuitar,
+    cancelarQuitar,
+    confirmarQuitar,
     cancelar,
   };
+}
+
+// Estado de «Quitar imagen».
+// fase: inactivo | confirmando | quitando | exito | conflicto | error
+const QUITAR_INICIAL = {
+  fase: "inactivo",
+  destino: null, // { ejercicioId, ejercicioNombre, grupoNombre }
+  imagenVista: "", // URL que se mostró al pedir la confirmación
+  compartidaCon: [], // otros ejercicios con la misma imagen
+  imagenVigente: null, // tras un 409, la imagen que hay en el servidor
+  mensaje: "",
+};
+
+function buscarEjercicio(grupos, ejercicioId) {
+  for (const g of grupos) {
+    const ejercicio = (g.ejercicios || []).find((e) => e.id === ejercicioId);
+    if (ejercicio) return ejercicio;
+  }
+  return null;
+}
+
+// Cambia la imagen de un único ejercicio en el catálogo cargado.
+function conImagen(grupos, ejercicioId, imagenUrl) {
+  return grupos.map((g) => ({
+    ...g,
+    ejercicios: (g.ejercicios || []).map((e) => (e.id === ejercicioId ? { ...e, imagen_url: imagenUrl } : e)),
+  }));
+}
+
+// Otros ejercicios del catálogo que usan la misma imagen, para avisar en la
+// confirmación de que la conservan.
+export function ejerciciosConImagen(grupos, imagenUrl, excluirId) {
+  if (!imagenUrl) return [];
+  return grupos.flatMap((g) => (g.ejercicios || [])
+    .filter((e) => e.imagen_url === imagenUrl && e.id !== excluirId)
+    .map((e) => ({ id: e.id, nombre: e.nombre, grupoNombre: g.nombre })));
 }
 
 export function useImageAssignment() {
@@ -239,5 +331,9 @@ export function useImageAssignment() {
     seleccionarArchivo: controlador.seleccionarArchivo,
     enviar: controlador.enviar,
     reintentarAsignacion: controlador.reintentarAsignacion,
+    quitando: estado.quitar.fase === "quitando",
+    pedirQuitar: controlador.pedirQuitar,
+    cancelarQuitar: controlador.cancelarQuitar,
+    confirmarQuitar: controlador.confirmarQuitar,
   };
 }

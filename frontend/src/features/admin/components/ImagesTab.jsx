@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import ImagenEjercicio from "@/src/features/exercises/components/ImagenEjercicio";
 import { muscleGroupBySlug } from "@/src/features/exercises/lib/muscleGroups";
 import { etiquetasEjercicios, filtrarOpciones, textoOpcion, useImageAssignment } from "../hooks/useImageAssignment";
 
@@ -25,6 +26,7 @@ function MiniaturaImagen({ src, alt }) {
 export default function ImagesTab() {
   const {
     estadoCatalogo, errorCatalogo, grupos, grupoSlug, ejercicioId, archivo, errorArchivo,
+    quitar, quitando, pedirQuitar, cancelarQuitar, confirmarQuitar,
     fase, errorEnvio, destinoEnvio, enviando,
     recargarCatalogo, seleccionarGrupo, seleccionarEjercicio, seleccionarArchivo, enviar, reintentarAsignacion,
   } = useImageAssignment();
@@ -37,6 +39,8 @@ export default function ImagesTab() {
   const [busqueda, setBusqueda] = useState("");
   const resultadoRef = useRef(null);
   const reintentarRef = useRef(null);
+  const dialogoQuitarRef = useRef(null);
+  const resultadoQuitarRef = useRef(null);
   const [vistaPrevia, setVistaPrevia] = useState("");
 
   const grupo = grupos.find((g) => g.slug === grupoSlug) || null;
@@ -66,6 +70,17 @@ export default function ImagesTab() {
   useEffect(() => {
     if (!archivo && archivoRef.current) archivoRef.current.value = "";
   }, [archivo]);
+
+  // El diálogo de «Quitar imagen» sigue el estado del hook. Al resolverse,
+  // el foco pasa al mensaje con el resultado.
+  const dialogoAbierto = quitar.fase === "confirmando" || quitar.fase === "quitando";
+  useEffect(() => {
+    const dialogo = dialogoQuitarRef.current;
+    if (!dialogo) return;
+    if (dialogoAbierto && !dialogo.open) dialogo.showModal();
+    if (!dialogoAbierto && dialogo.open) dialogo.close();
+    if (["exito", "conflicto", "error"].includes(quitar.fase)) resultadoQuitarRef.current?.focus();
+  }, [dialogoAbierto, quitar.fase]);
 
   // Foco tras resolver: el botón de envío queda deshabilitado tras un éxito.
   useEffect(() => {
@@ -228,9 +243,26 @@ export default function ImagesTab() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <figure className="m-0">
                     <figcaption className="mb-1.5 text-xs font-semibold text-[#a9afa7]">Imagen actual</figcaption>
-                    {ejercicio.imagen_url
-                      ? <MiniaturaImagen src={ejercicio.imagen_url} alt={`Imagen actual de ${ejercicio.nombre}`} />
-                      : <p className="m-0 text-xs text-[#a9afa7]">Este ejercicio todavía no tiene imagen.</p>}
+                    <ImagenEjercicio
+                      key={ejercicio.imagen_url || "sin-imagen"}
+                      src={ejercicio.imagen_url}
+                      alt={`Imagen actual de ${ejercicio.nombre}`}
+                      avisoFallo
+                      className="w-full max-w-[220px] aspect-square object-cover rounded-lg border border-[#41433f] bg-[#151714]"
+                    />
+                    {!ejercicio.imagen_url && (
+                      <p className="m-0 mt-1.5 text-xs text-[#a9afa7]">Este ejercicio todavía no tiene imagen.</p>
+                    )}
+                    {ejercicio.imagen_url && (
+                      <button
+                        type="button"
+                        onClick={pedirQuitar}
+                        disabled={enviando || quitando || fase === "error-asignacion"}
+                        className={`mt-2 px-3 py-2 rounded-[10px] border border-[rgba(255,121,121,0.45)] bg-transparent text-[#ff9b9b] text-[13px] font-bold cursor-pointer transition hover:bg-[#351b1b] disabled:opacity-60 disabled:cursor-not-allowed ${ESTILO_FOCO}`}
+                      >
+                        Quitar imagen
+                      </button>
+                    )}
                   </figure>
                   {vistaPrevia && (
                     <figure className="m-0">
@@ -259,7 +291,7 @@ export default function ImagesTab() {
               </p>
             )}
 
-            <button type="submit" disabled={enviando || !archivo || !ejercicio} className={`${ESTILO_BOTON} w-full sm:w-auto sm:justify-self-start`}>
+            <button type="submit" disabled={enviando || quitando || !archivo || !ejercicio} className={`${ESTILO_BOTON} w-full sm:w-auto sm:justify-self-start`}>
               {textoBoton}
             </button>
 
@@ -287,9 +319,76 @@ export default function ImagesTab() {
                 Imagen asignada a <strong>{destinoEnvio.ejercicioNombre}</strong> ({destinoEnvio.grupoNombre}).
               </p>
             )}
+
+            {quitar.fase === "exito" && (
+              <p ref={resultadoQuitarRef} tabIndex={-1} role="status" className={`${ESTILO_EXITO} m-0 ${ESTILO_FOCO}`}>
+                Se quitó la imagen de <strong>{quitar.destino.ejercicioNombre}</strong> ({quitar.destino.grupoNombre}).
+                El archivo se conserva en Cloudinary.
+              </p>
+            )}
+
+            {(quitar.fase === "conflicto" || quitar.fase === "error") && (
+              <p ref={resultadoQuitarRef} tabIndex={-1} role="alert" className={`${ESTILO_ERROR} m-0 ${ESTILO_FOCO}`}>
+                No se quitó la imagen de <strong>{quitar.destino.ejercicioNombre}</strong>: {quitar.mensaje}
+                {quitar.fase === "conflicto" && (quitar.imagenVigente
+                  ? " El panel ya muestra la imagen actual."
+                  : " El ejercicio ya no tiene imagen.")}
+              </p>
+            )}
           </div>
         </form>
       )}
+
+      <dialog
+        ref={dialogoQuitarRef}
+        aria-labelledby="titulo-quitar-imagen"
+        onCancel={(evento) => { evento.preventDefault(); if (!quitando) cancelarQuitar(); }}
+        className="m-auto w-[min(92vw,460px)] p-6 rounded-[14px] border border-[#41433f] bg-[#212320] text-[#f2f4ef] backdrop:bg-black/60"
+      >
+        {quitar.destino && (
+          <div className="grid gap-4">
+            <h3 id="titulo-quitar-imagen" className="m-0 text-lg">Quitar imagen</h3>
+            <p className="m-0 text-sm">
+              ¿Quitar la imagen de <strong>{quitar.destino.ejercicioNombre}</strong> ({quitar.destino.grupoNombre})?
+            </p>
+            <ImagenEjercicio
+              key={quitar.imagenVista}
+              src={quitar.imagenVista}
+              alt={`Imagen que se quitará de ${quitar.destino.ejercicioNombre}`}
+              className="w-full max-w-[160px] aspect-square object-cover rounded-lg border border-[#41433f] bg-[#151714]"
+            />
+            <p className="m-0 text-[13px] text-[#a9afa7]">
+              El ejercicio quedará sin imagen en el catálogo de todas las sedes y se mostrará la imagen predeterminada.
+              El archivo se conserva en Cloudinary.
+            </p>
+            {quitar.compartidaCon.length > 0 && (
+              <p className="m-0 p-[10px_12px] rounded-lg border border-[rgba(255,196,87,.45)] bg-[rgba(120,86,20,.2)] text-[#ffcf70] text-[13px]">
+                Esta imagen también está asignada a{" "}
+                {quitar.compartidaCon.map((e) => `${e.nombre} (${e.grupoNombre})`).join(", ")}. Esos ejercicios la conservan.
+              </p>
+            )}
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                autoFocus
+                onClick={cancelarQuitar}
+                disabled={quitando}
+                className={`px-4 py-2.5 rounded-[10px] border border-[#41463f] bg-transparent text-[#f2f4ef] text-sm font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${ESTILO_FOCO}`}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarQuitar}
+                disabled={quitando}
+                className={`px-4 py-2.5 border-0 rounded-[10px] bg-[#ff7979] text-[#10110f] text-sm font-extrabold cursor-pointer disabled:opacity-60 disabled:cursor-wait ${ESTILO_FOCO}`}
+              >
+                {quitando ? "Quitando imagen..." : "Quitar imagen"}
+              </button>
+            </div>
+          </div>
+        )}
+      </dialog>
     </section>
   );
 }

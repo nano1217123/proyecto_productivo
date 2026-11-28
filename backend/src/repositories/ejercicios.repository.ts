@@ -93,6 +93,20 @@ export function createEjerciciosRepository(db: typeof prisma = prisma) {
         data: { imagenUrl },
       });
     },
+
+    // Quita la imagen solo si sigue siendo la que vio quien confirma. La
+    // condición va en el mismo UPDATE, así que dos administradores no pueden
+    // pisarse. No toca Cloudinary ni las copias del historial.
+    async quitarImagenSiCoincide(id: bigint, imagenVista: string) {
+      const { count } = await db.ejercicio.updateMany({
+        where: { id, imagenUrl: imagenVista },
+        data: { imagenUrl: null },
+      });
+      if (count === 1) return { estado: "quitada" } as const;
+      const actual = await db.ejercicio.findUnique({ where: { id }, select: { imagenUrl: true } });
+      if (!actual) return { estado: "no_existe" } as const;
+      return { estado: "cambiada", imagenUrl: actual.imagenUrl } as const;
+    },
   };
 }
 

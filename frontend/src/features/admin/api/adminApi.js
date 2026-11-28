@@ -51,6 +51,20 @@ export const adminApi = {
   assignImageToExercise(ejercicioId, imagenUrl) {
     return http.patch(`/api/ejercicios/${ejercicioId}/imagen`, { imagenUrl });
   },
+
+  /**
+   * Quita la imagen asignada a un ejercicio. El archivo de Cloudinary se
+   * conserva.
+   *
+   * @param {string|number} ejercicioId
+   * @param {string} imagenActual  URL que vio el administrador al confirmar.
+   *   Si ya cambió, el backend responde 409 con la imagen vigente
+   *   (`error.body.imagenUrl`).
+   * @returns {Promise<{ message: string, imagenUrl: null }>}
+   */
+  removeExerciseImage(ejercicioId, imagenActual) {
+    return http.del(`/api/ejercicios/${ejercicioId}/imagen`, { body: { imagenActual } });
+  },
 };
 
 export default adminApi;
