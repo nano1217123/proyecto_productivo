@@ -4,7 +4,8 @@ import { requireRole } from "../middleware/requireRole.middleware.js";
 import { 
   actualizarImagenEjercicio, 
   getEjerciciosPorGrupo,
-  getCatalogoCompleto // 👈 Importamos la nueva función
+  getCatalogoCompleto, // 👈 Importamos la nueva función
+  quitarImagenEjercicio,
 } from "../controller/ejercicios.controller.js";
 
 const router = Router();
@@ -21,6 +22,14 @@ router.patch(
   requireAuth,
   requireRole("admin", "super_admin"),
   actualizarImagenEjercicio
+);
+
+// Quitar la imagen asignada: mismos permisos que asignarla.
+router.delete(
+  "/:id/imagen",
+  requireAuth,
+  requireRole("admin", "super_admin"),
+  quitarImagenEjercicio
 );
 
 export default router;
