@@ -7,7 +7,6 @@ import { calculateBmi, getBmiStatus } from "@/src/lib/bmi";
 const gyms = [
   {
     slug: "jj-poblado",
-    initials: "JP",
     name: "JJ GYM El Poblado",
     location: "El Poblado · Medellín",
     plan: "Sede Principal · VIP & Crossfit",
@@ -17,7 +16,6 @@ const gyms = [
   },
   {
     slug: "power-laureles",
-    initials: "PL",
     name: "Power Laureles",
     location: "Laureles · Medellín",
     plan: "Zona Powerlifting & Calistenia",
@@ -27,7 +25,6 @@ const gyms = [
   },
   {
     slug: "fit-belén",
-    initials: "FB",
     name: "Fit Lab Belén",
     location: "Belén · Medellín",
     plan: "Cardio HIIT & Nutrición",
@@ -100,7 +97,6 @@ export default function Home() {
           {/* Columna Izquierda: Texto Hero */}
           <div className="flex flex-col">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-5 border border-[rgba(181,108,255,0.4)] rounded-full bg-[rgba(181,108,255,0.15)] text-[#d7adff] text-[11px] font-extrabold tracking-wider w-fit">
-              <span className="w-2 h-2 rounded-full bg-[#5bd48f] shadow-[0_0_8px_#5bd48f] animate-pulse" />
               SISTEMA DE GESTIÓN DEPORTIVA
             </div>
             
@@ -282,7 +278,7 @@ export default function Home() {
           {gyms.map((gym) => (
             <article 
               key={gym.slug}
-              className={`relative min-h-[270px] flex flex-col justify-between overflow-hidden p-[22px] border rounded-[18px] bg-gradient-to-br from-[#353535] to-[#202020] shadow-[0_12px_28px_rgba(0,0,0,.35)] transition hover:-translate-y-2 hover:scale-[1.02] ${
+              className={`relative min-h-[170px] flex flex-col justify-between gap-4 overflow-hidden p-[22px] border rounded-[18px] bg-gradient-to-br from-[#353535] to-[#202020] shadow-[0_12px_28px_rgba(0,0,0,.35)] transition hover:-translate-y-2 hover:scale-[1.02] ${
                 gym.accent === "orange" 
                   ? "border-[#ff9f43] hover:border-[#ff9f43]" 
                   : gym.accent === "violet" 
@@ -290,12 +286,6 @@ export default function Home() {
                   : "border-[#494949] hover:border-[#b56cff]"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="grid place-items-center w-12 h-12 rounded-[14px] border border-[rgba(181,108,255,.35)] bg-[#321d47] text-[#b56cff] text-[13px] font-extrabold">
-                  {gym.initials}
-                </span>
-
-              </div>
               <div>
                 <p className="m-0 mb-2 text-xs text-[#a9afa7]">{gym.location}</p>
                 <h3 className="m-0 text-lg">{gym.name}</h3>
@@ -305,8 +295,8 @@ export default function Home() {
                 className="flex items-center justify-between pt-4 border-t border-[#30332f] text-[13px] font-extrabold text-[#f2f4ef] no-underline group" 
                 href={`/login?gym=${gym.slug}`}
               >
-                Acceder a esta sede 
-                </Link>
+                Acceder a esta sede
+              </Link>
             </article>
           ))}
         </div>

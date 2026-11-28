@@ -62,13 +62,13 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
             <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">{rutina.nombre}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleIniciar}
-            className="min-h-11 px-4 py-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px"
-          >
-            Empezar entrenamiento
-          </button>
+            <button
+              type="button"
+              onClick={handleIniciar}
+              className="min-h-11 px-4 py-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px"
+            >
+              Empezar entrenamiento
+            </button>
             <Link
               href={`/dashboard/rutinas/${rutinaId}/editar?gym=${encodeURIComponent(gym)}`}
               className="px-4 py-2.5 border border-[#41463f] rounded-lg bg-transparent text-[#f2f4ef] text-[13px] font-bold no-underline transition hover:border-[#b56cff] hover:text-[#d7adff]"
@@ -96,8 +96,6 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
               </div>
             ))}
           </div>
-
-
         </div>
       </section>
     </main>

@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { NutritionSkeleton } from "@/src/components/ui/Skeleton";
 import { useNutritionCalculator } from "../hooks/useNutritionCalculator";
 import { goals } from "../lib/nutrition";
 
-function NutritionCalculator({ gym }) {
+function NutritionCalculator() {
   const { loading } = useAuth();
 
    const {
@@ -96,10 +96,10 @@ function NutritionCalculator({ gym }) {
   );
 }
 
-export default function NutritionPage({ gym = "jj-poblado" }) {
+export default function NutritionPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_8%_12%,rgba(181,108,255,0.14),transparent_25rem),linear-gradient(135deg,#10110f,#181a17_52%,#111310)]"><p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Cargando...</p></div>}>
-      <NutritionCalculator gym={gym} />
+      <NutritionCalculator />
     </Suspense>
   );
 }

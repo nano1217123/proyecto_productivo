@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
         {esParticular && (
           <div className="grid gap-4">
-            <DailyTrackerWidget mostrarEntrenamiento={false} />
+            <DailyTrackerWidget />
             <SubscriptionCard />
           </div>
         )}
