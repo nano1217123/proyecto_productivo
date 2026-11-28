@@ -1,6 +1,6 @@
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
-import { nutritionDb } from "../nutrition/repository.js";
+import { usuarioTransaction } from "./usuarioTransaction.js";
 
 const camposPeso = { id: true, fecha: true, pesoActualKg: true, pesoActualizadoEn: true } as const;
 const ordenDesc = [{ fecha: "desc" }, { id: "desc" }] as const;
@@ -9,18 +9,17 @@ export async function consultarPeso(usuarioId: string, desde: string | undefined
   const base = { usuarioId, pesoActualKg: { not: null } };
   const where = { ...base, fecha: desde ? { gte: new Date(`${desde}T00:00:00-05:00`) } : undefined };
   const orden = asc ? [{ fecha: "asc" as const }, { id: "asc" as const }] : [...ordenDesc];
-  const [ultimo, registros, total, resumen, puntos] = await Promise.all([
+  const [ultimo, registros, resumen, puntos] = await Promise.all([
     prisma.metricaDiaria.findFirst({ where: base, orderBy: [...ordenDesc], select: camposPeso }),
     prisma.metricaDiaria.findMany({ where, orderBy: orden, skip: (pagina - 1) * 15, take: 15, select: camposPeso }),
-    prisma.metricaDiaria.count({ where }),
-    incluirGrafica ? prisma.metricaDiaria.aggregate({ where, _avg: { pesoActualKg: true } }) : null,
+    prisma.metricaDiaria.aggregate({ where, _count: true, ...(incluirGrafica ? { _avg: { pesoActualKg: true } } : {}) }),
     incluirGrafica ? prisma.metricaDiaria.findMany({ where, orderBy: [...ordenDesc], take: 2000, select: camposPeso }) : null,
   ]);
-  return { ultimo, registros, total, promedio: resumen?._avg.pesoActualKg ?? null, puntos: puntos?.reverse() };
+  return { ultimo, registros, total: resumen._count, promedio: resumen._avg?.pesoActualKg ?? null, puntos: puntos?.reverse() };
 }
 
 export function registrarPeso(usuarioId: string, id: string, pesoActualKg: number) {
-  return nutritionDb.transaction(usuarioId, async (tx) => {
+  return usuarioTransaction(usuarioId, async (tx) => {
     const existente = await tx.metricaDiaria.findUnique({ where: { id }, select: { usuarioId: true } });
     if (existente) {
       if (existente.usuarioId !== usuarioId) throw new AppError(409, "No se pudo registrar el peso.");
@@ -31,11 +30,19 @@ export function registrarPeso(usuarioId: string, id: string, pesoActualKg: numbe
 }
 
 export async function modificarPeso(usuarioId: string, id: string, pesoActualKg: number | null) {
-  const resultado = await nutritionDb.transaction(usuarioId, (tx) => tx.metricaDiaria.updateMany({
-    where: { usuarioId, id, pesoActualKg: { not: null } },
-    data: { pesoActualKg, pesoActualizadoEn: new Date() },
-  }));
-  if (!resultado.count) throw new AppError(404, "Registro de peso no encontrado.");
+  await usuarioTransaction(usuarioId, async (tx) => {
+    const registro = await tx.metricaDiaria.findFirst({
+      where: { usuarioId, id }, select: { pesoActualKg: true, pesoActualizadoEn: true },
+    });
+    if (!registro || (registro.pesoActualKg === null && (pesoActualKg !== null || !registro.pesoActualizadoEn))) {
+      throw new AppError(404, "Registro de peso no encontrado.");
+    }
+    if (registro.pesoActualKg === pesoActualKg) return;
+    await tx.metricaDiaria.updateMany({
+      where: { usuarioId, id },
+      data: { pesoActualKg, pesoActualizadoEn: new Date() },
+    });
+  });
 }
 
 export function consultarAltura(usuarioId: string) {

@@ -12,19 +12,25 @@ const tipo = Prisma.sql`coalesce(s.tipo, CASE WHEN s.peso_kg IS NULL THEN 'corpo
 type Actividad = {
   sesiones: number; tiempo: number | null; promedio: number | null;
   semana: number; mes: number; primero: string | null;
+  sesionesAnteriores: number | null; tiempoAnterior: number | null;
 };
 type Marca = {
-  id: string; ejercicio: string; tipo: string; reps: number; valor: number; anterior: number | null; fecha: string;
+  id: string; ejercicioId: string; ejercicio: string; tipo: string; reps: number; valor: number; anterior: number | null; fecha: string;
 };
 
 export async function consultarDeporte(usuarioId: string, desde: string | undefined, hasta: string) {
   const propietario = sesiones(usuarioId);
   const rango = periodo(desde, hasta);
-  const [actividad, frecuencia, grupos, ejercicios, marcas] = await Promise.all([
+  const anterior = desde ? Prisma.sql`
+    e.fecha >= ${desde}::date - (${hasta}::date - ${desde}::date + 1)
+    AND e.fecha < ${desde}::date` : Prisma.sql`false`;
+  const [actividad, frecuencia, meses, grupos, ejercicios, marcas] = await Promise.all([
     prisma.$queryRaw<Actividad[]>`
       SELECT count(*) FILTER (WHERE ${rango})::int AS sesiones,
         sum(${duracion}) FILTER (WHERE ${rango})::float8 AS tiempo,
         avg(${duracion}) FILTER (WHERE ${rango})::float8 AS promedio,
+        ${desde ? Prisma.sql`count(*) FILTER (WHERE ${anterior})::int` : Prisma.sql`NULL::int`} AS "sesionesAnteriores",
+        sum(${duracion}) FILTER (WHERE ${anterior})::float8 AS "tiempoAnterior",
         min(e.fecha) FILTER (WHERE ${rango})::text AS primero,
         count(*) FILTER (WHERE e.fecha >= date_trunc('week', ${hasta}::date))::int AS semana,
         count(*) FILTER (WHERE e.fecha >= date_trunc('month', ${hasta}::date))::int AS mes
@@ -32,6 +38,10 @@ export async function consultarDeporte(usuarioId: string, desde: string | undefi
     `,
     prisma.$queryRaw<Array<{ fecha: string; sesiones: number }>>`
       SELECT date_trunc('week', e.fecha)::date::text AS fecha, count(*)::int AS sesiones
+      FROM entrenamientos e WHERE ${propietario} AND ${rango} GROUP BY 1 ORDER BY 1
+    `,
+    prisma.$queryRaw<Array<{ fecha: string; sesiones: number }>>`
+      SELECT date_trunc('month', e.fecha)::date::text AS fecha, count(*)::int AS sesiones
       FROM entrenamientos e WHERE ${propietario} AND ${rango} GROUP BY 1 ORDER BY 1
     `,
     prisma.$queryRaw<Array<{ grupo: string; series: number; volumen: number | null; adicional: number | null }>>`
@@ -64,12 +74,12 @@ export async function consultarDeporte(usuarioId: string, desde: string | undefi
       ), destacadas AS (
         SELECT * FROM ordenadas e WHERE ${rango} AND (anterior IS NULL OR valor > anterior)
       )
-      SELECT id, fecha::text, ejercicio, tipo, reps, valor, anterior,
+      SELECT id, fecha::text, ejercicio_id::text AS "ejercicioId", ejercicio, tipo, reps, valor, anterior,
         count(*) FILTER (WHERE anterior IS NOT NULL) OVER ()::int AS total
       FROM destacadas ORDER BY (anterior IS NULL), fecha DESC, creado_en DESC, id, ejercicio_id, tipo, reps LIMIT 12
     `,
   ]);
-  return { actividad: actividad[0], frecuencia, grupos, ejercicios, marcas, records: marcas[0]?.total ?? 0 };
+  return { actividad: actividad[0], frecuencia, meses, grupos, ejercicios, marcas, records: marcas[0]?.total ?? 0 };
 }
 
 export async function consultarEjercicio(usuarioId: string, id: number, desde: string | undefined, hasta: string) {
@@ -82,6 +92,6 @@ export async function consultarEjercicio(usuarioId: string, id: number, desde: s
       s.duracion_seg AS duracion, s.asistencia_kg::float8 AS asistencia
     FROM entrenamientos e ${series}
     WHERE ${sesiones(usuarioId)} AND ${periodo(desde, hasta)} AND s.ejercicio_id = ${id}::bigint
-    ORDER BY e.fecha DESC, e.creado_en DESC, e.id DESC, s.numero_serie, s.id LIMIT 5001
+    ORDER BY e.fecha DESC, e.creado_en DESC, e.id DESC, s.creado_en DESC, s.numero_serie DESC, s.id DESC LIMIT 5001
   `;
 }
