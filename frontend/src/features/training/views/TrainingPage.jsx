@@ -6,23 +6,20 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
 import { routinesApi } from "@/src/features/routines/api/routinesApi";
+import { historyApi } from "../api/historyApi";
+import { useHistoryRequest } from "../hooks/useHistoryRequest";
 import { trainingApi } from "../api/trainingApi";
 import ActiveTraining from "../components/ActiveTraining";
 import { useActiveTraining } from "../hooks/useActiveTraining";
-import { duration, formatTime, historyReference, measureLabel, repeatContent, sessionStats } from "../hooks/trainingSessionModel";
+import { duration, formatTime, measureLabel, repeatContent, sessionStats } from "../hooks/trainingSessionModel";
 import "./training.css";
 
-function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyUrl }) {
+function TrainingSummary({ session, catalog, onRepeat, onBack, historyUrl }) {
   const { sesion: content } = session;
   const stats = sessionStats(content);
   const names = new Map(catalog.flatMap((group) => group.ejercicios.map((item) => [item.id, item.nombre])));
-  const previous = history.filter((item) => item.id !== session.id);
-  const personalRecords = content.ejercicios.flatMap((item) => {
-    if (!["fuerza", "carga_adicional"].includes(item.tipo)) return [];
-    const { best } = historyReference(previous, item.ejercicio_id, item.tipo);
-    const achieved = Math.max(...item.series.map((set) => set.peso_kg ?? 0));
-    return best !== null && achieved > best ? [{ id: item.ejercicio_id, achieved }] : [];
-  });
+  const historical = useHistoryRequest(session.id, (signal) => historyApi.detail(session.id, signal));
+  const records = historical.data?.mejoras ?? [];
 
   return <section className="training-card">
     <p className="training-eyebrow" role="status">Entrenamiento guardado</p>
@@ -35,8 +32,8 @@ function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyU
       {stats.volume > 0 && <div><strong>{stats.volume.toLocaleString("es-CO")}</strong><small>Volumen (kg × reps)</small></div>}
     </div>
     {content.notas && <p>{content.notas}</p>}
-    {!!personalRecords.length && <div><h2>Récords personales</h2><ul>
-      {personalRecords.map((item, index) => <li key={index}>{names.get(item.id) || `Ejercicio ${item.id}`}: {item.achieved} kg</li>)}
+    {!!records.length && <div><h2>Récords personales</h2><ul>
+      {records.map((item) => <li key={`${item.ejercicio_id}:${item.tipo}`}>{names.get(item.ejercicio_id) || `Ejercicio ${item.ejercicio_id}`}: {item.peso} kg</li>)}
     </ul></div>}
     <h2>Detalles de la sesión</h2>
     {content.ejercicios.map((item, index) => <div key={index} className="training-summary-exercise">
@@ -66,7 +63,7 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
   const startRequest = useRef(null);
   const startingRef = useRef(false);
   const autoStart = useRef(null);
-  const [continueDraft, setContinueDraft] = useState(false);
+  const [continueDraft, setContinueDraft] = useState(() => params.get("continuar") === "1");
   const [routineId, setRoutineId] = useState(params.get("rutina") || "");
   const repeatId = params.get("repetir");
   const query = `gym=${encodeURIComponent(gym)}`;
@@ -168,13 +165,13 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
     <div className="training-shell">
       {!showingWorkout && <nav className="training-top" aria-label="Entrenamientos">
         <Link href={`/dashboard/entrenamientos?${query}`} onClick={() => setContinueDraft(false)}>Entrenamientos</Link>
-        <Link href={historyUrl}>Historial y progreso</Link>
+        <Link href={historyUrl}>Historial de entrenamientos</Link>
       </nav>}
       {active.draft && !showingWorkout && <p className="training-sync" role="status">{active.status}</p>}
       {active.storageError && <p className="training-error" role="alert">El navegador impide guardar una copia local. Mantén esta pantalla abierta hasta sincronizar.</p>}
       {syncError}
       {!active.ready && !active.error && <p role="status">Buscando entrenamientos pendientes…</p>}
-      {active.summary && <TrainingSummary session={active.summary} catalog={catalog} history={history || []}
+      {active.summary && <TrainingSummary session={active.summary} catalog={catalog}
         onRepeat={start} onBack={() => { active.dismissSummary(); setContinueDraft(false); }} historyUrl={historyUrl} />}
       {active.ready && !active.summary && (active.draft && continueDraft ? (
         <ActiveTraining key={active.draft.id} draft={active.draft} edit={active.edit} close={active.close}

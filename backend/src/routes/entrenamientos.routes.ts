@@ -1,3 +1,4 @@
+import { compararHistorial, listarHistorial, repetirHistorial, verActividad, verDetalle } from "../controller/historial.controller.js";
 import { Router } from "express";
 
 import {
@@ -24,6 +25,11 @@ router.post("/activa/:id/cancelar", cerrarSesion("cancelado"));
 router.get("/", listEntrenamientos);
 router.post("/", validateCreateEntrenamiento, createEntrenamiento);
 router.get("/ejercicio/:ejercicioId/progreso", getProgreso);
+router.get("/historial", listarHistorial);
+router.get("/actividad", verActividad);
+router.get("/comparar", compararHistorial);
+router.get("/:id", verDetalle);
+router.post("/:id/repetir", repetirHistorial);
 router.patch("/:id", corregirEntrenamiento);
 router.delete("/:id", deleteEntrenamiento);
 

@@ -69,6 +69,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null, c
                 {stats.minutes != null && <span title="Estimación basada en repeticiones o duración, descansos y transiciones"> · {stats.minutes} min aprox.</span>}
               </p>
             </div>
+            {entrenamiento && <button type="button" onClick={form.quitarCargasImportadas}>Descartar pesos importados</button>}
             <ol className="routine-stack">{seleccionados.map((item, index) => <RoutineExerciseEditor
               key={item.key} item={item} index={index} count={seleccionados.length}
               configure={form.configurarEjercicio} move={form.moverEjercicio} remove={(key) => {

@@ -149,7 +149,7 @@ export function createEntrenamientosRepository(db: typeof prisma = prisma) {
 
     async corregir(id: string, usuarioId: string, nombre: string, notas: string): Promise<void> {
       const resultado = await db.$executeRaw(Prisma.sql`
-        UPDATE "entrenamientos" SET "nombre" = ${nombre}, "notas" = ${notas},
+        UPDATE "entrenamientos" SET "actualizado_en" = now(), "revision" = "revision" + 1, "nombre" = ${nombre}, "notas" = ${notas},
           "sesion" = CASE WHEN "sesion" IS NULL THEN NULL ELSE
             "sesion" || jsonb_build_object('nombre', ${nombre}::text, 'notas', ${notas}::text)
           END

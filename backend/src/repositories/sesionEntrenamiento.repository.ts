@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import { AppError } from "../errors/AppError.js";
 import { Prisma } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
+import { catalogoHistorico, filasSesion } from "./trainingHistoryData.js";
 import { generateId } from "../lib/uuid.js";
 import { contenidoSesion, leerSesion, type ContenidoSesion } from "../validator/sesionEntrenamiento.validator.js";
 
@@ -25,16 +26,16 @@ export function createSesionEntrenamientoRepository(db = prisma) {
       return db.entrenamiento.findFirst({ where: { usuarioId, estado: "en_curso" }, select });
     },
 
-    async iniciar(usuarioId: string, id: string, entrada: ContenidoSesion | (() => Promise<ContenidoSesion>)) {
+    async iniciar(usuarioId: string, id: string, entrada: ContenidoSesion | (() => Promise<{ contenido: ContenidoSesion; origen: { id: string; nombre: string } }>)) {
       const existente = await obtener(usuarioId, id);
       if (existente) return existente;
-      const contenido = typeof entrada === "function" ? await entrada() : entrada;
+      const { contenido, origen } = typeof entrada === "function" ? await entrada() : { contenido: entrada, origen: undefined };
       await validarCatalogo(contenido);
       const ahora = new Date();
       const fecha = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(ahora);
       try {
         return await db.entrenamiento.create({
-          data: { id, usuarioId, estado: "en_curso", iniciadoEn: ahora, fecha: new Date(fecha), sesion: contenido },
+          data: { id, usuarioId, estado: "en_curso", iniciadoEn: ahora, fecha: new Date(fecha), sesion: contenido, rutinaOrigen: origen },
           select,
         });
       } catch (error) {
@@ -85,7 +86,7 @@ export function createSesionEntrenamientoRepository(db = prisma) {
         } : null;
         const cierre = await tx.entrenamiento.updateMany({
           where: { id, usuarioId, estado: "en_curso", revision },
-          data: { estado, finalizadoEn, nombre: sesion?.nombre, notas: sesion?.notas, sesion: sesion ?? Prisma.DbNull },
+          data: { estado, finalizadoEn, catalogoHistorico: sesion ? await catalogoHistorico(tx, sesion) : Prisma.DbNull, nombre: sesion?.nombre, notas: sesion?.notas, sesion: sesion ?? Prisma.DbNull },
         });
         if (!cierre.count) {
           const concurrente = await tx.entrenamiento.findFirst({ where: { id, usuarioId }, select });
@@ -94,11 +95,7 @@ export function createSesionEntrenamientoRepository(db = prisma) {
         }
         if (sesion) {
           await tx.serieEntrenamiento.createMany({
-            data: realizados.flatMap((item) => item.series.map((s, index) => ({
-              id: generateId(), usuarioId, entrenamientoId: id, ejercicioId: BigInt(item.ejercicio_id),
-              tipo: item.tipo, numeroSerie: index + 1, pesoKg: s.peso_kg, repeticiones: s.repeticiones,
-              duracionSeg: s.duracion_seg, distanciaKm: s.distancia_km, asistenciaKg: s.asistencia_kg,
-            }))),
+            data: filasSesion(usuarioId, id, realizados),
           });
         }
         return { ...actual, finalizadoEn, estado, sesion };

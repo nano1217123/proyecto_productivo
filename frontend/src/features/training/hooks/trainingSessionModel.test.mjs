@@ -15,7 +15,7 @@ test("la validación cambia con el tipo y no mezcla tiempo y repeticiones de mov
   assert.equal(changeMeasure(updated, "movilidad", "repeticiones", "-1"), updated);
 });
 
-test("el volumen cuenta solo series completadas de fuerza y repetir conserva la plantilla", () => {
+test("el volumen cuenta solo series completadas con carga y repetir conserva la plantilla", () => {
   const ejercicios = [
     { tipo: "fuerza", descanso: 90, notas: "original", series: [
       { peso_kg: 12.5, repeticiones: 8, completada: true },
@@ -25,7 +25,7 @@ test("el volumen cuenta solo series completadas de fuerza y repetir conserva la 
     { tipo: "asistido", series: [{ asistencia_kg: 30, repeticiones: 8, completada: true }] },
   ];
   const session = { sesion: { nombre: "Sesión", notas: "original", ejercicios } };
-  assert.deepEqual(sessionStats(session.sesion), { exercises: 3, total: 4, done: 3, volume: 100 });
+  assert.deepEqual(sessionStats(session.sesion), { exercises: 3, total: 4, done: 3, volume: 340 });
   const copy = repeatContent(session);
   assert.equal(copy.ejercicios[0].descanso, 90);
   assert.equal(copy.ejercicios[0].series[0].peso_kg, 12.5);

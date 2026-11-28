@@ -9,6 +9,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import parse_qs, urlsplit
 
 root = Path(__file__).resolve().parents[1]
 firefox = os.environ.get("FIREFOX_BIN") or shutil.which("firefox")
@@ -19,6 +20,7 @@ driver = "http://127.0.0.1:19446"
 active = None
 history = []
 network_error = False
+history_error = False
 exercise = {"id": 1, "nombre": "Press con mancuernas", "grupo_slug": "pecho", "grupo_nombre": "Pecho", "equipo": "Mancuernas", "descripcion": "Baja con control.", "imagen_url": "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"}
 cardio = {"id": 2, "nombre": "Caminadora", "grupo_slug": "cardio", "grupo_nombre": "Cardio", "equipo": "Caminadora"}
 routine = {"id": "training-browser", "nombre": "Rutina móvil", "dias": [], "archivada": False,
@@ -45,6 +47,25 @@ class API(BaseHTTPRequestHandler):
             "/api/ejercicios": {"grupos": [{"slug": "pecho", "nombre": "Pecho", "ejercicios": [exercise]},
                 {"slug": "cardio", "nombre": "Cardio", "ejercicios": [cardio]}]},
         }
+        if path == "/api/entrenamientos/historial":
+            if history_error:
+                return self.respond({"message": "No se pudo cargar el historial"}, 503)
+            params = parse_qs(urlsplit(self.path).query)
+            search = params.get("buscar", [""])[0].lower()
+            date = params.get("desde", [""])[0]
+            rows = [{**entry, "series": len(entry["series"]), "ejercicios": len(entry["sesion"]["ejercicios"]),
+                     "grupos": ["Pecho"], "duracion": 600, "volumen": 340, "records": 0}
+                    for entry in history if search in entry["nombre"].lower() and (not date or entry["fecha"] == date)]
+            return self.respond({"entrenamientos": rows, "siguiente": False})
+        if path == "/api/entrenamientos/actividad":
+            count = len(history)
+            return self.respond({"resumen": {"total": count, "semana": count, "mes": count, "tiempo": count * 600, "promedio": 600, "dias": int(count > 0)},
+                "grupos": [{"grupo": "Pecho", "series": count}] if count else [],
+                "dias": [{"fecha": "2026-11-27", "sesiones": count}] if count else []})
+        if path.startswith("/api/entrenamientos/") and path not in values:
+            entry = next((item for item in history if item["id"] == path.split("/")[-1]), None)
+            detail = {**entry, "catalogo": {"1": {"nombre": exercise["nombre"], "grupo": "Pecho", "equipo": exercise["equipo"]}}, "mejoras": []} if entry else {"message": "Entrenamiento no encontrado"}
+            return self.respond(detail, 200 if entry else 404)
         if path == "/api/rutinas":
             archived = "estado=archivadas" in self.path
             self.respond({"rutinas": [item for item in routines.values() if item["archivada"] == archived]})
@@ -59,10 +80,19 @@ class API(BaseHTTPRequestHandler):
                 "ejercicios": [{**catalog[exercise_id], "ejercicio_id": exercise_id, "orden": i + 1, "plan": data["planes"][i]}
                                for i, exercise_id in enumerate(data["ejercicioIds"])]}
     def do_PATCH(self):
+        if self.path.startswith("/api/entrenamientos/"):
+            item = next(item for item in history if item["id"] == self.path.split("/")[-1])
+            data = self.json()
+            item.update({"sesion": data["contenido"], "fecha": data["fecha"], "nombre": data["contenido"]["nombre"],
+                         "revision": item["revision"] + 1})
+            return self.respond({})
         id = self.path.split("/")[-2]
         routines[id]["archivada"] = self.json()["archivada"]
         self.respond({"archivada": routines[id]["archivada"]})
     def do_DELETE(self):
+        if self.path.startswith("/api/entrenamientos/"):
+            history[:] = [item for item in history if item["id"] != self.path.split("/")[-1]]
+            return self.respond({})
         del routines[self.path.split("/")[-1]]
         self.respond({})
     def do_POST(self):
@@ -75,6 +105,15 @@ class API(BaseHTTPRequestHandler):
             id = data["solicitudId"]
             routines[id] = self.routine_data(data, id)
             self.respond({"id": id}, 201)
+        elif self.path.endswith("/repetir"):
+            source = self.path.split("/")[-2]
+            entry = next(item for item in history if item["id"] == source)
+            content = json.loads(json.dumps(entry["sesion"]))
+            for item in content["ejercicios"]:
+                for series in item["series"]:
+                    series["completada"] = False
+            active = {**entry, "id": data["id"], "estado": "en_curso", "finalizadoEn": None, "revision": 0, "sesion": content}
+            self.respond({"sesion": active})
         elif self.path.endswith("/iniciar"):
             active = {"id": data["id"], "estado": "en_curso", "revision": 0,
                       "iniciadoEn": "2026-11-27T00:00:00Z", "finalizadoEn": None,
@@ -190,6 +229,9 @@ with ExitStack() as resources:
     wd("/cookie", "POST", {"cookie": {"name": "access_token", "value": "browser-fixture", "path": "/"}})
     wd("/window/rect", "POST", {"width": 1280, "height": 900})
     url = base + "/dashboard/entrenamientos?gym=jj-poblado"
+    history_url = base + "/dashboard/entrenamientos/historial?gym=jj-poblado"
+    wd("/url", "POST", {"url": history_url})
+    has("Tu historial empieza con una sesión")
     frame = js("""
         const frame = document.createElement('iframe');
         frame.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;width:380px;height:760px;border:0';
@@ -360,9 +402,36 @@ with ExitStack() as resources:
     has("Fuerza y bicicleta")
     wd("/url", "POST", {"url": base + "/dashboard/entrenamientos/historial?gym=jj-poblado"})
     has("Historial de entrenamientos")
-    click("Repetir")
-    click("Repetir Rutina móvil")
-    has("Entrenamiento en curso")
+    has("Rutina móvil")
+    click("Calendario")
+    action("Mes siguiente")
+    action("Mes anterior")
+    click("Listado")
+    set_control("Buscar entrenamientos", "sesión inexistente")
+    has("No hay sesiones para esta consulta")
+    click("Limpiar filtros")
+    click("Ver detalles →")
+    has("Grupos musculares trabajados")
+    click("Editar registro")
+    set_control("Nombre", "Rutina corregida")
+    click("Cerrar")
+    wd("/alert/dismiss", "POST", {})
+    has("Guardar corrección")
+    click("Guardar corrección")
+    has("Rutina corregida")
+    click("Cerrar")
+    action("Acciones para Rutina corregida")
+    click("Eliminar registro")
+    has("¿Eliminar este entrenamiento?")
+    click("Cancelar")
+    history_error = True
+    wd("/refresh", "POST", {})
+    has("No se pudo cargar el historial")
+    history_error = False
+    click("Reintentar")
+    has("Rutina corregida")
+    click("↻ Repetir")
+    has("Ejercicios de hoy")
     assert js("return document.querySelector('[aria-label^=\"Peso (kg)\"]').value") == "42.5"
     assert js("return !document.querySelector('button[aria-pressed=true]')")
     fit()
@@ -376,4 +445,10 @@ with ExitStack() as resources:
     click("Añadir (1)")
     has("Tiempo (s)")
     assert js("return !!document.querySelector('[aria-label^=\"Km, serie\"]')")
-    print("Firefox 380px y escritorio: CRUD, filtros, orden, tipos, copia, archivo, semana, fallo HTTP e integración de entrenamiento verificados.")
+    wd("/url", "POST", {"url": history_url})
+    action("Acciones para Rutina corregida")
+    click("Eliminar registro")
+    click("Eliminar entrenamiento")
+    has("Tu historial empieza con una sesión")
+    assert not history
+    print("Firefox 380 px y escritorio: historial vacío, filtros, calendario, detalle, corrección, eliminación, error HTTP, repetición y flujos de rutinas verificados.")

@@ -86,6 +86,9 @@ model Entrenamiento {
   finalizadoEn        DateTime?            @map("finalizado_en") @db.Timestamptz(6)
   revision            Int                  @default(0)
   sesion              Json?
+  rutinaOrigen        Json?                @map("rutina_origen")
+  catalogoHistorico   Json?                @map("catalogo_historico")
+  actualizadoEn      DateTime?             @map("actualizado_en") @db.Timestamptz(6)
 
   usuario             Usuario              @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
   seriesEntrenamiento SerieEntrenamiento[]
