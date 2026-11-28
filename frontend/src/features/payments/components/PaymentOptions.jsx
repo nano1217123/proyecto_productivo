@@ -6,6 +6,10 @@ import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { HttpError } from "@/src/lib/api/httpClient";
 import { paymentsApi } from "../api/paymentsApi";
 import {
+  accionSuscripcion,
+  estadoSuscripcion,
+  explicacionVigencia,
+  formatearFechaColombia,
   esUrlCheckoutWompi,
   formatearCop,
   formatearTasa,
@@ -21,6 +25,27 @@ import { cardClass, focusRing, primaryButton, secondaryButton } from "../lib/est
 
 const claveOpcion = (opcion) => opcion.gym_slug ?? "personal";
 const FOCO_CONFIRMACION = Symbol("confirmacion");
+
+const TONOS_SUSCRIPCION = {
+  exito: "border-[rgba(91,212,143,.45)] bg-[rgba(38,112,69,.18)] text-[#75dfa2]",
+  error: "border-[rgba(255,121,121,.42)] bg-[rgba(120,42,42,.18)] text-[#ff9898]",
+  neutro: "border-[#41433f] bg-[#171817] text-[#c8cbc5]",
+};
+
+// Estado de la suscripción de una sede: etiqueta y vencimiento.
+function EstadoSede({ suscripcion }) {
+  const estado = estadoSuscripcion(suscripcion);
+  const vence = formatearFechaColombia(suscripcion?.vigente_hasta);
+  return (
+    <p className="m-0 mt-2 flex flex-wrap items-center gap-2 text-xs text-[#a9afa7]">
+      <span className={`px-2 py-0.5 rounded border font-extrabold tracking-wide ${TONOS_SUSCRIPCION[estado.tono]}`}>
+        {estado.etiqueta}
+      </span>
+      {vence && <span>{suscripcion.estado === "activa" ? `Vence el ${vence}` : `Venció el ${vence}`}</span>}
+      {!vence && <span>Aún no hay pagos aprobados para esta sede.</span>}
+    </p>
+  );
+}
 
 // Opciones de pago del usuario autenticado y confirmación previa al checkout.
 // La usan la página /dashboard/pagos y la pestaña «Suscripción» del admin.
@@ -231,7 +256,20 @@ export default function PaymentOptions({ embedded = false }) {
             <dd className="m-0 text-[#c8cbc5]">
               1 USD = {formatearTasa(seleccion.tasa_usd_cop)} COP
             </dd>
+            {seleccion.suscripcion && (
+              <>
+                <dt className="text-[#a9afa7]">Estado actual</dt>
+                <dd className="m-0 text-[#c8cbc5]">{estadoSuscripcion(seleccion.suscripcion).etiqueta}</dd>
+              </>
+            )}
           </dl>
+
+          {seleccion.suscripcion && (
+            <p className="m-0 mt-4 text-sm text-[#c8cbc5] leading-[1.55]">
+              {explicacionVigencia(seleccion.suscripcion)} La sede solo se
+              activa o renueva cuando Wompi confirma el pago.
+            </p>
+          )}
 
           <div className="mt-5 text-xs text-[#a9afa7] leading-[1.55] [&_p]:m-0 flex flex-col gap-2">
             <p>
@@ -319,6 +357,7 @@ export default function PaymentOptions({ embedded = false }) {
                     ? `${formatearUsd(opcion.precio_usd_centavos)} · tasa de prueba 1 USD = ${formatearTasa(opcion.tasa_usd_cop)} COP`
                     : opcion.motivo_no_disponible || "Pago no disponible en este momento."}
                 </p>
+                {opcion.suscripcion && <EstadoSede suscripcion={opcion.suscripcion} />}
               </div>
               <button
                 type="button"
@@ -329,9 +368,11 @@ export default function PaymentOptions({ embedded = false }) {
                 className={primaryButton}
                 disabled={!opcion.disponible || cargandoOpciones}
                 onClick={() => elegir(opcion)}
-                aria-label={`Continuar con ${nombrePlan(opcion.plan)}${opcion.gym_slug ? ` de ${nombreSede(opcion.gym_slug)}` : ""}`}
+                aria-label={opcion.suscripcion
+                  ? `${accionSuscripcion(opcion.suscripcion)} la suscripción de ${nombreSede(opcion.gym_slug)}`
+                  : `Continuar con ${nombrePlan(opcion.plan)}${opcion.gym_slug ? ` de ${nombreSede(opcion.gym_slug)}` : ""}`}
               >
-                Continuar al pago
+                {opcion.suscripcion ? accionSuscripcion(opcion.suscripcion) : "Continuar al pago"}
               </button>
             </article>
           );

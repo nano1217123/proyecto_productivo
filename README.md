@@ -146,8 +146,10 @@ URL completa.
 ## Estado de algunos módulos
 
 - **Pagos (Wompi, solo Sandbox):** una transacción aprobada confirma el pago
-  en el backend. La activación y la vigencia de las suscripciones siguen
-  pendientes (ver `BACKEND.md`, sección 14).
+  en el backend. La suscripción SaaS por sede se activa y renueva por meses
+  calendario cuando Wompi confirma el pago (ver
+  `backend/docs/suscripcion-sede.md`). La vigencia de la suscripción del
+  usuario particular sigue pendiente (ver `BACKEND.md`, sección 14).
 - **Métricas diarias del usuario particular:** la bandera
   `PARTICULAR_METRICAS_DIARIAS` está desactivada por defecto (solo se activa
   con el valor `true`). Su expansión de esquema está documentada en

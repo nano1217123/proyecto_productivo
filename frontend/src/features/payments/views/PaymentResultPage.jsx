@@ -8,11 +8,31 @@ import { paymentsApi } from "../api/paymentsApi";
 import {
   ESTADOS_PAGO,
   esReferenciaValida,
+  estadoSuscripcion,
   formatearCop,
+  formatearFechaColombia,
   leerUltimaReferencia,
   nombrePlan,
   nombreSede,
 } from "../lib/payments";
+
+// Texto sobre la vigencia de la sede, solo con datos que confirmó el backend.
+function textoVigenciaSede(pago) {
+  const sede = nombreSede(pago.gym_slug);
+  const periodo = pago.suscripcion?.periodo_pago;
+  if (pago.estado === "APROBADO" && periodo) {
+    const accion = periodo.tipo === "renovacion" ? "se renovó" : "quedó activa";
+    // Sin punto final: la fecha puede terminar en «p. m.».
+    return `La suscripción de ${sede} ${accion} y está vigente hasta el ${formatearFechaColombia(pago.suscripcion.vigente_hasta)}`;
+  }
+  if (pago.estado === "PENDIENTE") {
+    return `La vigencia de ${sede} no cambia hasta que Wompi confirme el pago.`;
+  }
+  if (["RECHAZADO", "ERROR"].includes(pago.estado)) {
+    return `La vigencia de ${sede} no cambió.`;
+  }
+  return null;
+}
 
 // Página de retorno desde Wompi. Identifica el intento con:
 //   1. ?referencia=<ref> (el backend la añade a redirect-url),
@@ -297,13 +317,31 @@ function PaymentResult() {
                 ? "Wompi todavía no confirma el resultado. Puede tardar unos minutos más; la confirmación llegará al servidor aunque cierres esta página."
                 : info.descripcion}
             </p>
+            {pago.suscripcion && textoVigenciaSede(pago) && (
+              <p className="mt-2 text-[#f2f4ef] leading-[1.55]" aria-live="polite">{textoVigenciaSede(pago)}</p>
+            )}
 
             <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
               <dt className="text-[#a9afa7]">Plan</dt>
-              <dd className="m-0">
-                {nombrePlan(pago.plan)}
-                {pago.gym_slug && ` · ${nombreSede(pago.gym_slug)}`}
-              </dd>
+              <dd className="m-0">{nombrePlan(pago.plan)}</dd>
+              {pago.gym_slug && (
+                <>
+                  <dt className="text-[#a9afa7]">Sede pagada</dt>
+                  <dd className="m-0 font-extrabold">{nombreSede(pago.gym_slug)}</dd>
+                </>
+              )}
+              {pago.suscripcion && (
+                <>
+                  <dt className="text-[#a9afa7]">Estado de la sede</dt>
+                  <dd className="m-0">{estadoSuscripcion(pago.suscripcion).etiqueta}</dd>
+                  {pago.suscripcion.vigente_hasta && (
+                    <>
+                      <dt className="text-[#a9afa7]">Vigente hasta</dt>
+                      <dd className="m-0">{formatearFechaColombia(pago.suscripcion.vigente_hasta)}</dd>
+                    </>
+                  )}
+                </>
+              )}
               <dt className="text-[#a9afa7]">Valor</dt>
               <dd className="m-0 font-extrabold">
                 {formatearCop(pago.monto_en_centavos)} {pago.moneda}
@@ -354,6 +392,11 @@ function PaymentResult() {
             (pago && ["RECHAZADO", "ANULADO", "ERROR"].includes(pago.estado))) && (
             <Link href="/dashboard/pagos" className="text-sm font-extrabold text-[#d7adff] no-underline hover:text-[#f2f4ef] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
               {pago?.estado === "APROBADO" ? "Volver a la suscripción" : "Revisar opciones de pago"}
+            </Link>
+          )}
+          {pago?.gym_slug && (
+            <Link href="/dashboard?seccion=suscripcion" className="text-sm font-extrabold text-[#d7adff] no-underline hover:text-[#f2f4ef] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]">
+              Ver suscripciones de mis sedes
             </Link>
           )}
         </div>

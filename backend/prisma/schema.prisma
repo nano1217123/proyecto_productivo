@@ -424,15 +424,82 @@ model PagoIntento {
   // aplicado (descarta eventos antiguos).
   wompiTransaccionId String?   @unique @map("wompi_transaccion_id") @db.VarChar(64)
   wompiEventoEn      DateTime? @map("wompi_evento_en") @db.Timestamptz(6)
+  // Ambiente de Wompi en el que se creó: "test" (Sandbox) o "prod".
+  ambiente        String   @default("test") @db.VarChar(10)
   creadoEn        DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
   actualizadoEn   DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(6)
 
   // Restrict: un registro de pago no debe desaparecer al borrar un usuario.
   usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Restrict)
+  // Como mucho uno: pago_id es único en suscripciones_sede_periodos.
+  periodosSede       SuscripcionSedePeriodo[]
+  suscripcionesUltimoPago SuscripcionSede[]
+  transaccionesRevision   PagoTransaccionRevision[]
 
+  @@unique([id, gymSlug, plan], map: "pagos_intentos_id_gym_slug_plan_key")
   @@index([usuarioId])
   @@index([gymSlug])
   @@map("pagos_intentos")
+}
+
+// Suscripción SaaS de una sede (lo que el admin paga a JJ GYM por el
+// software). Sin períodos concedidos, vigenteHasta, diaCorte y ultimoPagoId
+// son null. La fila se bloquea (FOR UPDATE) al conceder cada período.
+model SuscripcionSede {
+  gymSlug       String    @id @map("gym_slug") @db.VarChar(64)
+  vigenteHasta  DateTime? @map("vigente_hasta") @db.Timestamptz(6)
+  // Día del mes (hora de Colombia) en el que vence; se mantiene al renovar.
+  diaCorte      Int?      @map("dia_corte") @db.SmallInt
+  ultimoPagoId  String?   @map("ultimo_pago_id") @db.Uuid
+  creadoEn      DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn DateTime  @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+
+  ultimoPago PagoIntento?            @relation(fields: [ultimoPagoId], references: [id], onDelete: Restrict, map: "suscripciones_sede_ultimo_pago_id_fkey")
+  periodos   SuscripcionSedePeriodo[]
+
+  @@map("suscripciones_sede")
+}
+
+// Período mensual concedido por un pago aprobado. pagoId es único: un pago
+// concede vigencia una sola vez. La clave compuesta obliga a que el período
+// use la sede y el plan del intento.
+model SuscripcionSedePeriodo {
+  id                 String   @id @db.Uuid
+  gymSlug            String   @map("gym_slug") @db.VarChar(64)
+  plan               String   @default("suscripcion_sede") @db.VarChar(40)
+  pagoId             String   @unique(map: "suscripciones_sede_periodos_pago_id_key") @map("pago_id") @db.Uuid
+  wompiTransaccionId String   @map("wompi_transaccion_id") @db.VarChar(64)
+  // activacion | renovacion | reactivacion
+  tipo               String   @db.VarChar(20)
+  aprobadoEn         DateTime @map("aprobado_en") @db.Timestamptz(6)
+  desde              DateTime @db.Timestamptz(6)
+  hasta              DateTime @db.Timestamptz(6)
+  creadoEn           DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  pago        PagoIntento     @relation(fields: [pagoId, gymSlug, plan], references: [id, gymSlug, plan], onDelete: Restrict, map: "suscripciones_sede_periodos_pago_fkey")
+  suscripcion SuscripcionSede @relation(fields: [gymSlug], references: [gymSlug], onDelete: Restrict, map: "suscripciones_sede_periodos_gym_slug_fkey")
+
+  @@unique([gymSlug, desde], map: "suscripciones_sede_periodos_gym_slug_desde_key")
+  @@index([gymSlug, hasta], map: "suscripciones_sede_periodos_gym_slug_hasta_idx")
+  @@map("suscripciones_sede_periodos")
+}
+
+// Transacción aprobada de Wompi que no concedió vigencia y requiere
+// revisión (p. ej. una segunda aprobación para la misma referencia).
+model PagoTransaccionRevision {
+  id                    String   @id @db.Uuid
+  pagoId                String   @map("pago_id") @db.Uuid
+  wompiTransaccionId    String   @map("wompi_transaccion_id") @db.VarChar(64)
+  transaccionAplicadaId String?  @map("transaccion_aplicada_id") @db.VarChar(64)
+  // segunda_aprobacion
+  motivo                String   @db.VarChar(40)
+  origen                String   @db.VarChar(40)
+  detectadoEn           DateTime @default(now()) @map("detectado_en") @db.Timestamptz(6)
+
+  pago PagoIntento @relation(fields: [pagoId], references: [id], onDelete: Restrict, map: "pagos_transacciones_revision_pago_id_fkey")
+
+  @@unique([pagoId, wompiTransaccionId], map: "pagos_transacciones_revision_pago_id_wompi_transaccion_id_key")
+  @@map("pagos_transacciones_revision")
 }
 
 // Sede a la que pertenece un cliente. Es la fuente del servidor para la
