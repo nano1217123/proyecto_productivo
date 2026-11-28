@@ -1,3 +1,7 @@
+import { sesionesEntrenamiento } from "../repositories/sesionEntrenamiento.repository.js";
+import { rutinaSesion } from "../service/rutinaSesion.js";
+import { z } from "zod";
+import { idSesion, leerSesion } from "../validator/sesionEntrenamiento.validator.js";
 import type { RequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
@@ -12,7 +16,7 @@ export const listRutinas: RequestHandler = asyncHandler(async (req, res) => {
   if (!req.userId) {
     throw new AppError(401, "No autorizado.");
   }
-  const rutinas = await rutinasService.list(req.userId);
+  const rutinas = await rutinasService.list(req.userId, req.query.estado === "archivadas");
   return res.status(200).json({ rutinas });
 });
 
@@ -21,7 +25,7 @@ export const getRutina: RequestHandler = asyncHandler(async (req, res) => {
   if (!req.userId) {
     throw new AppError(401, "No autorizado.");
   }
-  const rutina = await rutinasService.getById(req.params.id, req.userId);
+  const rutina = await rutinasService.getById(leerSesion(idSesion, req.params.id), req.userId);
   return res.status(200).json({ rutina });
 });
 
@@ -45,7 +49,7 @@ export const updateRutina: RequestHandler = asyncHandler(async (req, res) => {
   const input = req.body as Omit<UpdateRutinaInput, "rutinaId">;
   await rutinasService.update(req.userId, {
     ...input,
-    rutinaId: req.params.id,
+    rutinaId: leerSesion(idSesion, req.params.id),
   });
   return res.status(200).json({ message: "Rutina actualizada." });
 });
@@ -55,6 +59,21 @@ export const deleteRutina: RequestHandler = asyncHandler(async (req, res) => {
   if (!req.userId) {
     throw new AppError(401, "No autorizado.");
   }
-  await rutinasService.delete(req.params.id, req.userId);
+  await rutinasService.delete(leerSesion(idSesion, req.params.id), req.userId);
   return res.status(200).json({ message: "Rutina eliminada." });
+});
+export const changeArchive: RequestHandler = asyncHandler(async (req, res) => {
+  const id = leerSesion(idSesion, req.params.id);
+  const { archivada } = leerSesion(z.object({ archivada: z.boolean() }).strict(), req.body);
+  await rutinasService.setArchived(id, req.userId!, archivada);
+  res.json({ archivada });
+});
+
+export const startRoutine: RequestHandler = asyncHandler(async (req, res) => {
+  const rutinaId = leerSesion(idSesion, req.params.id);
+  const { id } = leerSesion(z.object({ id: idSesion }).strict(), req.body);
+  const usuarioId = req.userId!;
+  const sesion = await sesionesEntrenamiento.iniciar(usuarioId, id, async () =>
+    rutinaSesion(await rutinasService.getById(rutinaId, usuarioId)));
+  res.json({ sesion });
 });

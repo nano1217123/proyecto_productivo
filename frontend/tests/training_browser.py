@@ -21,7 +21,11 @@ history = []
 network_error = False
 exercise = {"id": 1, "nombre": "Press con mancuernas", "grupo_slug": "pecho", "grupo_nombre": "Pecho", "equipo": "Mancuernas", "descripcion": "Baja con control."}
 cardio = {"id": 2, "nombre": "Caminadora", "grupo_slug": "cardio", "grupo_nombre": "Cardio", "equipo": "Caminadora"}
-routine = {"id": "training-browser", "nombre": "Rutina móvil", "ejercicios": [{"ejercicio_id": 1, "plan": {"tipo": "fuerza", "series": 2, "repeticiones": 8, "descanso": 2}}]}
+routine = {"id": "training-browser", "nombre": "Rutina móvil", "dias": [], "archivada": False,
+           "actualizadoEn": "2026-11-27T00:00:00Z", "ejercicios": [{"ejercicio_id": 1, "orden": 1,
+           **exercise, "plan": {"tipo": "fuerza", "series": 2, "repeticiones": 8, "descanso": 2}}]}
+routines = {routine["id"]: routine}
+routine_error = False
 
 class API(BaseHTTPRequestHandler):
     def respond(self, value, status=200):
@@ -38,15 +42,47 @@ class API(BaseHTTPRequestHandler):
         values = {
             "/api/perfil": {"profile": {"idusuario": "training-browser-user", "nombres": "Prueba", "tipo_usuario": "cliente", "sede": "jj-poblado"}},
             "/api/entrenamientos/activa": {"sesion": active}, "/api/entrenamientos": {"entrenamientos": history},
-            "/api/rutinas": {"rutinas": [routine]}, "/api/rutinas/training-browser": {"rutina": routine},
             "/api/ejercicios": {"grupos": [{"slug": "pecho", "nombre": "Pecho", "ejercicios": [exercise]},
                 {"slug": "cardio", "nombre": "Cardio", "ejercicios": [cardio]}]},
         }
-        self.respond(values.get(path, {"sedes": []}))
+        if path == "/api/rutinas":
+            archived = "estado=archivadas" in self.path
+            self.respond({"rutinas": [item for item in routines.values() if item["archivada"] == archived]})
+        elif path.startswith("/api/rutinas/"):
+            item = routines.get(path.split("/")[-1])
+            self.respond({"rutina": item} if item else {"message": "Rutina no encontrada"}, 200 if item else 404)
+        else:
+            self.respond(values.get(path, {"sedes": []}))
+    def routine_data(self, data, id, archived=False):
+        catalog = {1: exercise, 2: cardio}
+        return {**data, "id": id, "archivada": archived, "actualizadoEn": "2026-11-27T00:00:00Z",
+                "ejercicios": [{**catalog[exercise_id], "ejercicio_id": exercise_id, "orden": i + 1, "plan": data["planes"][i]}
+                               for i, exercise_id in enumerate(data["ejercicioIds"])]}
+    def do_PATCH(self):
+        id = self.path.split("/")[-2]
+        routines[id]["archivada"] = self.json()["archivada"]
+        self.respond({"archivada": routines[id]["archivada"]})
+    def do_DELETE(self):
+        del routines[self.path.split("/")[-1]]
+        self.respond({})
     def do_POST(self):
         global active
         data = self.json()
-        if self.path == "/api/entrenamientos/activa":
+        if self.path == "/api/rutinas":
+            if routine_error:
+                self.respond({"message": "No se pudo guardar la rutina"}, 503)
+                return
+            id = data["solicitudId"]
+            routines[id] = self.routine_data(data, id)
+            self.respond({"id": id}, 201)
+        elif self.path.endswith("/iniciar"):
+            active = {"id": data["id"], "estado": "en_curso", "revision": 0,
+                      "iniciadoEn": "2026-11-27T00:00:00Z", "finalizadoEn": None,
+                      "sesion": {"nombre": routine["nombre"], "notas": "", "ejercicios": [
+                          {"ejercicio_id": 1, "tipo": "fuerza", "descanso": 2, "notas": "",
+                           "objetivo": {"repeticiones": 8}, "series": [{"completada": False}, {"completada": False}]}]}}
+            self.respond({"sesion": active})
+        elif self.path == "/api/entrenamientos/activa":
             active = {"id": data["id"], "sesion": data["contenido"], "estado": "en_curso", "revision": 0,
                       "iniciadoEn": "2026-11-27T00:00:00Z", "finalizadoEn": None}
             self.respond({"sesion": active})
@@ -70,6 +106,11 @@ class API(BaseHTTPRequestHandler):
             active = None
     def do_PUT(self):
         data = self.json()
+        if self.path.startswith("/api/rutinas/"):
+            id = self.path.split("/")[-1]
+            routines[id] = self.routine_data(data, id, routines[id]["archivada"])
+            self.respond({})
+            return
         if network_error:
             self.respond({"message": "Conexión interrumpida durante la prueba"}, 503)
             return
@@ -128,7 +169,7 @@ with ExitStack() as resources:
     def click(text):
         def try_click():
             try:
-                return js("const b = [...document.querySelectorAll('button,a,summary')].find(b => b.textContent.trim() === arguments[0] && !b.disabled); if (!b) return false; b.click(); return true", text)
+                return js("const b = [...document.querySelectorAll('button,a,summary')].find(b => b.textContent.trim() === arguments[0] && !b.disabled && b.getBoundingClientRect().height > 0); if (!b) return false; b.click(); return true", text)
             except RuntimeError as error:
                 if "unexpected alert open" in str(error):
                     return True
@@ -157,13 +198,13 @@ with ExitStack() as resources:
         return frame;
     """, url + "&rutina=training-browser")
     wd("/frame", "POST", {"id": frame})
-    has("Registro de entrenamiento")
-    click("Iniciar rutina")
     has("Rutina móvil")
     has("2 s de descanso")
     fit()
     assert js("return window.innerWidth") == 380
-    assert js("return document.querySelector('[aria-label^=Reps]').value") == "8"
+    has("Objetivo · 8 reps")
+    assert js("return document.querySelector('[aria-label^=Reps]').value") == ""
+    field("Reps, serie 1 de Press con mancuernas", "8")
     click("+ Añadir ejercicios")
     has("Equipamiento")
     js("document.querySelector('dialog input[type=checkbox]').click()")
@@ -201,15 +242,116 @@ with ExitStack() as resources:
     wd("/alert/accept", "POST", {})
     has("Entrenamiento guardado")
     assert len(history) == 1 and len(history[0]["series"]) == 1
-    click("Ver historial")
+    click("Guardar como rutina")
+    has("Guardar sesión como rutina")
+    wait_for(lambda: js("return document.querySelector('input[maxlength=\"60\"]')?.value") == "Rutina móvil", "Nombre recuperado desde la sesión")
+    has("Press con mancuernas")
+    click("Volver a rutinas")
+    has("Mis rutinas")
+    fit()
+    click("Semana")
+    has("Sin rutinas asignadas")
+    click("Activas")
+    click("+ Nueva rutina")
+    has("Información general")
+    def set_control(label, value):
+        element = wait_for(lambda: js("""
+          return [...document.querySelectorAll('label')].find(item =>
+            item.childNodes[0]?.textContent.trim() === arguments[0])?.querySelector('input, select, textarea');
+        """, label), label)
+        key = next(iter(element.values()))
+        if js("return arguments[0].tagName === 'SELECT'", element):
+            js("arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", element, value)
+        else:
+            wd(f"/element/{key}/clear", "POST", {})
+            if value:
+                wd(f"/element/{key}/value", "POST", {"text": value})
+    set_control("Nombre de la rutina", "Fuerza y bicicleta")
+    set_control("Buscar ejercicios", "press")
+    wait_for(lambda: js("return document.querySelectorAll('[aria-label^=Agregar]').length === 1"), "Búsqueda por nombre")
+    action("Agregar Press con mancuernas")
+    set_control("Buscar ejercicios", "")
+    set_control("Equipamiento", "Caminadora")
+    action("Agregar Caminadora")
+    action("Subir Caminadora")
+    set_control("Duración (s)", "120")
+    js("const item = [...document.querySelectorAll('details > summary')].find(node => node.textContent.includes('Fuerza con peso')); item.parentElement.open = true")
+    set_control("Repeticiones objetivo / mín.", "8")
+    set_control("Repeticiones máx.", "12")
+    js("[...document.querySelectorAll('label')].find(label=>label.textContent.trim()==='Lunes').querySelector('input').click()")
+    routine_error = True
+    click("Crear rutina")
+    has("No se pudo guardar la rutina")
+    routine_error = False
+    click("Crear rutina")
+    wait_for(lambda: js("return !!document.querySelector('.routine-measures')"), "Detalle de la rutina guardada")
+    saved = next(item for key, item in routines.items() if key != routine["id"])
+    assert saved["planes"][1]["repeticionesMax"] == 12, saved["planes"]
+    has("2. Press con mancuernas")
+    has("Lunes")
+    has("8–12")
+    fit()
+    original = next(key for key in routines if key != routine["id"])
+    click("Opciones")
+    click("Duplicar")
+    has("Duplicar rutina")
+    wait_for(lambda: (js("return document.querySelector('input[maxlength=\"60\"]')?.value") or "").endswith("(copia)"), "Nombre de la copia")
+    set_control("Nombre de la rutina", "Copia ajustada")
+    action("Bajar Caminadora")
+    click("Crear rutina")
+    has("Copia ajustada")
+    has("1. Press con mancuernas")
+    assert routines[original]["ejercicioIds"] == [2, 1]
+    click("Opciones")
+    click("Editar")
+    has("Editar rutina")
+    has("Información general")
+    set_control("Nombre de la rutina", "Cambio pendiente")
+    click("Descartar")
+    wd("/alert/dismiss", "POST", {})
+    assert js("return document.querySelector('input[maxlength=\"60\"]').value") == "Cambio pendiente"
+    click("Descartar")
+    wd("/alert/accept", "POST", {})
+    wait_for(lambda: js("return document.querySelector('.routine-header h1')?.textContent === 'Copia ajustada'"), "Edición descartada")
+    click("Opciones")
+    click("Editar")
+    has("Información general")
+    js("[...document.querySelectorAll('label')].find(label=>label.textContent.trim()==='Martes').querySelector('input').click()")
+    js("[...document.querySelectorAll('ol > li')].find(item=>item.innerText.includes('Caminadora')).querySelector('button.routine-danger').click()")
+    click("Guardar cambios")
+    wait_for(lambda: js("return document.querySelector('.routine-header h1')?.textContent === 'Copia ajustada'"), "Edición guardada")
+    has("Martes")
+    copy = next(item for item in routines.values() if item["nombre"] == "Copia ajustada")
+    assert copy["ejercicioIds"] == [1] and copy["dias"] == [1, 2]
+    assert routines[original]["ejercicioIds"] == [2, 1] and routines[original]["dias"] == [1]
+    click("Opciones")
+    click("Archivar")
+    has("Rutina archivada")
+    click("Volver a rutinas")
+    has("Mis rutinas")
+    click("Archivadas")
+    click("Copia ajustada")
+    wait_for(lambda: js("return document.querySelector('.routine-header h1')?.textContent === 'Copia ajustada'"), "Detalle archivado")
+    has("Rutina archivada")
+    click("Restaurar")
+    has("Rutina restaurada.")
+    click("Opciones")
+    click("Eliminar rutina")
+    wd("/alert/accept", "POST", {})
+    wait_for(lambda: js("return document.querySelector('.routine-header h1')?.textContent === 'Mis rutinas'"), "Listado después de eliminar")
+    assert len(routines) == 2
+    js("window.frameElement.style.width = '100%'")
+    wait_for(lambda: js("return window.innerWidth >= 1200"), "Rutinas en escritorio")
+    fit()
+    click("Semana")
+    has("Fuerza y bicicleta")
+    wd("/url", "POST", {"url": base + "/dashboard/entrenamientos/historial?gym=jj-poblado"})
     has("Historial de entrenamientos")
     click("Repetir")
     click("Repetir Rutina móvil")
     has("Entrenamiento en curso")
     assert js("return document.querySelector('[aria-label^=\"Peso (kg)\"]').value") == "42.5"
     assert js("return !document.querySelector('button[aria-pressed=true]')")
-    js("window.frameElement.style.width = '100%'")
-    wait_for(lambda: js("return window.innerWidth") >= 1200, "Viewport de escritorio")
     fit()
     click("Cancelar sesión")
     wd("/alert/accept", "POST", {})
@@ -220,4 +362,4 @@ with ExitStack() as resources:
     click("Añadir (1)")
     has("Tiempo (s)")
     assert js("return !!document.querySelector('[aria-label^=\"Km, serie\"]')")
-    print("Firefox 380px/1280px: rutina, catálogo, series, descanso, recuperación 503, resumen, historial, repetición, cancelación y cardio verificados.")
+    print("Firefox 380px y escritorio: CRUD, filtros, orden, tipos, copia, archivo, semana, fallo HTTP e integración de entrenamiento verificados.")

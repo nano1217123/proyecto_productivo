@@ -1,98 +1,79 @@
 import { useState } from "react";
+import { modes, normalize } from "@/src/features/training/hooks/trainingSessionModel";
+import { exerciseType } from "../routineModel";
+import { ExerciseMedia } from "./RoutineExercise";
 
 const PAGE_SIZE = 6;
-const fieldClass = "w-full min-w-0 p-2.5 bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm focus-visible:outline-2 focus-visible:outline-[#b56cff]";
-const buttonClass = "min-h-10 px-3 py-2 border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm font-bold cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] focus-visible:outline-2 focus-visible:outline-[#b56cff] disabled:opacity-50 disabled:cursor-not-allowed";
 
-function normalizeSearch(text) {
-  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
+export default function RoutineExercisePicker({ catalogo, selected, replacing, onAdd, onRemove, onCancel }) {
+  const [filters, setFilters] = useState({ search: "", group: "", equipment: "", type: "" });
+  const [page, setPage] = useState(0);
+  const catalog = catalogo.flatMap((group) => group.ejercicios);
+  const equipment = [...new Set(catalog.map((item) => item.equipo).filter(Boolean))].sort();
+  const results = catalog.filter((item) =>
+    (!filters.group || item.grupo_slug === filters.group) &&
+    (!filters.equipment || item.equipo === filters.equipment) &&
+    (!filters.type || exerciseType(item) === filters.type) &&
+    normalize(filters.search.trim()).split(/\s+/).every((word) =>
+      normalize(`${item.nombre} ${item.grupo_nombre} ${item.musculo_principal || ""}`).includes(word)
+    )
+  );
+  const start = page * PAGE_SIZE;
 
-export default function RoutineExercisePicker({ catalogo, agregarEjercicio }) {
-  const [grupoActivo, setGrupoActivo] = useState("");
-  const [busqueda, setBusqueda] = useState("");
-  const [pagina, setPagina] = useState(0);
-  const [aviso, setAviso] = useState("");
-  const palabras = normalizeSearch(busqueda).trim().split(/\s+/).filter(Boolean);
-  const resultados = catalogo
-    .filter((grupo) => !grupoActivo || grupo.slug === grupoActivo)
-    .flatMap((grupo) => grupo.ejercicios
-      .filter((ejercicio) => {
-        const texto = normalizeSearch(`${ejercicio.nombre} ${grupo.nombre}`);
-        return palabras.every((palabra) => texto.includes(palabra));
-      })
-      .map((ejercicio) => ({ ejercicio, grupo })));
-  const inicio = pagina * PAGE_SIZE;
-  const fin = Math.min(inicio + PAGE_SIZE, resultados.length);
-
-  function agregar(ejercicio) {
-    agregarEjercicio(ejercicio);
-    setAviso(`Se agregó ${ejercicio.nombre} a la rutina.`);
+  function update(field, value) {
+    setPage(0);
+    setFilters((previous) => ({ ...previous, [field]: value }));
   }
 
-  return (
-    <section aria-labelledby="catalogo-rutina" className="min-w-0">
-      <h2 id="catalogo-rutina" className="mb-3 text-base font-bold text-[#f2f4ef]">Buscar ejercicios</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid min-w-0 gap-1.5 text-sm text-[#c0c7bd]">
-          Nombre o músculo
-          <input
-            type="search"
-            value={busqueda}
-            placeholder="Ej. press, bíceps"
-            onChange={(event) => {
-              setBusqueda(event.target.value);
-              setPagina(0);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.nativeEvent.isComposing) event.preventDefault();
-            }}
-            className={fieldClass}
-          />
-        </label>
-        <label className="grid min-w-0 gap-1.5 text-sm text-[#c0c7bd]">
-          Grupo muscular
-          <select
-            value={grupoActivo}
-            onChange={(event) => {
-              setGrupoActivo(event.target.value);
-              setPagina(0);
-            }}
-            className={fieldClass}
-          >
-            <option value="">Todos los grupos</option>
-            {catalogo.map((grupo) => (
-              <option key={grupo.slug} value={grupo.slug}>{grupo.nombre}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <p role="status" className="my-3 text-sm text-[#a9afa7]">
-        {resultados.length > 0
-          ? `Mostrando ${inicio + 1}–${fin} de ${resultados.length}`
-          : "No hay ejercicios para mostrar."}
-      </p>
-      <ul className="grid gap-2">
-        {resultados.slice(inicio, fin).map(({ ejercicio, grupo }) => (
-          <li key={`${grupo.slug}-${ejercicio.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#30332f] bg-[#171817] p-3">
-            <div className="min-w-0 break-words">
-              <p className="text-sm font-bold text-[#f2f4ef]">{ejercicio.nombre}</p>
-              <p className="text-xs text-[#a9afa7]">{grupo.nombre}</p>
-            </div>
-            <button type="button" onClick={() => agregar(ejercicio)} aria-label={`Agregar ${ejercicio.nombre}`} className={buttonClass}>
-              Agregar
+  return <section className="routine-card routine-panel routine-stack" aria-labelledby="routine-catalog">
+    <div className="routine-actions">
+      <h2 id="routine-catalog">{replacing ? `Sustituir ${replacing.nombre}` : "Catálogo de ejercicios"}</h2>
+      {replacing && <button type="button" onClick={onCancel}>Cancelar sustitución</button>}
+    </div>
+    <div className="routine-fields">
+      <label>Buscar ejercicios<input type="search" value={filters.search} onChange={(event) => update("search", event.target.value)}
+        onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} /></label>
+      <label>Grupo muscular<select value={filters.group} onChange={(event) => update("group", event.target.value)}>
+        <option value="">Todos los grupos</option>
+        {catalogo.map((group) => <option key={group.slug} value={group.slug}>{group.nombre}</option>)}
+      </select></label>
+      <label>Equipamiento<select value={filters.equipment} onChange={(event) => update("equipment", event.target.value)}>
+        <option value="">Todo el equipamiento</option>
+        {equipment.map((item) => <option key={item}>{item}</option>)}
+      </select></label>
+      <label>Tipo sugerido<select value={filters.type} onChange={(event) => update("type", event.target.value)}>
+        <option value="">Todos los tipos</option>
+        {Object.entries(modes).map(([value, mode]) => <option key={value} value={value}>{mode.label}</option>)}
+      </select></label>
+    </div>
+    <p role="status" className="routine-muted">{results.length ? `${start + 1}–${Math.min(start + PAGE_SIZE, results.length)} de ${results.length} ejercicios` : "No se encontraron ejercicios."} · {selected.length}/30 seleccionados</p>
+    <ul className="routine-stack">
+      {results.slice(start, start + PAGE_SIZE).map((item) => {
+        const exists = selected.find((entry) => entry.ejercicio_id === item.id);
+        return <li className="routine-card routine-panel" key={item.id}>
+          <div className="routine-entry">
+            <ExerciseMedia item={item} />
+            <div><strong>{item.nombre}</strong><p className="routine-muted">{[item.grupo_nombre, item.equipo, modes[exerciseType(item)].label].filter(Boolean).join(" · ")}</p></div>
+          </div>
+          <div className="routine-actions">
+            <button type="button" disabled={replacing ? Boolean(exists) : !exists && selected.length >= 30}
+              aria-label={`${exists && !replacing ? "Quitar" : replacing ? "Sustituir por" : "Agregar"} ${item.nombre}`}
+              onClick={() => exists && !replacing ? onRemove(exists.key) : onAdd(item)}>
+              {exists ? (replacing ? "Ya seleccionado" : "✓ Seleccionado · Quitar") : replacing ? "Elegir sustituto" : "Agregar"}
             </button>
-          </li>
-        ))}
-      </ul>
-      {resultados.length > PAGE_SIZE && (
-        <div className="mt-3 flex gap-2">
-          <button type="button" onClick={() => setPagina(pagina - 1)} disabled={pagina === 0} className={buttonClass}>Anterior</button>
-          <button type="button" onClick={() => setPagina(pagina + 1)} disabled={fin === resultados.length} className={buttonClass}>Siguiente</button>
-        </div>
-      )}
-      <p role="status" className="mt-3 text-sm text-[#d7adff]">{aviso}</p>
-    </section>
-  );
+            {(item.descripcion || item.musculo_principal || item.video_url) && <details>
+              <summary>Información</summary>
+              {item.musculo_principal && <p>Músculo principal · {item.musculo_principal}</p>}
+              {item.descripcion && <p>{item.descripcion}</p>}
+              {item.video_url && <a href={item.video_url} target="_blank" rel="noreferrer">Ver demostración</a>}
+            </details>}
+          </div>
+        </li>;
+      })}
+    </ul>
+    {results.length > PAGE_SIZE && <div className="routine-actions">
+      <button type="button" onClick={() => setPage(page - 1)} disabled={page === 0}>Anterior</button>
+      <button type="button" onClick={() => setPage(page + 1)} disabled={start + PAGE_SIZE >= results.length}>Siguiente</button>
+    </div>}
+  </section>;
 }

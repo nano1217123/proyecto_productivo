@@ -24,6 +24,7 @@ export default function TrainingExerciseCard({
         {reference?.last ? `Última sesión: ${reference.last.date} · ${reference.last.series.length} series` : "Primera vez con este tipo de registro."}
         {reference?.best != null && <span>Mejor carga: {reference.best} kg</span>}
       </div>
+      {item.objetivo && measureLabel(item.objetivo) !== "—" && <p className="training-muted">Objetivo · {measureLabel(item.objetivo)}</p>}
       {metadata && (metadata.descripcion || metadata.consejo || metadata.video_url) && (
         <details><summary>Cómo hacer el ejercicio</summary>
           {metadata.descripcion && <p>{metadata.descripcion}</p>}
@@ -37,7 +38,7 @@ export default function TrainingExerciseCard({
           <label>Tipo de registro<select value={item.tipo} onChange={(event) => {
             if (item.series.some((set) => Object.keys(set).some((key) => key !== "completada" && set[key] != null)) &&
               !window.confirm("Cambiar el tipo reiniciará las medidas de este ejercicio. ¿Continuar?")) return;
-            onChange({ ...item, tipo: event.target.value, series: item.series.map(() => ({ completada: false })) });
+            onChange({ ...item, objetivo: undefined, tipo: event.target.value, series: item.series.map(() => ({ completada: false })) });
           }}>{Object.entries(modes).map(([key, info]) => <option key={key} value={key}>{info.label}</option>)}</select></label>
           <label>Descanso (s)<input type="number" min="0" max="3600" value={item.descanso}
             onChange={(event) => {

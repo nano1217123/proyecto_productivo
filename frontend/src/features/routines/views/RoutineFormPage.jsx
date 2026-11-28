@@ -1,125 +1,84 @@
 "use client";
 
 import Link from "next/link";
-import RoutineExercisePicker from "../components/RoutineExercisePicker";
+import { useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import RoutineExercisePicker from "../components/RoutineExercisePicker";
+import { RoutineExerciseEditor } from "../components/RoutineExercise";
+import { RoutineFacts } from "../components/RoutineCard";
 import { useRoutineForm } from "../hooks/useRoutineForm";
+import { routineUrl, weekdays } from "../routineModel";
+import "./routines.css";
 
-const orderButtonClass = "min-h-10 px-2.5 py-1 border border-[#41463f] rounded-md text-[#a9afa7] text-xs cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] focus-visible:outline-2 focus-visible:outline-[#b56cff] disabled:opacity-40 disabled:cursor-not-allowed";
-
-export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
+export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null, copia, entrenamiento }) {
   const { loading } = useAuth();
-  const {
-    esEdicion, catalogo, cargandoDatos,
-    nombre, setNombre,
-    diaEtiqueta, setDiaEtiqueta,
-    seleccionados,
-    guardando, error,
-    agregarEjercicio, quitarEjercicio, moverEjercicio, configurarEjercicio,
-    guardarRutina
-  } = useRoutineForm(gym, rutinaId);
-  if (loading || cargandoDatos) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
-        <p className="text-sm text-[#a9afa7]">Cargando...</p>
-      </div>
-    );
-  }
+  const form = useRoutineForm(gym, rutinaId, copia, entrenamiento, !loading);
+  const [replacing, setReplacing] = useState(null);
+  const catalog = useRef(null);
+  const title = rutinaId ? "Editar rutina" : copia ? "Duplicar rutina" : entrenamiento ? "Guardar sesión como rutina" : "Nueva rutina";
+  const back = routineUrl(gym, rutinaId || copia ? `/${rutinaId || copia}` : "");
+  const { info, changeInfo, seleccionados } = form;
 
-  return (
-    <main className="min-h-screen px-4 pb-[72px] sm:px-6 bg-[#171817]">
-
-      <section className="w-full max-w-[1060px] mx-auto pt-8 pb-6">
-        <Link href={`/dashboard/rutinas${esEdicion ? "/" + encodeURIComponent(rutinaId) : ""}?gym=${encodeURIComponent(gym)}`} className="mb-3 inline-flex min-h-11 items-center text-sm font-bold text-[#d7adff] underline">
-          {esEdicion ? "Volver a la rutina" : "Volver a rutinas"}
-        </Link>
-        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">{esEdicion ? "Editar rutina" : "Nueva rutina"}</h1>
-      </section>
-
-
-
-      <section className="w-full max-w-[1060px] mx-auto pb-10">
-        <form onSubmit={guardarRutina} className="p-4 sm:p-6 border border-[#41433f] rounded-xl bg-[#212320]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-[15px] mb-6">
-            <label className="text-xs font-bold text-[#c0c7bd]">
-              Nombre de la rutina
-              <input
-                type="text"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej: Día 1 — Empuje"
-                maxLength={60}
-                required
-                className="w-full mt-2 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff]"
-              />
-            </label>
-            <label className="text-xs font-bold text-[#c0c7bd]">
-              Día / etiqueta (opcional)
-              <input
-                type="text"
-                value={diaEtiqueta}
-                onChange={(e) => setDiaEtiqueta(e.target.value)}
-                placeholder="Ej: Lunes"
-                maxLength={30}
-                className="w-full mt-2 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff]"
-              />
-            </label>
-          </div>
-
-          <div className="mb-6 grid items-start gap-5 lg:grid-cols-2">
-            <RoutineExercisePicker catalogo={catalogo} agregarEjercicio={agregarEjercicio} />
-
-            <section aria-labelledby="ejercicios-rutina" className="min-w-0 rounded-xl border border-[#41433f] bg-[#171817] p-4">
-              <h2 id="ejercicios-rutina" className="mb-3 text-base font-bold text-[#f2f4ef]">
-                Ejercicios de la rutina ({seleccionados.length})
-              </h2>
-              {seleccionados.length === 0 && (
-                <p className="text-sm text-[#a9afa7]">Todavía no has agregado ningún ejercicio.</p>
-              )}
-              <ol className="grid gap-2">
-                {seleccionados.map((ej, idx) => (
-                  <li key={`${ej.ejercicio_id}-${idx}`} className="grid gap-2 rounded-lg border border-[#30332f] bg-[#212320] p-3">
-                    <p className="break-words text-sm text-[#f2f4ef]">
-                      <strong className="mr-2 text-[#b56cff]">{idx + 1}.</strong>{ej.nombre}
-                    </p>
-                    <details>
-                      <summary className="min-h-11 cursor-pointer py-2 text-sm">Planificar series y descanso</summary>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { key: "series", label: "Series", min: 1, max: 30 },
-                          ...(["isometrico", "cardio", "estiramiento"].includes(ej.plan?.tipo) ? []
-                            : [{ key: "repeticiones", label: "Reps", min: 1, max: 999 }]),
-                          { key: "descanso", label: "Descanso (s)", min: 0, max: 3600 },
-                        ].map(({ key, label, min, max }) => (
-                          <label key={key} className="min-w-0 text-xs text-[#c0c7bd]">{label}
-                            <input type="number" min={min} max={max} value={ej.plan?.[key] ?? ""}
-                              onChange={(event) => configurarEjercicio(idx, key, event.target.value)}
-                              className="mt-1 min-h-11 w-full rounded-md border border-[#41463f] bg-[#151714] p-2 text-[#f2f4ef]" />
-                          </label>
-                        ))}
-                      </div>
-                    </details>
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => moverEjercicio(idx, -1)} disabled={idx === 0} aria-label={`Subir ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Subir</button>
-                      <button type="button" onClick={() => moverEjercicio(idx, 1)} disabled={idx === seleccionados.length - 1} aria-label={`Bajar ${ej.nombre}, ejercicio ${idx + 1}`} className={orderButtonClass}>Bajar</button>
-                      <button type="button" onClick={() => quitarEjercicio(idx)} aria-label={`Quitar ${ej.nombre}, ejercicio ${idx + 1}`} className={`${orderButtonClass} border-[rgba(255,121,121,.4)] text-[#ff7979] hover:bg-[#351b1b]`}>Quitar ejercicio</button>
-                    </div>
-                  </li>
-                ))}
-              </ol>
+  return <main className="routine-page">
+    <Link href={back}>Volver a rutinas</Link>
+    <header className="routine-header"><h1>{title}</h1></header>
+    {(loading || form.cargandoDatos) ? <p role="status">Cargando formulario…</p>
+      : form.loadError ? <p role="alert" className="routine-error">{form.loadError} <button type="button" onClick={form.retryLoad}>Reintentar</button></p>
+      : <form onSubmit={form.guardarRutina} onInvalidCapture={(event) => {
+        const details = event.target.closest("details");
+        if (details) details.open = true;
+      }}>
+        <fieldset className="routine-stack" disabled={form.guardando}>
+          <section className="routine-card routine-panel routine-stack">
+            <h2>Información general</h2>
+            <div className="routine-fields">
+              <label>Nombre de la rutina<input type="text" required maxLength={60} value={info.nombre} onChange={(event) => changeInfo("nombre", event.target.value)} /></label>
+              <label>Objetivo<input type="text" maxLength={120} value={info.objetivo} onChange={(event) => changeInfo("objetivo", event.target.value)} /></label>
+              <label>Descripción<textarea maxLength={500} value={info.descripcion} onChange={(event) => changeInfo("descripcion", event.target.value)} /></label>
+              <label>Notas generales<textarea maxLength={200} value={info.notas} onChange={(event) => changeInfo("notas", event.target.value)} /></label>
+              {info.diaEtiqueta && <label>Etiqueta anterior<input maxLength={40} value={info.diaEtiqueta} onChange={(event) => changeInfo("diaEtiqueta", event.target.value)} /></label>}
+            </div>
+            <fieldset>
+              <legend>Días de la semana</legend>
+              <div className="routine-days">{weekdays.map((day, index) => {
+                const value = index + 1;
+                return <label key={day}><input type="checkbox" checked={info.dias.includes(value)} onChange={(event) => changeInfo("dias",
+                  event.target.checked ? [...info.dias, value].sort((a, b) => a - b) : info.dias.filter((day) => day !== value))} /> {day}</label>;
+              })}</div>
+            </fieldset>
+          </section>
+          <div className="routine-workspace routine-stack">
+            <div ref={catalog} tabIndex={-1} className="routine-catalog-anchor">
+              <RoutineExercisePicker catalogo={form.catalogo} selected={seleccionados} replacing={replacing}
+                onAdd={(item) => { form.agregarEjercicio(item, replacing?.key); setReplacing(null); }}
+                onRemove={form.quitarEjercicio} onCancel={() => setReplacing(null)} />
+            </div>
+            <section aria-label="Ejercicios seleccionados" className="routine-stack">
+              <h2>Orden y configuración</h2>
+              {!seleccionados.length && <p className="routine-muted">Agrega ejercicios del catálogo para configurar el plan.</p>}
+              <ol className="routine-stack">{seleccionados.map((item, index) => <RoutineExerciseEditor
+                key={item.key} item={item} index={index} count={seleccionados.length}
+                configure={form.configurarEjercicio} move={form.moverEjercicio} remove={(key) => {
+                  if (replacing?.key === key) setReplacing(null);
+                  form.quitarEjercicio(key);
+                }} replace={(entry) => {
+                  setReplacing(entry);
+                  catalog.current?.focus();
+                  catalog.current?.scrollIntoView({ block: "start" });
+                }} />)}</ol>
             </section>
           </div>
-
-          {error && <div role="alert" className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
-          <button
-            type="submit"
-            disabled={guardando}
-            className="w-full p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {guardando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear rutina"}
-          </button>
-        </form>
-      </section>
-    </main>
-  );
+          <section className="routine-card routine-panel" aria-live="polite">
+            <h2>Resumen de la rutina</h2>
+            <RoutineFacts rutina={{ ejercicios: seleccionados, dias: info.dias }} />
+            <p className="routine-muted">Para estimar la duración se usan 3 segundos por repetición, los descansos entre series y 30 segundos entre ejercicios.</p>
+          </section>
+        </fieldset>
+        <div className="routine-save">
+          {form.error && <p className="routine-error" role="alert">{form.error}</p>}
+          <Link href={back}>Descartar</Link>
+          <button className="routine-primary" disabled={form.guardando} type="submit">{form.guardando ? "Guardando…" : rutinaId ? "Guardar cambios" : "Crear rutina"}</button>
+        </div>
+      </form>}
+  </main>;
 }
