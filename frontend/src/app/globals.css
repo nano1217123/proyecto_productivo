@@ -50,7 +50,30 @@ button, input, select, textarea {
   outline-offset: 2px;
 }
 
+@keyframes ui-enter {
+  from { opacity: .65; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ui-spin {
+  to { transform: rotate(1turn); }
+}
+
+button[aria-busy="true"]::before {
+  content: "";
+  display: inline-block;
+  width: .9em;
+  height: .9em;
+  margin-inline-end: .45em;
+  vertical-align: -.07em;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: ui-spin .75s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  button[aria-busy="true"]::before { animation: none; }
   *, *::before, *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;

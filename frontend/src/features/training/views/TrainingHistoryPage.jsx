@@ -252,7 +252,7 @@ export default function TrainingHistoryPage({ gym = "jj-poblado", initialRange =
             <p>Esta acción actualizará las estadísticas y los récords personales asociados. Tus rutinas se conservan.</p>
             <div className="history-actions">
               <button disabled={pending} onClick={close}>Cancelar</button>
-              <button disabled={pending} className="history-danger" onClick={() => perform(() => historyApi.delete(modal.row.id), () => {
+              <button disabled={pending} aria-busy={pending} className="history-danger" onClick={() => perform(() => historyApi.delete(modal.row.id), () => {
                 if (reference?.id === modal.row.id) setReference(null);
                 open(null); setPage(1); reload(); setNotice("Entrenamiento eliminado.");
               })}>{pending ? "Eliminando…" : "Eliminar entrenamiento"}</button>

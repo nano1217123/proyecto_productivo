@@ -134,7 +134,7 @@ export default function HistoryEditor({ detail, today, registerChanges, onSave, 
           setExerciseId("");
         }}>Añadir ejercicio</button>
       </div>
-      <button className="history-primary" type="submit">{pending ? "Guardando…" : "Guardar corrección"}</button>
+      <button className="history-primary" type="submit" aria-busy={pending}>{pending ? "Guardando…" : "Guardar corrección"}</button>
     </fieldset>
   </form>;
 }
