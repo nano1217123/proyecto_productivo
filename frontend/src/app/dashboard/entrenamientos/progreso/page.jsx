@@ -1,6 +1,6 @@
-import TrainingProgressPage from "@/src/features/training/views/TrainingProgressPage";
+import LegacyProgressRoute from "@/src/features/progress/LegacyProgressRoute";
 
 export default async function Page({ searchParams }) {
-  const { gym } = await searchParams;
-  return <TrainingProgressPage gym={gym} />;
+  const { gym, modo } = await searchParams;
+  return <LegacyProgressRoute gym={gym} modo={modo} />;
 }

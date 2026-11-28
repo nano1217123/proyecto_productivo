@@ -12,6 +12,7 @@ import resenasRoutes from "./resenas.routes.js";
 import reportesPersonalesRoutes from "./reportesPersonales.routes.js";
 import reportesMembresiasRoutes from "./reportesMembresias.routes.js";
 
+import progresoRoutes from "./progreso.routes.js";
 import particularRoutes from "./particular.routes.js"; 
 import pagosRoutes from "./pagos.routes.js";
 import { gestionRouter, sedesRouter } from "./gestion.routes.js";
@@ -30,6 +31,7 @@ router.use("/resenas", resenasRoutes);
 router.use("/reportes/personales", reportesPersonalesRoutes);
 router.use("/reportes/membresias", reportesMembresiasRoutes);
 
+router.use("/progreso", progresoRoutes);
 router.use("/particular", particularRoutes);
 router.use("/pagos", pagosRoutes);
 router.use("/sedes", sedesRouter);

@@ -158,3 +158,57 @@ seguir esta guía. No subas a Git sus rutas, credenciales ni URLs privadas.
 - [`DOCUMENTACION-PROYECTO.md`](./DOCUMENTACION-PROYECTO.md) y
   [`docs/legacy/`](./docs/legacy/): **referencia histórica** de la versión
   anterior basada en Supabase. Sus instrucciones ya no aplican.
+
+## Mi progreso
+
+Abre **Mi progreso** en la barra del dashboard con una cuenta cliente o particular.
+La ruta es `/dashboard/particular`. El panel ofrece Resumen, Seguimiento corporal y
+Rendimiento deportivo. Los enlaces personales del historial y del Centro de reportes
+llevan a la evolución por ejercicio. El Centro de reportes conserva las exportaciones.
+
+### Datos y operaciones
+
+| Ruta autenticada | Operaciones |
+| --- | --- |
+| `/api/perfil/altura` | `GET` y `PATCH` consultan y guardan `alturaCm`, un entero en centímetros. |
+| `/api/progreso/peso` | `GET` consulta el último registro y el historial con `desde`, `pagina`, `orden` y `grafica`. `POST` recibe `pesoActualKg` e `id`, un UUID para reintentos. |
+| `/api/progreso/peso/:id` | `PATCH` corrige el peso y `DELETE` elimina su valor. |
+| `/api/progreso/deporte` | `GET` calcula actividad, grupos musculares, ejercicios y marcas para `desde` y `hasta`. |
+| `/api/progreso/ejercicios/:id` | `GET` devuelve series completadas del ejercicio para `desde` y `hasta`. |
+| `/api/nutricion/resumen-inicio` | `GET` reutiliza el resumen nutricional de Inicio y respeta la preferencia de seguimiento. |
+
+El peso conserva el rango de 20 a 300 kg y se registra con la fecha y hora del
+servidor. La interfaz acepta coma o punto decimal. La edición conserva el momento
+del registro. La eliminación quita el valor corporal de la fila para conservar las
+otras métricas que pueda contener y evitar que un reintento restaure el peso.
+Nutrición consulta el mismo historial. Las fechas corporales se presentan en
+la zona de Bogotá. La altura es opcional y se guarda en el perfil.
+
+Las marcas de carga se comparan por ejercicio, tipo y repeticiones. La primera
+marca establece la referencia y el récord exige superar el máximo previo. Los cambios
+en el historial se reflejan en la siguiente consulta. La actividad agrupa las
+sesiones finalizadas por semana o mes calendario. La comparación usa los días
+inmediatamente anteriores de igual duración. El volumen conserva la convención
+de carga registrada y distingue fuerza de carga adicional.
+
+El historial entrega 15 pesos por página. La gráfica corporal muestra hasta
+2000 registros del periodo y la consulta por ejercicio hasta 5000 series, con
+un aviso al superar los límites. Las operaciones nuevas obtienen la identidad
+de la sesión y las lecturas devuelven respuestas privadas sin caché.
+
+### Verificación local
+
+1. Configura ambos paquetes según las secciones de arranque. En una base propia
+   de desarrollo, genera el cliente Prisma y aplica las migraciones versionadas.
+   `20261201120000_progress_tracking` agrega dos campos opcionales y un índice.
+2. Abre **Mi progreso** con una cuenta personal. Registra un peso decimal y
+   completa la altura desde **Último registro**. Prueba el cambio de periodo
+   y las acciones de edición y eliminación en **Seguimiento corporal**.
+3. Finaliza varios entrenamientos con series comparables, consulta **Rendimiento
+   deportivo** y abre el detalle de una marca. Configura Nutrición y verifica
+   que el objetivo y la proteína de hoy coincidan en ambos módulos.
+4. Para repetir las pruebas, usa `backend/tests/entrenamientos.integration.ts`
+   con la base PostgreSQL descartable descrita en
+   [Historial de entrenamientos](./backend/docs/historial-entrenamientos.md).
+   Compila el frontend con `BACKEND_URL=http://127.0.0.1:19714` antes de ejecutar
+   `python3 frontend/tests/home_browser.py` desde la raíz.

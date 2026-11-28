@@ -349,3 +349,88 @@ test("historial paginado, calendario civil, corrección, comparación, repetici�
   assert.ok(!second.entrenamientos.some(({ id }) => first.entrenamientos.some((row) => row.id === id)));
   assert.equal((await api("GET", root + "/historial?pagina=51", 200, undefined, stranger)).entrenamientos.length, 12);
 });
+
+test("Mi progreso valida y aísla peso, altura, nutrición y marcas de sesiones finalizadas", async () => {
+  await prisma.usuario.createMany({
+    data: [owner, stranger].map((id) => ({
+      idusuario: id, nombres: "Prueba", apellidos: "Progreso", correo: `${id}@example.test`,
+    })), skipDuplicates: true,
+  });
+  const id = randomUUID();
+  const root = "/progreso/peso";
+  await api("GET", root, 401, undefined, null);
+  assert.equal((await api("GET", "/perfil/altura", 200)).alturaCm, null);
+  assert.equal((await api("GET", root, 200)).ultimo, null);
+  await api("PATCH", "/perfil/altura", 400, { alturaCm: -1 });
+  assert.equal((await api("PATCH", "/perfil/altura", 200, { alturaCm: 175 })).alturaCm, 175);
+  assert.equal((await api("GET", "/perfil/altura", 200, undefined, stranger)).alturaCm, null);
+  await api("POST", root, 400, { id, pesoActualKg: 19.5 });
+  await api("POST", root, 400, { id, pesoActualKg: 75.5, usuarioId: stranger });
+  await Promise.all(Array.from({ length: 3 }, () => api("POST", root, 204, { id, pesoActualKg: 75.5 })));
+  const initial = await api("GET", root, 200);
+  assert.equal(initial.total, 1);
+  assert.equal(initial.ultimo.pesoActualKg, 75.5);
+  assert.equal(initial.promedio, 75.5);
+  assert.equal(initial.puntos[0].id, id);
+  assert.equal((await api("GET", "/nutricion/perfil", 200)).weight, 75.5);
+  assert.equal((await api("GET", root, 200, undefined, stranger)).total, 0);
+  await api("PATCH", `${root}/${id}`, 404, { pesoActualKg: 74 }, stranger);
+  await api("DELETE", `${root}/${id}`, 404, undefined, stranger);
+  await api("PATCH", `${root}/${id}`, 204, { pesoActualKg: 76.25 });
+  await api("POST", root, 204, { id, pesoActualKg: 75.5 });
+  const updated = await api("GET", root, 200);
+  assert.equal(updated.promedio, 76.25);
+  assert.equal(updated.puntos[0].pesoActualKg, 76.25);
+  assert.ok(updated.registros[0].pesoActualizadoEn);
+  assert.equal((await api("GET", `${root}?desde=9999-12-31&orden=asc`, 200)).total, 0);
+  assert.equal((await api("GET", `${root}?grafica=no&pagina=2`, 200)).registros.length, 0);
+  await api("DELETE", `${root}/${id}`, 204);
+  await api("DELETE", `${root}/${id}`, 204);
+  await api("POST", root, 204, { id, pesoActualKg: 75.5 });
+  assert.equal((await api("GET", root, 200)).ultimo, null);
+  assert.equal((await api("GET", "/nutricion/perfil", 200)).weight, null);
+
+  const exercise = await prisma.ejercicio.create({
+    data: { grupoSlug: "pecho", grupoNombre: "Pecho", nombre: "Ejercicio de progreso", slug: `${exerciseSlug}-progress` },
+  });
+  const dates = ["2080-03-01", "2080-03-02", "2080-03-03", "2080-03-04", "2080-03-05"];
+  const ids = dates.map(() => randomUUID());
+  try {
+    for (const [i, fecha] of dates.entries()) {
+      await prisma.entrenamiento.create({
+        data: { id: ids[i], usuarioId: owner, fecha: new Date(fecha), estado: i === 4 ? "cancelado" : "finalizado",
+          iniciadoEn: new Date(`${fecha}T13:00:00Z`), finalizadoEn: new Date(`${fecha}T13:10:00Z`) },
+      });
+      await prisma.serieEntrenamiento.create({
+        data: {
+          id: randomUUID(), entrenamientoId: ids[i], usuarioId: owner, ejercicioId: exercise.id, numeroSerie: 1,
+          tipo: "fuerza", pesoKg: [60, 65, 70, 65, 150][i], repeticiones: i === 2 ? 6 : 8,
+        },
+      });
+    }
+    const query = "?desde=2080-03-02&hasta=2080-03-06";
+    const sport = await api("GET", `/progreso/deporte${query}`, 200);
+    assert.equal(sport.actividad.sesiones, 3);
+    assert.equal(sport.actividad.tiempo, 1800);
+    assert.equal(sport.actividad.mes, 4);
+  assert.equal(sport.actividad.sesionesAnteriores, 1);
+  assert.equal(sport.actividad.tiempoAnterior, 600);
+    assert.equal(sport.meses[0].sesiones, 3);
+    assert.equal(sport.grupos[0].series, 3);
+    assert.equal(sport.records, 1);
+    assert.equal(sport.marcas[0].anterior, 60);
+    assert.equal(sport.marcas[0].id, ids[1]);
+    assert.ok(sport.marcas.some((mark: { id: string; anterior: number | null }) => mark.id === ids[2] && mark.anterior === null));
+    const path = `/progreso/ejercicios/${exercise.id}${query}`;
+    assert.equal((await api("GET", path, 200)).length, 3);
+    assert.deepEqual(await api("GET", path, 200, undefined, stranger), []);
+    const isolated = await api("GET", `/progreso/deporte${query}`, 200, undefined, stranger);
+    assert.equal(isolated.actividad.sesiones, 0);
+    assert.deepEqual(isolated.marcas, []);
+    await api("DELETE", `/entrenamientos/${ids[1]}`, 200);
+    assert.equal((await api("GET", `/progreso/deporte${query}`, 200)).marcas[0].id, ids[3]);
+  } finally {
+    await prisma.entrenamiento.deleteMany({ where: { id: { in: ids } } });
+    await prisma.ejercicio.delete({ where: { id: exercise.id } });
+  }
+});

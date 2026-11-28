@@ -85,12 +85,20 @@ export async function saveProfile(usuarioId: string, input: z.infer<typeof profi
     if (supplied !== undefined && supplied !== previous?.pesoActualKg) {
       const metricDay = dayDate(localDay("America/Bogota", now));
       const latestToday = await tx.metricaDiaria.findFirst({
-        where: { usuarioId, diaLocal: metricDay }, orderBy: [{ fecha: "desc" }, { id: "desc" }],
+        where: {
+          usuarioId, pesoActualKg: { not: null },
+          fecha: { gte: new Date(`${localDay("America/Bogota", now)}T00:00:00-05:00`) },
+        }, orderBy: [{ fecha: "desc" }, { id: "desc" }],
       });
       if (latestToday) {
-        await tx.metricaDiaria.update({ where: { id: latestToday.id }, data: { pesoActualKg: supplied, fecha: now } });
+        await tx.metricaDiaria.update({ where: { id: latestToday.id }, data: { pesoActualKg: supplied, pesoActualizadoEn: now } });
       } else {
-        await tx.metricaDiaria.create({ data: { usuarioId, fecha: now, diaLocal: metricDay, pesoActualKg: supplied } });
+        const daily = await tx.metricaDiaria.findFirst({ where: { usuarioId, diaLocal: metricDay, pesoActualizadoEn: null } });
+        if (daily) {
+          await tx.metricaDiaria.update({ where: { id: daily.id }, data: { pesoActualKg: supplied, fecha: now } });
+        } else {
+          await tx.metricaDiaria.create({ data: { usuarioId, fecha: now, pesoActualKg: supplied } });
+        }
       }
     }
     await tx.nutricionPerfil.upsert({

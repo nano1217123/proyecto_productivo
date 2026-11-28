@@ -253,6 +253,7 @@ test("una recarga posterior a publicar se descarta si la sede cambia antes de re
 });
 
 test("la navegación de escritorio y móvil ofrece Reseñas con el contexto de cada rol", () => {
+  const enlaceA = (vista, destino) => buscar(vista, elemento => elemento.props.href?.split("?")[0] === destino);
   parametros = new URLSearchParams({ gym: otraSede });
   const casos = [
     [{ tipo_usuario: "cliente", sede }, "?gym=jj-poblado"],
@@ -269,18 +270,18 @@ test("la navegación de escritorio y móvil ofrece Reseñas con el contexto de c
     const escritorio = buscar(vista, elemento => elemento.type === "nav");
     const detalles = buscar(vista, elemento => elemento.type === "details");
     for (const menu of [escritorio, detalles]) {
-      const enlace = texto(menu, "Reseñas");
+      const enlace = enlaceA(menu, "/dashboard/resenas");
       assert.equal(enlace.props.href, "/dashboard/resenas" + query);
       assert.equal(enlace.props["aria-current"], "page");
     }
     const menuMovil = { open: true };
-    texto(detalles, "Reseñas").props.onClick({ currentTarget: {
+    enlaceA(detalles, "/dashboard/resenas").props.onClick({ currentTarget: {
       closest: selector => selector === "details" ? menuMovil : null,
     } });
     assert.equal(menuMovil.open, false);
-    assert.equal(texto(escritorio, "Reportes").props.href.startsWith("/dashboard/reportes"), true);
+    assert.equal(enlaceA(escritorio, "/dashboard/reportes").props.href.startsWith("/dashboard/reportes"), true);
     ruta = "/dashboard/reportes";
-    assert.equal(texto(DashboardNavigation(), "Reseñas").props["aria-current"], undefined);
+    assert.equal(enlaceA(DashboardNavigation(), "/dashboard/resenas").props["aria-current"], undefined);
   }
 });
 

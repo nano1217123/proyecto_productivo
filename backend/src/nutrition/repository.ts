@@ -1,3 +1,4 @@
+import { usuarioTransaction } from "../repositories/usuarioTransaction.js";
 import { prisma } from "../lib/prisma.js";
 import type { Prisma } from "../generated/prisma/client.js";
 
@@ -13,10 +14,5 @@ export const nutritionDb = {
       select: { pesoActualKg: true },
     });
   },
-  transaction<T>(usuarioId: string, work: (db: Prisma.TransactionClient) => Promise<T>) {
-    return prisma.$transaction(async (db) => {
-      await db.$queryRaw`SELECT idusuario FROM usuarios WHERE idusuario = ${usuarioId}::uuid FOR UPDATE`;
-      return work(db);
-    });
-  },
+  transaction: usuarioTransaction,
 };

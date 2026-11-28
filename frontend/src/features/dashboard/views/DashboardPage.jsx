@@ -63,7 +63,7 @@ function Home({ profile, refreshProfile }) {
       </div>
       <div className="home-column">
         <HomeNutrition {...{ nutrition, url }} retry={() => refreshNutrition((value) => value + 1)} />
-        <HomeProgress {...{ today, history, url }} retry={updateHistory} particular={profile.tipo_usuario === "usuario_particular"} />
+        <HomeProgress {...{ today, history, url }} retry={updateHistory} />
         <HomeSubscription {...{ profile, url }} />
       </div>
     </div>

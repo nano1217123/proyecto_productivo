@@ -11,15 +11,15 @@ export type FiltrosHistorial = {
   orden: "recientes" | "antiguos" | "larga" | "corta" | "volumen";
 };
 
-const duracion = Prisma.sql`CASE WHEN e.iniciado_en <= e.finalizado_en
+export const duracion = Prisma.sql`CASE WHEN e.iniciado_en <= e.finalizado_en
   THEN floor(extract(epoch FROM e.finalizado_en - e.iniciado_en))::int END`;
 
 // Las cargas se almacenan en kg. El volumen conserva la convención registrada,
 // sin multiplicadores inferidos para mancuernas o movimientos unilaterales.
-const cargaValida = Prisma.sql`s.peso_kg >= 0 AND s.repeticiones > 0 AND coalesce(s.tipo, 'fuerza') IN (${Prisma.join(tiposConVolumen.map((tipo) => Prisma.sql`${tipo}`))})`;
+export const cargaValida = Prisma.sql`s.peso_kg >= 0 AND s.repeticiones > 0 AND coalesce(s.tipo, 'fuerza') IN (${Prisma.join(tiposConVolumen.map((tipo) => Prisma.sql`${tipo}`))})`;
 
-const nombreEjercicio = Prisma.sql`coalesce(e.catalogo_historico->s.ejercicio_id::text->>'nombre', j.nombre)`;
-const grupoEjercicio = Prisma.sql`coalesce(e.catalogo_historico->s.ejercicio_id::text->>'grupo', j.grupo_nombre)`;
+export const nombreEjercicio = Prisma.sql`coalesce(e.catalogo_historico->s.ejercicio_id::text->>'nombre', j.nombre)`;
+export const grupoEjercicio = Prisma.sql`coalesce(e.catalogo_historico->s.ejercicio_id::text->>'grupo', j.grupo_nombre)`;
 
 const marcas = (usuarioId: string) => Prisma.sql`marcas AS (
       SELECT e.id, s.ejercicio_id, coalesce(s.tipo, 'fuerza') AS tipo, max(s.peso_kg) AS peso,

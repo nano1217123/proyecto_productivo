@@ -23,14 +23,14 @@ function ErrorState({ message, onRetry }) {
   return <div className="history-error" role="alert"><p>{message}</p><button onClick={onRetry}>Reintentar</button></div>;
 }
 
-export default function TrainingHistoryPage({ gym = "jj-poblado", initialDay = "", initialSession = "" }) {
+export default function TrainingHistoryPage({ gym = "jj-poblado", initialRange = {}, initialSession = "" }) {
   const { loading } = useAuth();
   const router = useRouter();
   const [today] = useState(civilToday);
   const [view, setView] = useState("list");
   const [month, setMonth] = useState(today);
   const [selected, setSelected] = useState("");
-  const [filters, setFilters] = useState(() => initialDay ? { desde: initialDay, hasta: initialDay } : {});
+  const [filters, setFilters] = useState(() => initialRange);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [refresh, setRefresh] = useState(0);
