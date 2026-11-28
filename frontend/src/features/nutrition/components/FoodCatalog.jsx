@@ -19,7 +19,7 @@ export function FoodCard({ food, favorite, toggle, details, log }) {
   </article>;
 }
 
-export default function FoodCatalog({ version, toggle, details, log, retry }) {
+export default function FoodCatalog({ version, toggle, details, log, retry, meal }) {
   const [filters, setFilters] = useState({ q: "", category: "", origin: "", sort: "nombre", favorite: "", compatible: "" });
   const [page, setPage] = useState(1);
   const result = useNutritionData("alimentos", { ...filters, page }, version);
@@ -30,6 +30,7 @@ export default function FoodCatalog({ version, toggle, details, log, retry }) {
   }
   return <section className="nut-stack">
     <h2>Explorar alimentos</h2>
+    {meal && <p>Elige un alimento para {meal.toLowerCase()}.</p>}
     <div className="nut-panel nut-fields">
       <label>Buscar por nombre<input name="q" value={filters.q} maxLength={100} onChange={filter} /></label>
       <label>Categoría<select name="category" onChange={filter} value={filters.category}>

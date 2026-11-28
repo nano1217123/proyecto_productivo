@@ -18,6 +18,7 @@ export function FoodDetail({ food, close, favorite, toggle, log }) {
   const alternatives = useNutritionData("alimentos", { category: food.category, compatible: "true" }, 0);
   return <Dialog title={food.name} close={close}>
     <FoodImage id={food.id} />
+    {food.reason && <p>{food.reason}</p>}
     <p>{food.category} · {food.state}</p><details><summary>Descripción en la fuente</summary><p lang="en">{food.description}</p></details>
     <table><thead><tr><th>Nutriente</th><th>Por 100 g</th><th>Por porción ({grams(food.portion)})</th></tr></thead>
       <tbody>{Object.entries({ Proteína: food.protein, Carbohidratos: food.carbs, Grasas: food.fat }).map(([name, amount]) =>
@@ -31,7 +32,7 @@ export function FoodDetail({ food, close, favorite, toggle, log }) {
   </Dialog>;
 }
 
-export function EntryForm({ food, entry, day, today, close, saved }) {
+export function EntryForm({ food, entry, meal, day, today, close, saved }) {
   const [requestId] = useState(() => globalThis.crypto?.randomUUID?.());
   const [quantity, setQuantity] = useState(String(entry?.quantity ?? 1));
   const [unit, setUnit] = useState(entry?.unit ?? "porción");
@@ -69,7 +70,7 @@ export function EntryForm({ food, entry, day, today, close, saved }) {
         <label>Unidad<select value={unit} onChange={(e) => setUnit(e.target.value)}>{Object.entries(food.units).map(([name, weight]) =>
           <option key={name} value={name}>{name}{name !== "g" ? ` (≈ ${grams(weight)})` : ""}</option>)}</select></label>
         <label>Fecha<input type="date" name="day" defaultValue={entry?.day.slice(0, 10) ?? day} max={today} required /></label>
-        <label>Momento<select name="meal" defaultValue={entry?.meal ?? ""}><option value="">Sin especificar</option>{meals.map((meal) => <option key={meal}>{meal}</option>)}</select></label>
+        <label>Momento<select name="meal" defaultValue={entry?.meal ?? meal ?? ""}><option value="">Sin especificar</option>{meals.map((meal) => <option key={meal}>{meal}</option>)}</select></label>
       </div>
       <p aria-live="polite">{estimate?.key === key && (estimate.error || `${grams(estimate.data.protein)} de proteína en ${grams(estimate.data.grams)} de alimento`)}</p>
       {error && <p role="alert">{error}</p>}

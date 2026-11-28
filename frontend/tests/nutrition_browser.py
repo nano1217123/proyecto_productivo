@@ -1,4 +1,5 @@
 from contextlib import ExitStack
+from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -49,7 +50,11 @@ class API(BaseHTTPRequestHandler):
                           "methodSource": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5477153/"})
         elif path.endswith("/nutricion/registros"):
             amount = round(sum(item["protein"] for item in entries), 2) if entries else None
-            self.respond({"days": [{"day": today, "protein": amount}], "entries": entries, "meals": [], "references": [],
+            dates = [(date.fromisoformat(today) - timedelta(days=offset)).isoformat()
+                     for offset in range(6 if "days=7" in query else 0, -1, -1)]
+            daily = [{"day": day, "protein": amount if day == today else None} for day in dates]
+            moments = [{"meal": item["meal"], "protein": item["protein"]} for item in entries]
+            self.respond({"days": daily, "entries": entries, "meals": moments, "references": [],
                           "frequent": [], "average": amount, "daysRecorded": int(bool(entries)), "total": len(entries), "pageSize": 30})
         elif path.endswith("/nutricion/alimentos"):
             self.respond({"items": [] if "favorite=true" in query else [egg], "total": 1, "favorites": []})
@@ -171,18 +176,23 @@ with ExitStack() as resources:
     set_value("select[name=activity]", "regular")
     click("Guardar configuración")
     has("Proteína de hoy")
-    click("Registrar alimento")
-    has("Explorar alimentos")
+    has("Registro semanal de proteína")
+    wait_for(lambda: js("return document.querySelectorAll('.nut-week-bars li').length === 7"), "Siete días visibles")
+    js("document.querySelector('[aria-label=\"Registrar alimento en desayuno\"]').click()")
+    has("Elige un alimento para desayuno.")
     click("Detalles")
     has("Por 100 g")
     click("Registrar alimento")
     has("Confirmar registro")
+    assert js("return document.querySelector('dialog select[name=meal]').value") == "Desayuno"
     set_value("dialog input[type=number]", "2")
     has("12,58 g de proteína en 100 g de alimento")
     click("Confirmar registro")
     has("Alimento registrado.")
     click("Resumen")
     has("12,58 g")
+    wait_for(lambda: js("return !!document.querySelector('.nut-week-track[data-today=true] span')"), "Barra de hoy actualizada")
+    click("Ver registros de hoy")
     click("Editar")
     set_value("dialog input[type=number]", "3")
     has("18,87 g")
