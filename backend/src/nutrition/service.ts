@@ -88,7 +88,7 @@ export async function saveProfile(usuarioId: string, input: z.infer<typeof profi
         where: { usuarioId, diaLocal: metricDay }, orderBy: [{ fecha: "desc" }, { id: "desc" }],
       });
       if (latestToday) {
-        await tx.metricaDiaria.update({ where: { id: latestToday.id }, data: { pesoActualKg: supplied } });
+        await tx.metricaDiaria.update({ where: { id: latestToday.id }, data: { pesoActualKg: supplied, fecha: now } });
       } else {
         await tx.metricaDiaria.create({ data: { usuarioId, fecha: now, diaLocal: metricDay, pesoActualKg: supplied } });
       }
