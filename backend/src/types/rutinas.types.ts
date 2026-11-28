@@ -1,37 +1,31 @@
-// Tipos de entrada y salida para los endpoints de rutinas.
+import type { z } from "zod";
+import type { tipoRegistro } from "../validator/sesionEntrenamiento.validator.js";
 
-// Datos limpios para crear una rutina (ya validados).
+export interface PlanRutinaEjercicio {
+  tipo?: z.infer<typeof tipoRegistro> | null;
+  series?: number | null;
+  repeticiones?: number | null;
+  repeticionesMax?: number | null;
+  pesoKg?: number | null;
+  asistenciaKg?: number | null;
+  duracionSeg?: number | null;
+  distanciaKm?: number | null;
+  notas?: string | null;
+  descanso?: number | null;
+}
+
 export interface CreateRutinaInput {
   nombre: string;
   diaEtiqueta: string | null;
-  ejercicioIds: number[]; // bigint, pero JS los maneja como number
-}
-
-// Datos limpios para actualizar una rutina.
-export interface UpdateRutinaInput {
-  rutinaId: string;
-  nombre: string;
-  diaEtiqueta: string | null;
+  descripcion?: string | null;
+  objetivo?: string | null;
+  notas?: string | null;
+  dias?: number[];
+  solicitudId?: string;
   ejercicioIds: number[];
+  planes?: (PlanRutinaEjercicio | null)[];
 }
 
-// Item de la lista (vista resumida).
-export interface RutinaResumen {
-  id: string;
-  nombre: string;
-  dia_etiqueta: string | null;
-  total_ejercicios: number;
-}
-
-// Detalle de una rutina (vista completa).
-export interface RutinaDetalle {
-  id: string;
-  nombre: string;
-  dia_etiqueta: string | null;
-  ejercicios: {
-    ejercicio_id: number;
-    orden: number;
-    nombre: string;
-    grupo_nombre: string;
-  }[];
+export interface UpdateRutinaInput extends CreateRutinaInput {
+  rutinaId: string;
 }

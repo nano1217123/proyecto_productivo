@@ -1,0 +1,111 @@
+.nut-shell { max-width: 62rem; margin-inline: auto; padding: clamp(.875rem, 3vw, 2rem); color: var(--ink); }
+.nut-shell h1, .nut-shell h2, .nut-shell h3, .nut-dialog h2, .nut-dialog h3 { margin: 0; }
+.nut-shell h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1; }
+.nut-shell h2, .nut-dialog h2 { font-size: 1.8rem; }
+.nut-shell p, .nut-dialog p { margin-block: .35rem; line-height: 1.5; color: var(--muted); }
+.nut-stack { display: grid; gap: 1rem; }
+.nut-header, .nut-between { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.nut-header a { display: inline-block; margin-bottom: .75rem; }
+.nut-shell a, .nut-dialog a { color: var(--lime); }
+.nut-panel, .nut-dialog { background: var(--surface); border: 1px solid var(--line); border-radius: 1rem; padding: clamp(.9rem, 3vw, 1.5rem); min-width: 0; }
+.nut-grid, .nut-fields, .nut-goals { display: grid; gap: .9rem; }
+.nut-food small, .nut-list small { color: var(--muted); }
+.nut-actions, .nut-tabs { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; }
+.nut-tabs { border-bottom: 1px solid var(--line); padding-bottom: .7rem; }
+.nut-shell button, .nut-dialog button { min-height: 44px; border: 1px solid #58515d; border-radius: .65rem; padding: .45rem .85rem; background: #28232d; color: var(--ink); font-size: .95rem; font-weight: 700; cursor: pointer; }
+.nut-shell button:hover, .nut-dialog button:hover { border-color: var(--lime); }
+.nut-shell button:disabled, .nut-dialog button:disabled { opacity: .55; cursor: default; }
+.nut-shell .nut-primary, .nut-dialog .nut-primary, .nut-tabs [aria-current] { color: #1a1024; background: var(--lime); border-color: var(--lime); }
+.nut-fields label { display: grid; gap: .4rem; align-content: start; }
+.nut-fields label:has(input[type=checkbox]) { display: flex; align-items: center; }
+.nut-shell input:not([type=checkbox], [type=radio]), .nut-dialog input, .nut-shell select, .nut-dialog select { box-sizing: border-box; width: 100%; min-height: 44px; padding: .5rem; border-radius: .55rem; background: #211d24; color: var(--ink); border: 1px solid #58515d; color-scheme: dark; font-size: 1rem; }
+.nut-shell input:is([type=checkbox], [type=radio]) { accent-color: var(--lime); }
+.nut-shell fieldset { min-inline-size: 0; border: 1px solid var(--line); border-radius: .6rem; }
+.nut-goal { border: 1px solid var(--line); border-radius: .65rem; padding: .65rem; cursor: pointer; }
+.nut-goal:has(input:checked) { border-color: var(--lime); background: var(--green-soft); }
+.nut-goal small, .nut-list small { display: block; }
+.nut-food { display: flex; flex-direction: column; align-items: flex-start; gap: .4rem; }
+.nut-food .nut-actions { margin-top: auto; }
+.nut-food > strong { color: var(--lime); }
+.nut-list, .nut-distribution { list-style: none; padding: 0; margin: 0; }
+.nut-list li, .nut-distribution li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; padding: .65rem 0; border-bottom: 1px solid var(--line); }
+.nut-dialog { box-sizing: border-box; width: min(34rem, calc(100% - 2rem)); max-height: 90dvh; color: var(--ink); }
+.nut-dialog::backdrop { background: #0a070ce0; }
+.nut-dialog table { width: 100%; text-align: left; border-collapse: collapse; }
+.nut-dialog :is(td,th) { padding: .55rem .25rem; border-bottom: 1px solid var(--line); }
+.nut-status { color: var(--lime) !important; }
+.nut-chart { height: 14rem; min-width: 0; }
+@media (min-width: 37rem) {
+  .nut-grid, .nut-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nut-goals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 58rem) {
+  .nut-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.nut-image { width: 100%; height: 8.75rem; display: grid; place-items: center; border-radius: .65rem; overflow: hidden; background: #28202f; }
+.nut-image > div { width: 8.75rem; height: 8.75rem; background-image: url("/nutrition/foods.webp"); background-size: 500% 500%; }
+.nut-dialog .nut-image { height: 12rem; }
+.nut-dialog .nut-image > div { width: 12rem; height: 12rem; }
+
+
+.nut-overview, .nut-overview-section { display: grid; gap: .65rem; }
+.nut-overview { gap: 1rem; }
+.nut-overview h2 { font-size: clamp(1.2rem, 3vw, 1.55rem); }
+.nut-section-heading, .nut-goal-summary, .nut-protein-row, .nut-goal-content {
+  display: flex; justify-content: space-between; align-items: center; gap: .65rem;
+}
+.nut-section-heading > small { color: var(--muted); white-space: nowrap; }
+.nut-goal-summary { background: var(--green-soft); border-color: var(--green-dark); }
+.nut-goal-summary h2 { color: var(--lime); font-size: .95rem; text-transform: uppercase; letter-spacing: .04em; }
+.nut-goal-content { justify-content: flex-start; margin-top: .4rem; }
+.nut-goal-content strong { font-size: 1.2rem; }
+.nut-goal-content p { margin-block: .15rem; }
+.nut-goal-content small, .nut-recommendation small { color: var(--muted); }
+.nut-goal-icon {
+  display: grid; flex: 0 0 2.5rem; height: 2.5rem; place-items: center;
+  border: 1px solid var(--green); border-radius: 50%; color: var(--lime);
+}
+.nut-shell .nut-icon { flex: 0 0 44px; width: 44px; padding: 0; font-size: 1.15rem; }
+.nut-protein-row h2 { color: var(--muted); }
+.nut-protein-amount { font-weight: 800; font-size: clamp(1.35rem, 5vw, 2.65rem); }
+.nut-protein-amount small { font-weight: 600; font-size: .62em; color: var(--muted); }
+.nut-ring {
+  display: grid; place-items: center; flex: 0 0 auto; width: clamp(3.75rem, 14vw, 5rem); aspect-ratio: 1;
+  padding: .25rem; box-sizing: border-box; border-radius: 50%;
+  background: conic-gradient(var(--green) var(--nut-progress), var(--line) 0);
+}
+.nut-ring span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--surface); font-weight: 800; }
+.nut-register { width: 100%; margin-top: .65rem; }
+.nut-register::before { content: "+ "; }
+.nut-reference { margin-top: .65rem; color: var(--muted); font-size: .9rem; }
+.nut-recommendations { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(.35rem, 2vw, .85rem); }
+.nut-recommendation { display: flex; flex-direction: column; align-items: flex-start; padding: clamp(.35rem, 2vw, .75rem); gap: .2rem; overflow-wrap: anywhere; }
+.nut-recommendation-image { position: relative; width: 100%; }
+.nut-recommendation-image .nut-image { height: auto; aspect-ratio: 4 / 3; }
+.nut-recommendation-image .nut-image > div { width: 100%; height: auto; aspect-ratio: 1; }
+.nut-shell .nut-recommendation-image .nut-icon { position: absolute; top: 0; right: 0; background: var(--surface); color: var(--lime); }
+.nut-recommendation h3 { width: 100%; }
+.nut-shell .nut-recommendation h3 button, .nut-shell .nut-food-log, .nut-shell .nut-section-heading button {
+  padding-inline: .25rem; border-color: transparent; background: transparent; text-align: left; color: var(--lime);
+}
+.nut-shell .nut-recommendation h3 button { color: var(--ink); overflow-wrap: anywhere; width: 100%; }
+.nut-recommendation p { margin: 0; font-size: .9rem; }
+.nut-recommendation small { font-size: .8rem; }
+.nut-food-log { margin-top: auto; }
+.nut-meal-rows, .nut-week-bars { list-style: none; padding: 0; margin: 0; }
+.nut-meal-rows { display: grid; gap: .35rem; }
+.nut-meal-rows li {
+  display: flex; min-height: 44px; align-items: center; gap: .6rem; padding: 0 .75rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: .65rem;
+}
+.nut-meal-rows li > span { color: var(--lime); }
+.nut-meal-rows small { margin-inline-start: auto; color: var(--muted); text-align: right; }
+.nut-shell .nut-meal-rows .nut-icon { color: var(--lime); background: transparent; border-color: transparent; }
+.nut-today-details { padding: .5rem; }
+.nut-week-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: clamp(.35rem, 2vw, 1rem); margin-block: .5rem; }
+.nut-week-bars li { display: grid; justify-items: center; gap: .25rem; color: var(--muted); }
+.nut-week-track { display: flex; align-items: end; overflow: hidden; width: 100%; height: clamp(4.5rem, 19vw, 8rem); background: var(--line); border-radius: .4rem; }
+.nut-week-track span { display: block; min-height: 2px; width: 100%; background: var(--green-dark); border-radius: .35rem .35rem 0 0; }
+.nut-week-track[data-today=true] span { background: var(--lime); }
+.nut-week p { font-size: .9rem; }
+.nut-chart-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

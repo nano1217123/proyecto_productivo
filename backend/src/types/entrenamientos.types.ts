@@ -18,7 +18,7 @@ export interface SerieOutput {
   ejercicio_id: number;
   ejercicio_nombre: string;
   numero_serie: number;
-  repeticiones: number;
+  repeticiones: number | null;
   peso_kg: number | null;
 }
 
@@ -32,4 +32,5 @@ export interface EntrenamientoResumen {
 export interface ProgresoPunto {
   fecha: string;
   peso_max: number;
+  reps_max: number;
 }

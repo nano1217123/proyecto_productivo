@@ -6,14 +6,46 @@ import {
   sanitizeString,
   containsSuspiciousPatterns,
 } from "../lib/sanitize.js";
-import type { CreateResenaInput } from "../types/resenas.types.js";
-import { esSedeValida, SLUGS_SEDES } from "../lib/sedes.js";
-// Gimnasios disponibles en la plataforma (catálogo central del backend).
-const GIMNASIOS_VALIDOS = SLUGS_SEDES;
+import type { CreateResenaInput, UpdateResenaInput } from "../types/resenas.types.js";
+import { ordenesResenas } from "../types/resenas.types.js";
+import { esSedeValida } from "../lib/sedes.js";
 const COMENTARIO_MAX = 1000;
-export function parseCreateResenaBody(
-  body: unknown
-): CreateResenaInput {
+const enteroQuery = z.string().regex(/^[1-9]\d*$/).transform(Number);
+const consultaPublica = z.strictObject({
+  pagina: enteroQuery.pipe(z.number().int().max(Number.MAX_SAFE_INTEGER)).default(1),
+  limite: enteroQuery.pipe(z.number().int().max(50)).default(10),
+  orden: z.enum(ordenesResenas).default("recientes"),
+  calificacion: enteroQuery.pipe(z.number().int().max(5)).optional(),
+  buscar: z.string().trim().max(120).refine(texto => !texto.includes("\0")).optional(),
+});
+const consultaAdmin = consultaPublica.extend({
+  estadoRespuesta: z.enum(["pendiente", "respondida"]).optional(),
+});
+
+export function parseConsultaResenasAdmin(query: unknown) {
+  const resultado = consultaAdmin.safeParse(query);
+  if (!resultado.success) throw new AppError(400, "Los filtros de reseñas o la paginación no son válidos.");
+  return resultado.data;
+}
+
+const respuestaOficial = z.strictObject({
+  texto: z.string().trim().min(1).max(COMENTARIO_MAX).refine(texto => !texto.includes("\0") && !containsSuspiciousPatterns(texto))
+    .transform(sanitizeString).pipe(z.string().min(1).max(COMENTARIO_MAX)),
+});
+
+export function parseRespuestaOficial(body: unknown) {
+  const resultado = respuestaOficial.safeParse(body);
+  if (!resultado.success) throw new AppError(400, "Escribe una respuesta válida de hasta 1000 caracteres.");
+  return resultado.data.texto;
+}
+
+export function parseConsultaResenasPublicas(query: Record<string, unknown>) {
+  if (!Object.keys(consultaPublica.shape).some(campo => Object.hasOwn(query, campo))) return undefined;
+  const resultado = consultaPublica.safeParse(query);
+  if (!resultado.success) throw new AppError(400, "Los filtros de reseñas o la paginación no son válidos.");
+  return resultado.data;
+}
+function leerDatosResena(body: unknown): Record<string, unknown> {
   if (
     typeof body !== "object" ||
     body === null ||
@@ -21,17 +53,12 @@ export function parseCreateResenaBody(
   ) {
     throw new AppError(400, "Los datos de la reseña no son válidos.");
   }
-  const { gymSlug, calificacion, comentario } =
-    body as Record<string, unknown>;
-  if (
-    typeof gymSlug !== "string" ||
-    !GIMNASIOS_VALIDOS.includes(
-      gymSlug as (typeof GIMNASIOS_VALIDOS)[number]
-    )
-  ) {
-    throw new AppError(400, "El gimnasio seleccionado no es válido.");
-  }
-  const nota = Number(calificacion);
+  return body as Record<string, unknown>;
+}
+
+function validarContenido({ calificacion, comentario }: Record<string, unknown>): UpdateResenaInput {
+  const nota = typeof calificacion === "number" || typeof calificacion === "string"
+    ? Number(calificacion) : NaN;
   if (
     !Number.isInteger(nota) ||
     nota < 1 ||
@@ -47,7 +74,7 @@ export function parseCreateResenaBody(
   }
   const comentarioLimpio = sanitizeString(comentario);
   if (!comentarioLimpio) {
-    throw new AppError(400, "Escribe un comentario antes de publicar.");
+    throw new AppError(400, "Escribe un comentario para la reseña.");
   }
   if (comentarioLimpio.length > COMENTARIO_MAX) {
     throw new AppError(
@@ -56,11 +83,35 @@ export function parseCreateResenaBody(
     );
   }
   return {
-    gymSlug,
     calificacion: nota,
     comentario: comentarioLimpio,
   };
 }
+
+export function parseCreateResenaBody(body: unknown): CreateResenaInput {
+  const datos = leerDatosResena(body);
+  if (!esSedeValida(datos.gymSlug)) {
+    throw new AppError(400, "El gimnasio seleccionado no es válido.");
+  }
+  return { gymSlug: datos.gymSlug, ...validarContenido(datos) };
+}
+
+export const validateUpdateResena: RequestHandler = (req, _res, next) => {
+  const datos = leerDatosResena(req.body);
+  if (Object.keys(datos).some(campo => campo !== "calificacion" && campo !== "comentario")) {
+    throw new AppError(400, "Solo puedes modificar la calificación y el comentario.");
+  }
+  req.body = validarContenido(datos);
+  next();
+};
+
+const identificadorResena = z.guid();
+export const validateResenaId: RequestHandler = (req, _res, next) => {
+  if (!identificadorResena.safeParse(req.params.id).success) {
+    throw new AppError(400, "El identificador de la reseña no es válido.");
+  }
+  next();
+};
 export const validateCreateResena: RequestHandler = (
   req,
   _res,

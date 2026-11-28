@@ -6,8 +6,6 @@ import {
 } from "../repositories/rutinas.repository.js";
 import type {
   CreateRutinaInput,
-  RutinaDetalle,
-  RutinaResumen,
   UpdateRutinaInput,
 } from "../types/rutinas.types.js";
 
@@ -22,15 +20,15 @@ export function createRutinasService(
 ) {
   return {
     // Lista las rutinas del usuario autenticado.
-    async list(usuarioId: string): Promise<RutinaResumen[]> {
-      return repository.findAllByUsuario(usuarioId);
+    async list(usuarioId: string, archivada = false) {
+      return repository.findAllByUsuario(usuarioId, archivada);
     },
 
     // Devuelve el detalle de una rutina o lanza 404.
     async getById(
       rutinaId: string,
       usuarioId: string
-    ): Promise<RutinaDetalle> {
+    ) {
       const rutina = await repository.findByIdForUsuario(rutinaId, usuarioId);
 
       if (!rutina) {
@@ -55,6 +53,10 @@ export function createRutinasService(
       input: UpdateRutinaInput
     ): Promise<void> {
       await repository.update(usuarioId, input);
+    },
+
+    async setArchived(id: string, usuarioId: string, archivada: boolean) {
+      return repository.setArchived(id, usuarioId, archivada);
     },
 
     // Borra una rutina existente.

@@ -23,12 +23,12 @@ function parseSerie(value: unknown, idx: number): SerieInput {
   const { ejercicio_id, numero_serie, repeticiones, peso_kg } = value as Record<string, unknown>;
 
   const ejId = Number(ejercicio_id);
-  if (!Number.isInteger(ejId) || ejId <= 0) {
+  if (!Number.isSafeInteger(ejId) || ejId <= 0) {
     throw new AppError(400, `Serie ${idx + 1}: ejercicio_id inválido.`);
   }
 
   const numSerie = Number(numero_serie);
-  if (!Number.isInteger(numSerie) || numSerie <= 0) {
+  if (!Number.isSafeInteger(numSerie) || numSerie <= 0 || numSerie > 2147483647) {
     throw new AppError(400, `Serie ${idx + 1}: numero_serie inválido.`);
   }
 
@@ -69,6 +69,11 @@ export function parseCreateEntrenamientoBody(body: unknown): CreateEntrenamiento
 
   if (typeof fecha !== "string" || !FECHA_REGEX.test(fecha)) {
     throw new AppError(400, "La fecha debe tener formato YYYY-MM-DD.");
+  }
+
+  const fechaParseada = new Date(`${fecha}T00:00:00Z`);
+  if (!Number.isFinite(fechaParseada.getTime()) || fechaParseada.toISOString().slice(0, 10) !== fecha) {
+    throw new AppError(400, "La fecha indicada no existe.");
   }
 
   let notaLimpia: string | null = null;

@@ -36,6 +36,10 @@ export function createEntrenamientosService(
       return repository.getProgresoByEjercicio(usuarioId, ejercicioId);
     },
 
+    async corregir(id: string, usuarioId: string, nombre: string, notas: string): Promise<void> {
+      await repository.corregir(id, usuarioId, nombre, notas);
+    },
+
     async delete(entrenamientoId: string, usuarioId: string): Promise<void> {
       await repository.delete(entrenamientoId, usuarioId);
     },

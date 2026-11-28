@@ -1,216 +1,265 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
-import ReportesPersonales from "../components/ReportesPersonales";
-import { useTrainingHistory } from "../hooks/useTrainingHistory";
+import { historyApi } from "../api/historyApi";
+import HistoryCalendar from "../components/HistoryCalendar";
+import HistoryComparison from "../components/HistoryComparison";
+import HistoryDetail from "../components/HistoryDetail";
+import HistoryEditor from "../components/HistoryEditor";
+import HistoryList from "../components/HistoryList";
+import { civilToday, fullDate, minutes, monthRange, weekStart } from "../hooks/historyDates";
+import { useHistoryRequest } from "../hooks/useHistoryRequest";
+import "./history.css";
 
-const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
-const ESTILO_REINTENTO = `px-4 py-2.5 border-0 rounded-lg bg-[#b56cff] text-[#10110f] text-[13px] font-extrabold cursor-pointer transition hover:bg-[#d7adff] aria-disabled:opacity-60 aria-disabled:cursor-wait ${ESTILO_FOCO}`;
-const ESTILO_ERROR = "p-4 border border-[rgba(255,121,121,0.32)] rounded-xl bg-[#351b1b]";
+const fields = [
+  ["desde", "Desde", "date"], ["hasta", "Hasta", "date"], ["rutina", "Rutina de origen", "text"],
+  ["grupo", "Grupo muscular", "text"], ["ejercicio", "Ejercicio", "text"], ["duracion", "Duración mínima (min)", "number"],
+];
 
-export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
-  const { loading, logout } = useAuth();
-  const {
-    sesiones, estadoHistorial, errorHistorial,
-    ejercicioId: ejercicioSeleccionado, progreso, estadoProgreso, errorProgreso,
-    recargarHistorial, seleccionarEjercicio, reintentarProgreso,
-  } = useTrainingHistory();
-  const selectorId = useId();
-  const selectorRef = useRef(null);
-  // Tras un reintento exitoso su botón desaparece: el foco pasa al selector.
-  const reintentoRef = useRef(false);
+function ErrorState({ message, onRetry }) {
+  return <div className="history-error" role="alert"><p>{message}</p><button onClick={onRetry}>Reintentar</button></div>;
+}
 
-  const historialListo = estadoHistorial === "listo";
-  const cargandoHistorial = estadoHistorial === "cargando";
-  const cargandoProgreso = estadoProgreso === "cargando";
-  const progresoListo = estadoProgreso === "listo";
+export default function TrainingHistoryPage({ gym = "jj-poblado", initialDay = "", initialSession = "" }) {
+  const { loading } = useAuth();
+  const router = useRouter();
+  const [today] = useState(civilToday);
+  const [view, setView] = useState("list");
+  const [month, setMonth] = useState(today);
+  const [selected, setSelected] = useState("");
+  const [filters, setFilters] = useState(() => initialDay ? { desde: initialDay, hasta: initialDay } : {});
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [refresh, setRefresh] = useState(0);
+  const [modal, setModal] = useState(() => initialSession ? { kind: "detail", id: initialSession } : null);
+  const [reference, setReference] = useState(null);
+  const [notice, setNotice] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [pending, setPending] = useState(false);
+  const action = useRef(false);
+  const repeatRequest = useRef(null);
+  const dirty = useRef(false);
+  const registerChanges = useCallback((value) => { dirty.current = value; }, []);
+  const dialog = useRef(null);
+  const closeButton = useRef(null);
+  const query = `gym=${encodeURIComponent(gym)}`;
+  const training = `/dashboard/entrenamientos?${query}`;
+  const routines = `/dashboard/rutinas?${query}`;
+  const dates = { semana: weekStart(today), mes: monthRange(today).desde, hoy: today, ...monthRange(month) };
+  const activity = useHistoryRequest(loading ? null : JSON.stringify([dates, refresh]), (signal) => historyApi.activity(dates, signal));
+  const listParams = view === "list" ? { ...filters, pagina: page } : { pagina: page, desde: selected, hasta: selected };
+  const list = useHistoryRequest(loading || (view === "calendar" && !selected) ? null : JSON.stringify([listParams, refresh]),
+    (signal) => historyApi.list(listParams, signal));
+  const detail = useHistoryRequest(modal?.id ? `${modal.id}:${refresh}` : null, (signal) => historyApi.detail(modal.id, signal));
+  const comparison = useHistoryRequest(modal?.other ? `${reference.id}:${modal.other}:${refresh}` : null,
+    (signal) => historyApi.compare(reference.id, modal.other, signal));
+  const modalOpen = !!modal;
 
   useEffect(() => {
-    if (!reintentoRef.current || cargandoHistorial || cargandoProgreso) return;
-    reintentoRef.current = false;
-    // Solo recupera el foco que se perdió con el botón; si el usuario pasó
-    // a otro control mientras cargaba, no se lo quita.
-    const activo = document.activeElement;
-    const focoPerdido = !activo || activo === document.body;
-    if (!errorHistorial && !errorProgreso && focoPerdido) selectorRef.current?.focus();
-  }, [cargandoHistorial, cargandoProgreso, errorHistorial, errorProgreso]);
-
-  function reintentar(accion) {
-    reintentoRef.current = true;
-    accion();
-  }
-
-  // Lista única de ejercicios que el usuario ya entrenó, extraída del
-  // propio historial (no hace falta volver a cargar el catálogo completo).
-  const ejerciciosEntrenados = useMemo(() => {
-    const mapa = new Map();
-    for (const sesion of sesiones) {
-      for (const serie of sesion.series_entrenamiento || []) {
-        if (serie.ejercicio_id && serie.ejercicios?.nombre) {
-          mapa.set(serie.ejercicio_id, serie.ejercicios.nombre);
-        }
-      }
+    if (modalOpen && !dialog.current.open) {
+      dialog.current.showModal();
+      closeButton.current?.focus();
     }
-    return Array.from(mapa.entries()).map(([id, nombre]) => ({ id, nombre }));
-  }, [sesiones]);
+    else if (!modalOpen && dialog.current.open) dialog.current.close();
+  }, [modalOpen]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
-        <p className="text-sm text-[#a9afa7]">Cargando...</p>
-      </div>
-    );
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setFilters((previous) => previous.buscar === search.trim() ? previous : { ...previous, buscar: search.trim() });
+      setPage(1);
+    }, 280);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  function updateFilter(key, value) {
+    setFilters((previous) => ({ ...previous, [key]: value }));
+    setPage(1);
+  }
+  function reset() {
+    setFilters({});
+    setSearch("");
+    setPage(1);
+  }
+  function setRange(preset) {
+    const range = preset === "week" ? { desde: dates.semana, hasta: today }
+      : preset === "month" ? { desde: dates.mes, hasta: today } : monthRange(today, -1);
+    setFilters((previous) => ({ ...previous, ...range }));
+    setPage(1);
+  }
+  function switchView(next) {
+    setView(next);
+    setPage(1);
+  }
+  function changeMonth(next) {
+    setMonth(next);
+    setSelected(next === today ? today : "");
+    setPage(1);
+  }
+  const reload = () => setRefresh((value) => value + 1);
+
+  function open(next) {
+    setActionError("");
+    setModal(next);
+    closeButton.current?.focus();
+  }
+  function close() {
+    if (action.current || (dirty.current && !window.confirm("¿Descartar los cambios sin guardar?"))) return;
+    open(null);
   }
 
-  return (
-    <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span>
-          <span>Historial</span>
-        </Link>
-        <div className="flex items-center gap-6">
-          <Link className="text-[13px] text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}`}>
-            + Nuevo entrenamiento
-          </Link>
-          <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-            Cerrar sesion
-          </button>
-        </div>
+  async function perform(task, onSuccess) {
+    if (action.current) return;
+    action.current = true;
+    setPending(true);
+    setActionError("");
+    setNotice("");
+    try {
+      await task();
+      onSuccess();
+    } catch (error) {
+      setActionError(error.message);
+    } finally {
+      action.current = false;
+      setPending(false);
+    }
+  }
+
+  function repeat(id) {
+    if (action.current) return;
+    if (repeatRequest.current?.source !== id) repeatRequest.current = { source: id, id: crypto.randomUUID() };
+    void perform(async () => {
+      try {
+        await historyApi.repeat(id, repeatRequest.current.id);
+      } catch (error) {
+        if (error.status === 409) {
+          repeatRequest.current = null;
+          throw new Error("Puede haber un entrenamiento en curso. Ve al registro para continuar o resolver su estado.");
+        }
+        throw error;
+      }
+    }, () => router.push(`${training}&continuar=1`));
+  }
+  function compare(row) {
+    if (reference) open({ kind: "compare", other: row.id });
+    else setReference(row);
+  }
+
+  const summary = activity.data?.resumen;
+  const hasFilters = Object.entries(filters).some(([key, value]) => key !== "orden" && value);
+  const rows = list.data?.entrenamientos ?? [];
+  return <main className="history-page">
+    <div className="history-shell">
+      <nav className="history-nav" aria-label="Entrenamientos">
+        <Link href={training}>Registro de entrenamiento</Link>
+        <Link href={`/dashboard/entrenamientos/progreso?${query}`}>Progreso por ejercicio</Link>
+      </nav>
+      <header className="history-heading">
+        <h1>Historial de entrenamientos</h1>
+        <p>Consulta, compara y reutiliza tus sesiones realizadas.</p>
       </header>
-      <div className="mx-auto max-w-[1060px]"><ReportesPersonales /></div>
-
-      <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
-        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard?gym=${encodeURIComponent(gym)}`}>&larr; Inicio</Link>
-        <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">ENTRENAMIENTO</p>
-        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Tu historial</h1>
-      </section>
-
-      <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-[18px] pb-10 items-start">
-        {/* Columna izquierda: lista de sesiones */}
-        <div className="grid gap-3" aria-busy={cargandoHistorial}>
-          {errorHistorial && (
-            <div className={ESTILO_ERROR}>
-              <p role="alert" className="m-0 mb-3 text-[13px] text-[#ff7979]">{errorHistorial}</p>
-              <button
-                type="button"
-                onClick={() => !cargandoHistorial && reintentar(recargarHistorial)}
-                aria-disabled={cargandoHistorial}
-                className={ESTILO_REINTENTO}
-              >
-                {cargandoHistorial ? "Cargando historial..." : "Reintentar historial"}
-              </button>
-            </div>
-          )}
-          {cargandoHistorial && !errorHistorial && (
-            <p role="status" className="p-5 border border-[#41433f] rounded-xl bg-[#212320] text-sm text-[#a9afa7]">
-              Cargando historial...
-            </p>
-          )}
-          {historialListo && sesiones.length === 0 && (
-            <p className="p-5 border border-[#41433f] rounded-xl bg-[#212320] text-sm text-[#a9afa7]">
-              Todavía no registras ningún entrenamiento.
-            </p>
-          )}
-          {sesiones.map((sesion) => (
-            <div key={sesion.id} className="p-5 border border-[#41433f] rounded-xl bg-[#212320]">
-              <div className="flex items-center justify-between mb-3">
-                <strong className="text-[15px]">{new Date(sesion.fecha + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })}</strong>
-                {sesion.notas && <span className="text-xs text-[#a9afa7]">{sesion.notas}</span>}
-              </div>
-              <div className="grid gap-1.5">
-                {(sesion.series_entrenamiento || [])
-                  .slice()
-                  .sort((a, b) => a.id - b.id)
-                  .map((serie) => (
-                    <div key={serie.id} className="flex items-center justify-between text-[13px] text-[#c0c7bd]">
-                      <span>{serie.ejercicios?.nombre || "Ejercicio"} — serie {serie.numero_serie}</span>
-                      <span className="text-[#d7adff] font-semibold">{serie.repeticiones} reps{serie.peso_kg ? ` · ${serie.peso_kg} kg` : ""}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
+      {activity.error && <ErrorState message={activity.error} onRetry={reload} />}
+      {summary && <dl className="history-summary">
+        <div><dt>Entrenamientos</dt><dd>{summary.total}</dd></div>
+        <div><dt>Esta semana</dt><dd>{summary.semana}</dd></div>
+        <div><dt>Tiempo total</dt><dd>{minutes(summary.tiempo)}</dd></div>
+        <div><dt>Este mes</dt><dd>{summary.mes}</dd></div>
+      </dl>}
+      {summary?.total > 0 && <details className="history-panel">
+        <summary>Resumen de actividad</summary>
+        <p>{summary.dias} días con actividad · {minutes(summary.promedio)} de duración promedio · {activity.data.grupos.reduce((sum, item) => sum + item.series, 0)} series</p>
+        {activity.data.grupos.length > 0 && <p className="history-muted">Grupos con más series: {activity.data.grupos.slice(0, 3).map((item) => `${item.grupo} (${item.series})`).join(" · ")}</p>}
+      </details>}
+      <section className="history-toolbar" aria-label="Buscar sesiones">
+        {view === "list" && <label className="history-search"><span className="history-visually-hidden">Buscar entrenamientos</span>
+          <input type="search" placeholder="Buscar entrenamientos, rutinas o ejercicios…" maxLength={120} value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>}
+        <div className="history-between">
+          <div className="history-actions" aria-label="Vista del historial">
+            <button aria-pressed={view === "list"} onClick={() => switchView("list")}>Listado</button>
+            <button aria-pressed={view === "calendar"} onClick={() => switchView("calendar")}>Calendario</button>
+          </div>
+          {view === "list" && <label className="history-sort"><span className="history-visually-hidden">Orden</span>
+            <select value={filters.orden ?? "recientes"} onChange={(e) => updateFilter("orden", e.target.value)}>
+              <option value="recientes">Más recientes</option><option value="antiguos">Más antiguos</option>
+              <option value="larga">Mayor duración</option><option value="corta">Menor duración</option>
+              <option value="volumen">Mayor volumen de fuerza</option>
+            </select>
+          </label>}
         </div>
-
-        {/* Columna derecha: gráfico de progreso */}
-        <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
-          <h2 id="vista-previa-progreso" tabIndex={-1} className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Progreso por ejercicio</h2>
-
-          <label htmlFor={selectorId} className="block mb-2 text-xs font-bold text-[#c0c7bd]">
-            Ejercicio
-          </label>
-          <select
-            id={selectorId}
-            ref={selectorRef}
-            value={ejercicioSeleccionado}
-            onChange={(e) => seleccionarEjercicio(e.target.value)}
-            disabled={!historialListo}
-            className={`w-full mb-5 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff] disabled:opacity-60 disabled:cursor-not-allowed ${ESTILO_FOCO}`}
-          >
-            <option value="">Selecciona un ejercicio entrenado</option>
-            {ejerciciosEntrenados.map((ej) => (
-              <option key={ej.id} value={ej.id}>{ej.nombre}</option>
-            ))}
-          </select>
-
-          {!historialListo && (
-            <p className="text-sm text-[#a9afa7]">El selector estará disponible cuando cargue tu historial.</p>
-          )}
-
-          {historialListo && !ejercicioSeleccionado && (
-            <p className="text-sm text-[#a9afa7]">Elige un ejercicio para ver cómo ha evolucionado tu peso.</p>
-          )}
-
-          {ejercicioSeleccionado && errorProgreso && (
-            <div className={`${ESTILO_ERROR} mb-5`}>
-              <p role="alert" className="m-0 mb-3 text-[13px] text-[#ff7979]">{errorProgreso}</p>
-              <button
-                type="button"
-                onClick={() => !cargandoProgreso && reintentar(reintentarProgreso)}
-                aria-disabled={cargandoProgreso}
-                className={ESTILO_REINTENTO}
-              >
-                {cargandoProgreso ? "Cargando progreso..." : "Reintentar progreso"}
-              </button>
-            </div>
-          )}
-
-          {ejercicioSeleccionado && cargandoProgreso && !errorProgreso && (
-            <p role="status" className="text-sm text-[#a9afa7]">Cargando progreso...</p>
-          )}
-
-          {ejercicioSeleccionado && progresoListo && progreso.length === 0 && (
-            <p className="text-sm text-[#a9afa7]">Todavía no hay suficientes registros de este ejercicio.</p>
-          )}
-
-          {ejercicioSeleccionado && progresoListo && progreso.length > 0 && (
-            <div style={{ width: "100%", height: 260 }}>
-              <ResponsiveContainer>
-                <LineChart data={progreso} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#30332f" />
-                  <XAxis
-                    dataKey="fecha"
-                    tick={{ fill: "#a9afa7", fontSize: 11 }}
-                    tickFormatter={(f) => new Date(f + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit" })}
-                  />
-                  <YAxis tick={{ fill: "#a9afa7", fontSize: 11 }} unit=" kg" />
-                  <Tooltip
-                    contentStyle={{ background: "#151714", border: "1px solid #41463f", borderRadius: 8 }}
-                    labelStyle={{ color: "#f2f4ef" }}
-                    labelFormatter={(f) => new Date(f + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "long" })}
-                    formatter={(value) => [`${value} kg`, "Peso máximo"]}
-                  />
-                  <Line type="monotone" dataKey="peso_max" stroke="#b56cff" strokeWidth={2} dot={{ fill: "#b56cff", r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+        {view === "list" && <details className="history-filters">
+          <summary>Filtros {hasFilters && <span className="history-indicator" />}</summary>
+          <div className="history-form-grid">
+            <label>Fecha específica<input type="date" value={filters.desde && filters.desde === filters.hasta ? filters.desde : ""}
+              onChange={(e) => { const value = e.target.value; setFilters((previous) => ({ ...previous, desde: value, hasta: value })); setPage(1); }} /></label>
+            {fields.map(([key, label, type]) => <label key={key}>{label}<input type={type} maxLength={120} min={type === "number" ? 0 : undefined}
+              max={type === "number" ? 1440 : undefined} value={filters[key] ?? ""} onChange={(e) => updateFilter(key, e.target.value)} /></label>)}
+            <label className="history-check"><input type="checkbox" checked={!!filters.records} onChange={(e) => updateFilter("records", e.target.checked)} /> Solo con récords personales</label>
+          </div>
+          <div className="history-actions">
+            <button onClick={() => setRange("week")}>Esta semana</button><button onClick={() => setRange("month")}>Este mes</button>
+            <button onClick={() => setRange("previous")}>Mes anterior</button><button onClick={reset}>Limpiar filtros</button>
+          </div>
+        </details>}
       </section>
-    </main>
-  );
+      {view === "calendar" && activity.data && <HistoryCalendar month={month} setMonth={changeMonth} today={today} selected={selected}
+        onDate={(date) => { setSelected(date); setPage(1); }} days={activity.data.dias} />}
+      {view === "calendar" && !activity.data && !activity.error && <p role="status">Cargando calendario…</p>}
+      {view === "calendar" && selected && <h2>{fullDate(selected)}</h2>}
+      {reference && <div className="history-panel history-between" role="status">
+        <p>Referencia: <strong>{reference.nombre || "Entrenamiento"}</strong>. Elige otra sesión desde su menú.</p>
+        <button onClick={() => setReference(null)}>Cancelar comparación</button>
+      </div>}
+      {notice && <p role="status" className="history-panel">{notice}</p>}
+      {actionError && !modal && <div className="history-error" role="alert"><p>{actionError}</p><Link href={training}>Ir al registro</Link></div>}
+      {list.error && <ErrorState message={list.error} onRetry={reload} />}
+      {!list.data && !list.error && (view === "list" || selected) && <p role="status">Cargando entrenamientos…</p>}
+      {list.data && rows.length === 0 && <section className="history-empty">
+        <span aria-hidden="true">▥</span>
+        <h2>{summary?.total === 0 ? "Tu historial empieza con una sesión" : "No hay sesiones para esta consulta"}</h2>
+        {summary?.total === 0 ? <>
+          <p>Cuando finalices tu primer entrenamiento, aparecerá aquí.</p>
+          <div className="history-actions"><Link className="history-primary" href={training}>Iniciar mi primer entrenamiento</Link><Link href={routines}>Mis rutinas</Link></div>
+        </> : hasFilters && view === "list" && <button onClick={reset}>Limpiar filtros</button>}
+      </section>}
+      <HistoryList rows={rows} order={listParams.orden} query={query} comparison={reference} pending={pending}
+        onDetail={(id) => open({ kind: "detail", id })} onEdit={(id) => open({ kind: "edit", id })} onRepeat={repeat}
+        onCompare={compare} onDelete={(row) => open({ kind: "delete", row })} />
+      {(page > 1 || list.data?.siguiente) && <div className="history-between">
+        <button disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</button><span>Página {page}</span>
+        <button disabled={!list.data?.siguiente} onClick={() => setPage(page + 1)}>Siguiente</button>
+      </div>}
+      <dialog ref={dialog} className="history-dialog" aria-label="Información del entrenamiento"
+        onCancel={(event) => { event.preventDefault(); close(); }}>
+        <div className="history-dialog-close"><button type="button" ref={closeButton} onClick={close}>Cerrar</button></div>
+        {modal && <div className="history-stack">
+          {actionError && <div className="history-error" role="alert"><p>{actionError}</p>{modal.kind === "detail" && <Link href={training}>Ir al registro</Link>}</div>}
+          {(detail.error || comparison.error) && <ErrorState message={detail.error || comparison.error} onRetry={reload} />}
+          {modal.id && !detail.data && !detail.error && <p role="status">Cargando sesión…</p>}
+          {modal.kind === "detail" && detail.data && <HistoryDetail detail={detail.data} query={query} onRepeat={repeat} pending={pending} onEdit={(id) => open({ kind: "edit", id })} />}
+          {modal.kind === "edit" && detail.data && <HistoryEditor key={detail.data.id} detail={detail.data} today={today}
+            registerChanges={registerChanges} pending={pending}
+            onSave={(input) => perform(() => historyApi.update(detail.data.id, input), () => {
+              dirty.current = false; open({ kind: "detail", id: detail.data.id }); reload(); setNotice("Cambios guardados.");
+            })} />}
+          {modal.kind === "compare" && (comparison.data ? <HistoryComparison data={comparison.data} /> :
+            !comparison.error && <p role="status">Cargando comparación…</p>)}
+          {modal.kind === "delete" && <>
+            <h2>¿Eliminar este entrenamiento?</h2>
+            <p>Vas a eliminar «{modal.row.nombre || "Entrenamiento"}», del {fullDate(modal.row.fecha)}.</p>
+            <p>Esta acción actualizará las estadísticas y los récords personales asociados. Tus rutinas se conservan.</p>
+            <div className="history-actions">
+              <button disabled={pending} onClick={close}>Cancelar</button>
+              <button disabled={pending} className="history-danger" onClick={() => perform(() => historyApi.delete(modal.row.id), () => {
+                if (reference?.id === modal.row.id) setReference(null);
+                open(null); setPage(1); reload(); setNotice("Entrenamiento eliminado.");
+              })}>{pending ? "Eliminando…" : "Eliminar entrenamiento"}</button>
+            </div>
+          </>}
+        </div>}
+      </dialog>
+    </div>
+  </main>;
 }

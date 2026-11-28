@@ -90,7 +90,7 @@ export default function ImagesTab() {
     enviar();
   }
 
-  const textoBoton = fase === "subiendo" ? "Subiendo imagen..." : fase === "asignando" ? "Asignando imagen..." : "Subir y asignar imagen";
+  const textoBoton = fase === "subiendo" ? "Subiendo imagen..." : fase === "asignando" ? "Asignando imagen..." : "Guardar imagen del ejercicio";
 
   return (
     <section aria-labelledby="titulo-imagenes" className="p-6 bg-[#212320] border border-[#41433f] rounded-[14px]">
@@ -222,7 +222,7 @@ export default function ImagesTab() {
               <div className="p-4 border border-[#41433f] rounded-lg bg-[#151714] grid gap-3">
                 <p className="m-0 text-sm">
                   <span className="text-[#a9afa7]">Destino:</span>{" "}
-                  <strong className="text-[#f2f4ef]">{grupo.nombre} → {etiquetaEjercicio}</strong>
+                  <strong className="text-[#f2f4ef]">{grupo.nombre} · {etiquetaEjercicio}</strong>
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -1,4 +1,5 @@
 import type { FiltrosReporteResenas, SeccionReporteResenas } from "../types/resenas.types.js";
+import { resumirValoraciones } from "./resenasEstadisticas.js";
 
 const negro = "#181818";
 // El PDF se renderiza sin CSS. Usa --green-dark de globals.css.
@@ -9,7 +10,6 @@ const fecha = new Intl.DateTimeFormat("es-CO", {
 });
 const decimal = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const porcentaje = new Intl.NumberFormat("es-CO", { style: "percent", maximumFractionDigits: 1 });
-const estrellas = [5, 4, 3, 2, 1] as const;
 
 export function periodoResenas({ desde, hasta }: FiltrosReporteResenas) {
   if (desde && hasta) return `${desde} — ${hasta}`;
@@ -19,19 +19,13 @@ export function periodoResenas({ desde, hasta }: FiltrosReporteResenas) {
 }
 
 export function estadisticasResenas(filas: readonly { calificacion: number }[]) {
-  const conteos = [0, 0, 0, 0, 0, 0];
-  let suma = 0;
+  const conteos = new Map<number, number>();
   for (const { calificacion } of filas) {
-    conteos[calificacion]++;
-    suma += calificacion;
+    conteos.set(calificacion, (conteos.get(calificacion) ?? 0) + 1);
   }
-  const total = filas.length;
   return {
-    total, promedio: total ? suma / total : null,
-    altas: conteos[4] + conteos[5],
-    distribucion: estrellas.map(valor => ({
-      valor, cantidad: conteos[valor], proporcion: total ? conteos[valor] / total : null,
-    })),
+    ...resumirValoraciones(conteos),
+    altas: (conteos.get(4) ?? 0) + (conteos.get(5) ?? 0),
   };
 }
 

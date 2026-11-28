@@ -22,6 +22,10 @@ model Usuario {
   bloqueadoHasta            DateTime?            @map("bloqueado_hasta") @db.Timestamptz(6)
   intentosFallidos          Int                  @default(0) @map("intentos_fallidos")
 
+  nutricion                  NutricionPerfil?
+  referenciasNutricion       NutricionReferencia[]
+  registrosNutricion         NutricionRegistro[]
+  favoritosNutricion         NutricionFavorito[]
   entrenamientos            Entrenamiento[]
   passwordResetTokens       PasswordResetToken[]
   refreshTokens             RefreshToken[]
@@ -29,6 +33,12 @@ model Usuario {
   seriesEntrenamiento       SerieEntrenamiento[]
   verificationCodes         VerificationCode[]
   resenas                   Resena[]
+  votosUtilesResenas        VotoUtilResena[]
+  denunciasPrivadas        DenunciaResenaPrivada[]
+  decisionesResenas        DecisionModeracionResena[]
+  respuestasResenaCreadas    RespuestaResena[]     @relation("RespuestaResenaCreador")
+  respuestasResenaEditadas   RespuestaResena[]     @relation("RespuestaResenaEditor")
+  respuestasResenaRetiradas  RespuestaResena[]     @relation("RespuestaResenaRetiro")
   metricasDiarias           MetricaDiaria[]
   adminSedes                AdminSede[]
   pagosIntentos             PagoIntento[]
@@ -70,9 +80,20 @@ model Entrenamiento {
   notas               String?
   creadoEn            DateTime             @default(now()) @map("creado_en") @db.Timestamptz(6)
 
+  nombre              String?
+  estado              String               @default("finalizado")
+  iniciadoEn          DateTime?            @map("iniciado_en") @db.Timestamptz(6)
+  finalizadoEn        DateTime?            @map("finalizado_en") @db.Timestamptz(6)
+  revision            Int                  @default(0)
+  sesion              Json?
+  rutinaOrigen        Json?                @map("rutina_origen")
+  catalogoHistorico   Json?                @map("catalogo_historico")
+  actualizadoEn      DateTime?             @map("actualizado_en") @db.Timestamptz(6)
+
   usuario             Usuario              @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
   seriesEntrenamiento SerieEntrenamiento[]
 
+  @@index([usuarioId, estado, fecha, creadoEn])
   @@map("entrenamientos")
 }
 
@@ -83,9 +104,17 @@ model Rutina {
   diaEtiqueta      String?           @map("dia_etiqueta")
   creadoEn         DateTime          @default(now()) @map("creado_en") @db.Timestamptz(6)
 
+  descripcion      String?
+  objetivo         String?
+  notas            String?
+  dias             Int[]             @default([])
+  archivada        Boolean           @default(false)
+  actualizadoEn    DateTime?         @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+
   rutinaEjercicios RutinaEjercicio[]
   usuario          Usuario           @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
+  @@index([usuarioId, archivada])
   @@map("rutinas")
 }
 
@@ -94,6 +123,16 @@ model RutinaEjercicio {
   rutinaId    String    @map("rutina_id") @db.Uuid
   ejercicioId BigInt    @map("ejercicio_id")
   orden       Int
+  tipo        String?
+  series      Int?
+  repeticiones Int?
+  descanso    Int?
+  repeticionesMax Int? @map("repeticiones_max")
+  pesoKg          Float? @map("peso_kg")
+  asistenciaKg    Float? @map("asistencia_kg")
+  duracionSeg     Int? @map("duracion_seg")
+  distanciaKm     Float? @map("distancia_km")
+  notas           String?
   creadoEn    DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
 
   ejercicio   Ejercicio @relation(fields: [ejercicioId], references: [id])
@@ -109,14 +148,20 @@ model SerieEntrenamiento {
   ejercicioId     BigInt        @map("ejercicio_id")
   usuarioId       String        @map("usuario_id") @db.Uuid
   numeroSerie     Int           @map("numero_serie")
-  repeticiones    Int
+  repeticiones    Int?
   pesoKg          Decimal?      @map("peso_kg") @db.Decimal
+  tipo            String?
+  duracionSeg     Int?          @map("duracion_seg")
+  distanciaKm     Decimal?      @map("distancia_km") @db.Decimal
+  asistenciaKg    Decimal?      @map("asistencia_kg") @db.Decimal
   creadoEn        DateTime      @default(now()) @map("creado_en") @db.Timestamptz(6)
 
   ejercicio       Ejercicio     @relation(fields: [ejercicioId], references: [id])
   entrenamiento   Entrenamiento @relation(fields: [entrenamientoId], references: [id], onDelete: Cascade)
   usuario         Usuario       @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
 
+  @@index([usuarioId, ejercicioId])
+  @@index([entrenamientoId])
   @@map("series_entrenamiento")
 }
 
@@ -171,11 +216,153 @@ model Resena {
   comentario   String   @db.Text
   creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
 
-  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  usuario   Usuario         @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+  respuesta RespuestaResena?
+  votosUtiles VotoUtilResena[]
+  visibilidad VisibilidadResena @default(VISIBLE)
+  revision Int @default(1)
+  denuncias DenunciaResena[]
+  denunciasPrivadas DenunciaResenaPrivada[]
+  decisiones DecisionModeracionResena[]
 
   @@index([usuarioId])
   @@index([gymSlug, creadoEn])
+  @@index([visibilidad, gymSlug, creadoEn])
   @@map("resenas")
+}
+
+enum VisibilidadResena {
+  VISIBLE
+  OCULTA
+}
+
+enum MotivoDenunciaResena {
+  ACOSO
+  SPAM
+  DATOS_PERSONALES
+  FRAUDE
+  OTRO
+}
+
+enum EstadoDenunciaResena {
+  PENDIENTE
+  DERIVADA
+  RESUELTA
+}
+
+enum AccionModeracionResena {
+  DERIVAR
+  RESOLVER
+  OCULTAR
+  RESTAURAR
+}
+
+enum MotivoModeracionResena {
+  ACOSO
+  SPAM
+  DATOS_PERSONALES
+  FRAUDE
+  SIN_INFRACCION
+  CONTENIDO_CORREGIDO
+  REQUIERE_REVISION
+}
+
+model DenunciaResena {
+  id String @id @default(uuid(7)) @db.Uuid
+  resenaId String? @map("resena_id") @db.Uuid
+  gymSlug String @map("gym_slug") @db.VarChar(64)
+  motivo MotivoDenunciaResena
+  estado EstadoDenunciaResena @default(PENDIENTE)
+  revision Int
+  prioritaria Boolean @default(false)
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  revisarEn DateTime @map("revisar_en") @db.Timestamptz(6)
+  resueltoEn DateTime? @map("resuelto_en") @db.Timestamptz(6)
+  eliminarEn DateTime? @map("eliminar_en") @db.Timestamptz(6)
+  resena Resena? @relation(fields: [resenaId], references: [id], onDelete: SetNull)
+  datosPrivados DenunciaResenaPrivada?
+  decisiones DecisionModeracionResena[]
+
+  @@index([gymSlug, estado, creadoEn])
+  @@index([resenaId])
+  @@index([estado, revisarEn])
+  @@index([eliminarEn])
+  @@map("denuncias_resenas")
+}
+
+model DenunciaResenaPrivada {
+  denunciaId String @id @map("denuncia_id") @db.Uuid
+  resenaId String @map("resena_id") @db.Uuid
+  denuncianteId String @map("denunciante_id") @db.Uuid
+  descripcion String? @db.VarChar(500)
+  vencerEn DateTime @map("vencer_en") @db.Timestamptz(6)
+  denuncia DenunciaResena @relation(fields: [denunciaId], references: [id], onDelete: Cascade)
+  resena Resena @relation(fields: [resenaId], references: [id], onDelete: Cascade)
+  denunciante Usuario @relation(fields: [denuncianteId], references: [idusuario], onDelete: Cascade)
+
+  @@unique([resenaId, denuncianteId])
+  @@index([denuncianteId])
+  @@index([vencerEn])
+  @@map("denuncias_resenas_privadas")
+}
+
+model DecisionModeracionResena {
+  id String @id @default(uuid(7)) @db.Uuid
+  denunciaId String? @map("denuncia_id") @db.Uuid
+  resenaId String? @map("resena_id") @db.Uuid
+  actorId String? @map("actor_id") @db.Uuid
+  gymSlug String @map("gym_slug") @db.VarChar(64)
+  accion AccionModeracionResena
+  motivo MotivoModeracionResena
+  anterior VisibilidadResena?
+  posterior VisibilidadResena?
+  estado EstadoDenunciaResena?
+  revision Int?
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  eliminarEn DateTime? @map("eliminar_en") @db.Timestamptz(6)
+  denuncia DenunciaResena? @relation(fields: [denunciaId], references: [id], onDelete: Cascade)
+  resena Resena? @relation(fields: [resenaId], references: [id], onDelete: SetNull)
+  actor Usuario? @relation(fields: [actorId], references: [idusuario], onDelete: SetNull)
+
+  @@index([denunciaId, creadoEn])
+  @@index([resenaId, creadoEn])
+  @@index([actorId])
+  @@index([eliminarEn])
+  @@map("decisiones_moderacion_resenas")
+}
+
+model VotoUtilResena {
+  resenaId  String   @map("resena_id") @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  resena  Resena  @relation(fields: [resenaId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@id([resenaId, usuarioId])
+  @@index([usuarioId])
+  @@map("votos_utiles_resenas")
+}
+
+model RespuestaResena {
+  resenaId         String    @id @map("resena_id") @db.Uuid
+  texto            String    @db.Text
+  creadoEn         DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn    DateTime  @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+  creadoPorId      String?   @map("creado_por_id") @db.Uuid
+  actualizadoPorId String?   @map("actualizado_por_id") @db.Uuid
+  eliminadoEn      DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  eliminadoPorId   String?   @map("eliminado_por_id") @db.Uuid
+
+  resena      Resena   @relation(fields: [resenaId], references: [id], onDelete: Cascade)
+  creador     Usuario? @relation("RespuestaResenaCreador", fields: [creadoPorId], references: [idusuario], onDelete: SetNull)
+  editor      Usuario? @relation("RespuestaResenaEditor", fields: [actualizadoPorId], references: [idusuario], onDelete: SetNull)
+  retiradoPor Usuario? @relation("RespuestaResenaRetiro", fields: [eliminadoPorId], references: [idusuario], onDelete: SetNull)
+
+  @@index([creadoPorId])
+  @@index([actualizadoPorId])
+  @@index([eliminadoPorId])
+  @@map("respuestas_resenas")
 }
 
 model MetricaDiaria {
@@ -305,4 +492,66 @@ model AuditoriaReporte {
   @@index([actorId, ocurridoEn])
   @@index([ocurridoEn])
   @@map("auditoria_reportes")
+}
+
+model NutricionPerfil {
+  usuarioId          String   @id @map("usuario_id") @db.Uuid
+  birthYear          Int      @map("birth_year")
+  activity           String
+  goal               String
+  preference         String
+  allergens          String[]
+  needsProfessional  Boolean  @map("needs_professional")
+  tracking           Boolean  @default(true)
+  zone               String
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  usuario            Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@map("nutricion_perfiles")
+}
+
+model NutricionReferencia {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  day         DateTime @db.Date
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  goal        String
+  weight      Float?
+  minimum     Int?
+  maximum     Int?
+  method      String
+  usuario     Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId, day, createdAt, id])
+  @@map("nutricion_referencias")
+}
+
+model NutricionRegistro {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  foodId       Int      @map("food_id")
+  snapshot     Json
+  quantity     Float
+  unit         String
+  grams        Float
+  protein      Float
+  meal         String?
+  day          DateTime @db.Date
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  usuario      Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@index([usuarioId, day, createdAt])
+  @@map("nutricion_registros")
+}
+
+model NutricionFavorito {
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  foodId      Int      @map("food_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  usuario     Usuario  @relation(fields: [usuarioId], references: [idusuario], onDelete: Cascade)
+
+  @@id([usuarioId, foodId])
+  @@map("nutricion_favoritos")
 }

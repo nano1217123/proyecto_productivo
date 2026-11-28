@@ -39,7 +39,7 @@ export default function SubscriptionCard() {
     >
       <div>
         <p className="m-0 mb-2 text-[11px] font-extrabold tracking-[1.8px] uppercase text-[#b56cff]">
-          Plan personal
+          Plan personal · Estado de suscripción sin confirmar
         </p>
         <h2 id="mi-suscripcion-titulo" className="m-0 text-2xl tracking-[-0.5px] text-[#f2f4ef]">
           Mi suscripción
@@ -63,7 +63,7 @@ export default function SubscriptionCard() {
         </p>
       </div>
       <Link href="/dashboard/pagos" className={`${primaryButton} shrink-0`}>
-        Pagar suscripción
+        Ver planes
       </Link>
     </article>
   );

@@ -1,0 +1,267 @@
+.training-page {
+  min-height: 100vh;
+  padding: 1rem 1rem 6rem;
+  background: #171817;
+  color: var(--ink);
+}
+
+.training-shell {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 58rem);
+  margin-inline: auto;
+}
+
+.training-page h1, .training-page h2, .training-page h3, .training-page p { margin: 0; }
+.training-page h1 { font-size: clamp(2.1rem, 6vw, 3.6rem); line-height: 1; }
+.training-page h2 { font-size: 1.65rem; line-height: 1.1; }
+.training-page h3 { font-size: 1.45rem; line-height: 1.1; }
+.training-page a { color: var(--lime); text-underline-offset: .2em; }
+.training-top, .training-actions, .training-dialog-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem .75rem;
+}
+.training-top, .training-dialog-heading, .training-section-heading { justify-content: space-between; }
+.training-top a { min-height: 44px; display: inline-flex; align-items: center; font-weight: 700; }
+
+.training-card, .training-hero, .training-work {
+  display: grid;
+  gap: .9rem;
+  min-width: 0;
+}
+.training-card, .training-hero {
+  padding: clamp(.85rem, 3vw, 1.5rem);
+  border: 1px solid #444641;
+  border-radius: 1rem;
+  background: #212320;
+}
+.training-hero { padding-block: 1.6rem; background: #282030; border-color: #684981; }
+.training-hero button { justify-self: start; }
+.training-eyebrow, .training-sync { color: var(--lime); font-weight: 700; }
+.training-muted, .training-page small { color: var(--muted); }
+.training-error { color: #ffadad; }
+
+.training-page button, .training-dialog button {
+  min-height: 44px;
+  padding: .5rem .8rem;
+  border: 1px solid #5a5d56;
+  border-radius: .6rem;
+  color: var(--ink);
+  background: #272925;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.training-page button:hover, .training-dialog button:hover { border-color: var(--lime); }
+.training-page button:disabled, .training-dialog button:disabled { opacity: .55; cursor: default; }
+.training-page .training-primary, .training-dialog .training-primary {
+  color: #180f21;
+  background: var(--lime);
+  border-color: var(--lime);
+}
+.training-actions > label { flex: 1 1 12rem; }
+.training-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.training-metrics > div {
+  display: grid;
+  gap: .2rem;
+  min-width: 0;
+  padding: .55rem .75rem;
+  border-radius: .65rem;
+  background: #171817;
+}
+.training-metrics strong { font-size: clamp(1rem, 4vw, 1.45rem); overflow-wrap: anywhere; }
+.training-page progress { width: 100%; height: .75rem; accent-color: var(--green); }
+.training-page label, .training-dialog label { display: grid; gap: .25rem; min-width: 0; font-size: .85rem; font-weight: 700; }
+.training-page input:not([type=checkbox]), .training-page select, .training-page textarea,
+.training-dialog input:not([type=checkbox], [type=radio]), .training-dialog select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: .45rem .55rem;
+  color: var(--ink);
+  background: #171817;
+  border: 1px solid #5a5d56;
+  border-radius: .5rem;
+  font-size: 1rem;
+}
+.training-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+.training-exercise-heading { display: flex; align-items: center; gap: .75rem; }
+.training-exercise-heading img { object-fit: cover; border-radius: .5rem; }
+.training-work { padding: 0; border: 0; margin: 0; }
+.training-page summary, .training-dialog summary { cursor: pointer; min-height: 44px; align-content: center; }
+.training-page details[open] > :not(summary), .training-dialog details[open] > :not(summary) { margin-block: .4rem; }
+.training-page input[type=checkbox], .training-dialog input:is([type=radio], [type=checkbox]) {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--green);
+}
+.training-page .training-toggle { display: flex; align-items: center; min-height: 44px; }
+.training-summary-exercise { border-top: 1px solid #444641; padding-top: .75rem; }
+
+.training-dialog {
+  box-sizing: border-box;
+  width: min(calc(100% - 1rem), 42rem);
+  max-height: 90dvh;
+  margin: auto;
+  padding: 1rem;
+  color: var(--ink);
+  background: #212320;
+  border: 1px solid #5a5d56;
+  border-radius: 1rem;
+}
+.training-dialog[open] { display: grid; gap: .75rem; }
+.training-dialog::backdrop { background: rgb(0 0 0 / 75%); }
+.training-catalog-results { overflow-y: auto; min-height: 0; }
+.training-catalog-item { padding: .4rem 0; border-bottom: 1px solid #444641; }
+.training-catalog-item > label { display: flex; align-items: center; min-height: 44px; gap: .65rem; }
+.training-catalog-item span { display: grid; }
+@media (min-width: 660px) {
+  .training-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.training-session {
+  display: grid;
+  gap: .55rem;
+  min-width: 0;
+  box-sizing: border-box;
+  width: min(100%, 46rem);
+  margin-inline: auto;
+  padding: .65rem;
+  border: 1px solid #444641;
+  border-radius: 1rem;
+  background: #171817;
+}
+
+.training-session-header { display: flex; align-items: center; gap: .35rem; }
+.training-session-title { flex: 1; min-width: 0; }
+.training-session-title h1 { font-size: clamp(1.35rem, 4vw, 1.9rem); overflow-wrap: anywhere; }
+.training-session h2 { font-size: 1.2rem; }
+.training-pill {
+  display: inline-block;
+  width: fit-content;
+  padding: .1rem .4rem;
+  border-radius: 1rem;
+  color: var(--lime);
+  background: var(--green-soft);
+  font-size: .75rem;
+  font-weight: 700;
+}
+.training-session-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.training-session-metrics > div {
+  display: grid;
+  gap: .2rem;
+  padding: .55rem;
+  border-radius: .65rem;
+  background: #212320;
+}
+.training-session-metrics span { color: var(--lime); }
+.training-session-metrics strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.training-session progress { height: .4rem; border: 0; border-radius: 1rem; background: #444641; }
+.training-session progress::-webkit-progress-bar { border-radius: 1rem; background: #444641; }
+.training-session progress::-webkit-progress-value { border-radius: 1rem; background: var(--lime); }
+.training-session progress::-moz-progress-bar { border-radius: 1rem; background: var(--lime); }
+.training-session .training-work { gap: .55rem; }
+.training-session .training-subtle, .training-session .training-icon-button {
+  display: inline-grid;
+  place-items: center;
+  color: var(--lime);
+  background: transparent;
+  border-color: transparent;
+}
+.training-session .training-icon-button { min-width: 44px; min-height: 44px; padding: .25rem; font-size: 1.2rem; }
+
+.training-session .training-exercise {
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: .4rem .55rem;
+  border-radius: .75rem;
+  background: #212320;
+}
+.training-session .training-exercise-toggle {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  width: 100%;
+  padding: .15rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.training-session .training-exercise[data-expanded=true] .training-exercise-toggle { padding-inline-end: 44px; }
+.training-exercise-title { display: grid; gap: .15rem; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.training-exercise-title small { font-weight: 400; }
+.training-exercise-placeholder {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: .55rem;
+  color: var(--muted);
+  background: #272925;
+}
+.training-session .training-exercise-heading img { flex: none; }
+.training-exercise-body:not([hidden]) { display: grid; gap: .45rem; margin-top: .4rem; }
+.training-menu { position: relative; }
+.training-session .training-exercise-menu { position: absolute; inset: .45rem .45rem auto auto; }
+.training-menu > summary { list-style: none; cursor: pointer; }
+.training-menu > summary::-webkit-details-marker { display: none; }
+.training-session .training-menu-panel {
+  position: absolute;
+  z-index: 4;
+  inset-inline-end: 0;
+  display: grid;
+  gap: .45rem;
+  box-sizing: border-box;
+  width: min(18rem, calc(100vw - 4.5rem));
+  min-width: 0;
+  padding: .65rem;
+  border: 1px solid #5a5d56;
+  border-radius: .65rem;
+  background: #272925;
+}
+.training-session .training-sets { gap: 0; }
+.training-session .training-set {
+  display: grid;
+  grid-template-columns: minmax(1.65rem, .55fr) minmax(2.2rem, 1fr) repeat(var(--training-fields, 2), minmax(0, 1.25fr)) 36px 28px;
+  align-items: center;
+  gap: .25rem;
+  padding: .15rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: .85rem;
+}
+.training-session .training-sets[data-fields="1"] { --training-fields: 1; }
+.training-session .training-set + .training-set { border-top: 1px solid var(--line); }
+.training-session .training-set-head { color: var(--muted); font-size: .72rem; padding-block: .35rem; }
+.training-session .training-set small { overflow-wrap: anywhere; }
+.training-session .training-set input { min-height: 38px; background: #272925; text-align: center; padding-inline: .15rem; appearance: textfield; }
+.training-session .training-set input::-webkit-inner-spin-button { appearance: none; }
+.training-session :is(.training-check, .training-remove-set) { padding-inline: 0; border: 0; background: transparent; }
+.training-session .training-check { color: var(--muted); }
+.training-session .training-check[aria-pressed=true] { color: var(--lime); }
+.training-session .training-remove-set { color: var(--muted); }
+.training-session .training-add-set { justify-self: stretch; color: var(--lime); }
+.training-session .training-exercise-note summary { color: var(--muted); font-size: .85rem; }
+.training-rest-strip {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  min-width: 0;
+  padding: .3rem .55rem;
+  border: 1px solid #684981;
+  border-radius: .65rem;
+  background: #282030;
+}
+.training-rest-strip > span, .training-rest-strip strong { color: var(--lime); }
+.training-rest-strip > div { flex: 1; display: grid; min-width: 0; }
+.training-rest-strip strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.training-session .training-rest-strip button { padding-inline: .4rem; }
+.training-session .training-rest-strip .training-icon-button { min-width: 34px; }
+.training-session .training-finish { display: grid; gap: .35rem; padding-top: 0; }
+.training-session .training-sync { font-size: .85rem; }

@@ -1,24 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { enlaceReporte } from "@/src/features/reports/ReportActions";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import AdminHeader from "../components/AdminHeader";
 import AdminTabs from "../components/AdminTabs";
 import ImagesTab from "../components/ImagesTab";
-import CommunicationTab from "../components/CommunicationTab";
 import ConfigTab from "../components/ConfigTab";
 import CreateAdminTab from "../components/CreateAdminTab";
 import ClientesSedeTab from "../components/ClientesSedeTab";
 import SubscriptionTab from "../components/SubscriptionTab";
-import ReviewsReportTab from "@/src/features/reviews/components/ReviewsReportTab";
-import { useEffect, useState } from "react";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
 
 export default function AdminDashboardPage() {
   const dashboard = useAdminDashboard();
-  const [alcanceReporte, setAlcanceReporte] = useState("sede");
   const { profile } = useAuth();
   const esAdmin = profile?.tipo_usuario === "admin";
   const { sedes, nombreSede, sede, error: errorSedes } = useSedes();
@@ -28,27 +22,21 @@ export default function AdminDashboardPage() {
     ? sedes.map((s) => s.slug)
     : profile?.sedes_administradas ?? []
   ).map((slug) => ({ id: slug, nombre: nombreSede(slug) }));
-  const idsSedes = gimnasios.map((g) => g.id).join(",");
-  const { gymSeleccionado, setGymSeleccionado } = dashboard;
-  const sedeReporte = gimnasios.find(({ id }) => id === gymSeleccionado);
-  const consolidado = dashboard.esSuperAdmin && alcanceReporte === "consolidado";
-
-  useEffect(() => {
-    const ids = idsSedes ? idsSedes.split(",") : [];
-    if (!ids.includes(gymSeleccionado)) setGymSeleccionado(ids[0] ?? null);
-  }, [idsSedes, gymSeleccionado, setGymSeleccionado]);
+  const gymSeleccionado = gimnasios.find(({ id }) => id === dashboard.gymSeleccionado)?.id ?? gimnasios[0]?.id ?? null;
 
   return (
-    <div className="w-full max-w-[1060px] mx-auto px-6 pt-10 pb-20">
-      <AdminHeader 
-        ocultarSelector={dashboard.tabActiva === "reportes-resenas" && consolidado}
-        gymSeleccionado={dashboard.gymSeleccionado} 
+    <main className="mx-auto w-full max-w-[1060px] px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+      <AdminHeader
+        general={dashboard.esSuperAdmin}
+        alcance={dashboard.tabActiva === "imagenes" ? "Catálogo compartido entre sedes" :
+          dashboard.tabActiva === "crear-admin" ? "Asignación por sede" :
+          dashboard.tabActiva === "suscripcion" ? "Facturación por cada sede administrada" :
+          gymSeleccionado ? nombreSede(gymSeleccionado) : "Sin sede seleccionada"}
+        gymSeleccionado={gymSeleccionado}
         setGymSeleccionado={dashboard.setGymSeleccionado} 
         gimnasios={gimnasios} 
-        logout={dashboard.logout} 
       />
 
-      <Link href="/dashboard/reportes" className={enlaceReporte + " mb-5"}>Centro de reportes</Link>
       <AdminTabs 
         tabActiva={dashboard.tabActiva} 
         setTabActiva={dashboard.setTabActiva} 
@@ -61,10 +49,6 @@ export default function AdminDashboardPage() {
         <ImagesTab />
       )}
 
-      {dashboard.tabActiva === "comunicacion" && (
-        <CommunicationTab nombreSede={gymSeleccionado ? nombreSede(gymSeleccionado) : null} />
-      )}
-
       {dashboard.tabActiva === "configuracion" && (
         <ConfigTab
           gymSlug={gymSeleccionado}
@@ -74,19 +58,12 @@ export default function AdminDashboardPage() {
       )}
 
       {dashboard.tabActiva === "clientes" && (
-        <ClientesSedeTab gymSlug={gymSeleccionado} esSuperAdmin={dashboard.esSuperAdmin} />
+        <ClientesSedeTab key={gymSeleccionado ?? "sin-sede"} gymSlug={gymSeleccionado} esSuperAdmin={dashboard.esSuperAdmin} />
       )}
 
       {dashboard.tabActiva === "crear-admin" && dashboard.esSuperAdmin && <CreateAdminTab />}
 
-      {dashboard.tabActiva === "reportes-resenas" && (esAdmin || dashboard.esSuperAdmin) && (
-        <ReviewsReportTab
-          sede={sedeReporte} errorSedes={errorSedes} esSuperAdmin={dashboard.esSuperAdmin}
-          alcance={consolidado ? "consolidado" : "sede"} setAlcance={setAlcanceReporte}
-        />
-      )}
-
       {dashboard.tabActiva === "suscripcion" && esAdmin && <SubscriptionTab />}
-    </div>
+    </main>
   );
 }

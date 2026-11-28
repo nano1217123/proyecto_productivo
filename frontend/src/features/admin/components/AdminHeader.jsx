@@ -1,37 +1,30 @@
 "use client";
 
-export default function AdminHeader({ gymSeleccionado, setGymSeleccionado, gimnasios, logout, ocultarSelector }) {
+const foco = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
+
+export default function AdminHeader({ gymSeleccionado, setGymSeleccionado, gimnasios, general, alcance }) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-5 mb-8">
+    <header className="sticky top-0 z-10 mb-6 grid bg-[#242424] pt-2 gap-4 border-b border-[#30332f] pb-5">
       <div>
-        <span className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">PANEL DE ADMINISTRACIÓN</span>
-        <h1 className="m-1 text-[clamp(28px,4vw,42px)] tracking-[-1.2px]">Gestión de Sede</h1>
+        <h1 className="text-[clamp(28px,4vw,42px)] font-extrabold leading-tight tracking-tight text-[#f2f4ef]">
+          {general ? "Administración general" : "Administración de sede"}
+        </h1>
+        <p className="mt-2 text-sm text-[#d7adff]">Alcance: {alcance}</p>
       </div>
 
-      {!ocultarSelector && <div className="flex items-center gap-2.5 p-2 px-3.5 border border-[#41433f] rounded-[10px] bg-[#212320] [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#a9afa7] [&_select]:border-0 [&_select]:outline-0 [&_select]:bg-transparent [&_select]:text-[#d7adff] [&_select]:font-bold [&_select]:text-sm">
-        <label htmlFor="select-gym">Sede actual:</label>
+      <label className="grid min-w-0 max-w-sm gap-1.5 text-sm font-semibold text-[#a9afa7]">
+        Sede actual
         <select
-          id="select-gym"
+          className={`min-h-11 w-full rounded-lg border border-[#41433f] bg-[#212320] px-3 text-sm font-bold text-[#f2f4ef] disabled:text-[#a9afa7] ${foco}`}
           value={gymSeleccionado ?? ""}
           disabled={gimnasios.length === 0}
-          onChange={(e) => setGymSeleccionado(e.target.value)}
+          onChange={(event) => setGymSeleccionado(event.target.value)}
         >
-        {gimnasios.length === 0 && <option value="">Sin sedes asignadas</option>}
-        {gimnasios.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.nombre}
-            </option>
-          ))}
+          {gimnasios.length === 0 && <option value="">Sin sedes asignadas</option>}
+          {gimnasios.map(({ id, nombre }) => <option key={id} value={id}>{nombre}</option>)}
         </select>
-      </div>}
+      </label>
 
-      <button
-        type="button"
-        onClick={logout}
-        className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]"
-      >
-        Cerrar sesión
-      </button>
     </header>
   );
 }

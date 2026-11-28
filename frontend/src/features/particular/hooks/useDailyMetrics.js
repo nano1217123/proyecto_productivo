@@ -68,6 +68,7 @@ export function createDailyMetricsState({
     puedeGuardar: false,
     mensaje: null,
     diaLocal: null,
+    pesoRegistrado: "",
     conflicto: null,
   };
 
@@ -88,7 +89,7 @@ export function createDailyMetricsState({
       const diaLocal = modoParcial ? leerDiaDiario(respuesta) : null;
       confirmadas = habits;
       parcial = modoParcial;
-      actualizar({ habits, diaLocal, cargando: false });
+      actualizar({ habits, diaLocal, pesoRegistrado: habits.weight, cargando: false });
     } catch {
       if (actual !== solicitud) return;
       actualizar({
@@ -125,6 +126,7 @@ export function createDailyMetricsState({
       confirmadas = leerMetricas(respuesta, false);
       actualizar({
         habits: confirmadas,
+        pesoRegistrado: confirmadas.weight,
         guardando: false,
         puedeGuardar: false,
         mensaje: { tipo: "exito", texto: "Progreso diario guardado correctamente." },
@@ -190,7 +192,7 @@ export function createDailyMetricsState({
     }
     confirmadas = nuevos;
     actualizar({
-      habits, diaLocal, conflicto: null, mensaje: null,
+      habits, diaLocal, pesoRegistrado: nuevos.weight, conflicto: null, mensaje: null,
       puedeGuardar: hayCambios(habits, confirmadas, parcial),
     });
   }

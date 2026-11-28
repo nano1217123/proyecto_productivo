@@ -1,29 +1,70 @@
 "use client";
 
 import Link from "next/link";
+import { routineStats, routineUrl, weekdays } from "../routineModel";
 
-export default function RoutineCard({ rutina, gym, onEliminar }) {
-  return (
-    <article className="p-5 border border-[#41433f] rounded-xl bg-[#212320] flex flex-col justify-between gap-4">
-      <div>
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <h2 className="m-0 text-lg">{rutina.nombre}</h2>
-          {rutina.dia_etiqueta && (
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold border border-[rgba(181,108,255,.3)] bg-[rgba(181,108,255,.15)] text-[#d7adff] whitespace-nowrap">
-              {rutina.dia_etiqueta}
-            </span>
-          )}
-        </div>
-        <p className="m-0 text-[13px] text-[#a9afa7]">{rutina.total_ejercicios} ejercicio{rutina.total_ejercicios !== 1 ? "s" : ""}</p>
+export function RoutineFacts({ rutina }) {
+  const { series, groups, minutes } = routineStats(rutina.ejercicios);
+  return <>
+    <div className="routine-tags">
+      {groups.map((group) => <span key={group}>{group}</span>)}
+    </div>
+    <p>{rutina.ejercicios.length} ejercicios · {series} series{minutes != null && ` · ${minutes} min estimados`}</p>
+    <p className="routine-muted">{rutina.dias.map((day) => weekdays[day - 1]).join(", ") || "Sin días asignados"}{rutina.dia_etiqueta && ` · ${rutina.dia_etiqueta}`}</p>
+  </>;
+}
+
+export function RoutineActions({ rutina, gym, onChange, busy }) {
+  const start = `/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}&rutina=${encodeURIComponent(rutina.id)}`;
+  return <div className="routine-actions">
+    {!rutina.archivada && <Link className="routine-primary" href={start}>Iniciar entrenamiento</Link>}
+    {rutina.archivada && <button type="button" disabled={busy} onClick={() => onChange("restore", rutina)}>Restaurar</button>}
+    <RoutineMenu rutina={rutina} gym={gym} onChange={onChange} busy={busy} />
+  </div>;
+}
+
+function RoutineMenu({ rutina, gym, onChange, busy, compact }) {
+  return <details className="routine-menu">
+    <summary aria-label={`Opciones de ${rutina.nombre}`}>{compact ? "⋮" : "Opciones"}</summary>
+    <div>
+      <Link href={routineUrl(gym, `/${rutina.id}/editar`)}>Editar</Link>
+      <Link href={`${routineUrl(gym, "/nueva")}&copia=${rutina.id}`}>Duplicar</Link>
+      {!rutina.archivada && <button type="button" disabled={busy} onClick={() => onChange("archive", rutina)}>Archivar</button>}
+      <button type="button" className="routine-danger" disabled={busy} onClick={() => onChange("delete", rutina)}>Eliminar rutina</button>
+    </div>
+  </details>;
+}
+
+export default function RoutineCard({ rutina, gym, onChange, busy, featured }) {
+  const image = rutina.ejercicios.find((item) => item.imagen_url)?.imagen_url;
+  const highlight = featured && Boolean(image);
+  const { series, groups, minutes } = routineStats(rutina.ejercicios);
+  const days = rutina.dias.map((day) => weekdays[day - 1]).join(", ") || rutina.dia_etiqueta;
+  const detail = routineUrl(gym, `/${rutina.id}`);
+  const copy = `${routineUrl(gym, "/nueva")}&copia=${rutina.id}`;
+  const start = `/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}&rutina=${encodeURIComponent(rutina.id)}`;
+  return <article className={`routine-card routine-tile${highlight ? " routine-featured" : ""}`}>
+    {highlight && <img className="routine-cover" src={image} alt="" />}
+    <div className="routine-tile-heading">
+      {image && !highlight && <img className="routine-media routine-thumbnail" src={image} alt="" loading="lazy" />}
+      <div className="routine-tile-title">
+        <h2><Link href={detail}>{rutina.nombre}</Link></h2>
+        <p className="routine-muted">{days && `${days} · `}{rutina.ejercicios.length} ejercicios · {series} series</p>
       </div>
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#30332f]">
-        <Link href={`/dashboard/rutinas/${rutina.id}?gym=${encodeURIComponent(gym)}`} className="text-[13px] font-extrabold text-[#f2f4ef] no-underline hover:text-[#d7adff]">
-          Ver rutina →
-        </Link>
-        <button type="button" onClick={() => onEliminar(rutina.id, rutina.nombre)} className="px-3 py-1.5 bg-transparent border border-[rgba(255,121,121,.4)] rounded-md text-[#ff7979] text-xs font-semibold cursor-pointer transition hover:bg-[#351b1b]">
-          Eliminar
-        </button>
-      </div>
-    </article>
-  );
+      <RoutineMenu rutina={rutina} gym={gym} onChange={onChange} busy={busy} compact />
+    </div>
+    {rutina.descripcion && <p className="routine-muted routine-description">{rutina.descripcion}</p>}
+    <div className="routine-tags">
+      {groups.map((group) => <span key={group}>{group}</span>)}
+      {minutes != null && <span>{minutes} min aprox.</span>}
+    </div>
+    <p className="routine-muted routine-updated">Actualizada el {new Date(rutina.actualizadoEn).toLocaleDateString("es-CO")}</p>
+    <div className="routine-tile-footer">
+      <Link href={routineUrl(gym, `/${rutina.id}/editar`)}>Editar</Link>
+      {!highlight && <Link href={copy}>Duplicar</Link>}
+      {rutina.archivada
+        ? <button type="button" disabled={busy} onClick={() => onChange("restore", rutina)}>Restaurar</button>
+        : <Link className="routine-primary" href={start} aria-label={`Iniciar entrenamiento con ${rutina.nombre}`}>Entrenar</Link>}
+    </div>
+  </article>;
 }

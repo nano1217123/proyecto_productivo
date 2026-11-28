@@ -1,127 +1,99 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import RoutineExercisePicker from "../components/RoutineExercisePicker";
+import { RoutineExerciseEditor } from "../components/RoutineExercise";
 import { useRoutineForm } from "../hooks/useRoutineForm";
+import { routineStats, routineUrl, weekdays } from "../routineModel";
+import "./routines.css";
 
-export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null }) {
-  const { user, loading, logout } = useAuth();
-  const {
-    esEdicion, catalogo, cargandoDatos,
-    nombre, setNombre,
-    diaEtiqueta, setDiaEtiqueta,
-    seleccionados, ejercicioAAgregar, setEjercicioAAgregar,
-    guardando, error,
-    agregarEjercicio, quitarEjercicio, moverEjercicio,
-    guardarRutina
-  } = useRoutineForm(gym, rutinaId);
-  if (loading || cargandoDatos) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
-        <p className="text-sm text-[#a9afa7]">Cargando...</p>
-      </div>
-    );
+const dayInitials = ["L", "M", "X", "J", "V", "S", "D"];
+
+export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null, copia, entrenamiento }) {
+  const { loading } = useAuth();
+  const form = useRoutineForm(gym, rutinaId, copia, entrenamiento, !loading);
+  const [replacing, setReplacing] = useState(null);
+  const catalog = useRef(null);
+  const title = rutinaId ? "Editar rutina" : copia ? "Duplicar rutina" : entrenamiento ? "Guardar sesión como rutina" : "Crear rutina";
+  const back = routineUrl(gym, rutinaId || copia ? `/${rutinaId || copia}` : "");
+  const { info, changeInfo, seleccionados } = form;
+  const stats = routineStats(seleccionados);
+
+  function startReplacement(item) {
+    setReplacing(item);
+    const panel = catalog.current;
+    if (panel) {
+      panel.open = true;
+      panel.querySelector("input[type=search]")?.focus();
+    }
   }
 
-  return (
-    <main className="min-h-screen px-6 pb-[72px] bg-[#171817]">
-      <header className="w-full max-w-[1060px] mx-auto min-h-[82px] flex items-center justify-between border-b border-[#30332f]">
-        <Link className="inline-flex items-center gap-2.5 text-[#f2f4ef] text-[17px] font-extrabold tracking-widest no-underline" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>
-          <span className="grid place-items-center w-[34px] h-[34px] rounded-full bg-[#b56cff] text-white text-[10px] tracking-[-1px]">GYM</span>
-          <span>{esEdicion ? "Editar rutina" : "Nueva rutina"}</span>
-        </Link>
-        <button className="py-[9px] border-0 border-b border-[#6f756b] bg-transparent text-[#a9afa7] text-[13px] cursor-pointer hover:border-[#b56cff] hover:text-[#f2f4ef]" type="button" onClick={logout}>
-          Cerrar sesion
-        </button>
-      </header>
-
-      <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
-        <Link className="inline-block mb-8 text-[13px] font-bold text-[#a9afa7] no-underline hover:text-[#b56cff]" href={`/dashboard/rutinas?gym=${encodeURIComponent(gym)}`}>&larr; Rutinas</Link>
-        <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">ENTRENAMIENTO</p>
-        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">{esEdicion ? "Editar rutina" : "Nueva rutina"}</h1>
-      </section>
-
-      {error && <div className="w-full max-w-[1060px] mx-auto mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>}
-
-      <section className="w-full max-w-[1060px] mx-auto pb-10">
-        <form onSubmit={guardarRutina} className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-[15px] mb-6">
-            <label className="text-xs font-bold text-[#c0c7bd]">
-              Nombre de la rutina
-              <input
-                type="text"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej: Día 1 — Empuje"
-                maxLength={60}
-                required
-                className="w-full mt-2 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff]"
-              />
-            </label>
-            <label className="text-xs font-bold text-[#c0c7bd]">
-              Día / etiqueta (opcional)
-              <input
-                type="text"
-                value={diaEtiqueta}
-                onChange={(e) => setDiaEtiqueta(e.target.value)}
-                placeholder="Ej: Lunes"
-                maxLength={30}
-                className="w-full mt-2 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff]"
-              />
-            </label>
-          </div>
-
-          <p className="text-xs font-bold text-[#c0c7bd] mb-2">Ejercicios de la rutina</p>
-          <div className="flex gap-3 mb-4">
-            <select
-              value={ejercicioAAgregar}
-              onChange={(e) => setEjercicioAAgregar(e.target.value)}
-              className="flex-1 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm outline-none focus:border-[#b56cff]"
-            >
-              <option value="">Selecciona un ejercicio para agregar</option>
-              {catalogo.map((grupo) => (
-                <optgroup key={grupo.slug} label={grupo.nombre}>
-                  {grupo.ejercicios.map((ej) => (
-                    <option key={ej.id} value={ej.id}>{ej.nombre}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={agregarEjercicio}
-              className="px-4 py-2.5 border border-[#41463f] rounded-lg bg-transparent text-[#f2f4ef] text-[13px] font-bold cursor-pointer transition hover:border-[#b56cff] hover:text-[#d7adff]"
-            >
-              + Agregar
-            </button>
-          </div>
-
-          <div className="grid gap-2 mb-6">
-            {seleccionados.length === 0 && (
-              <p className="text-sm text-[#a9afa7]">Todavía no agregas ningún ejercicio.</p>
-            )}
-            {seleccionados.map((ej, idx) => (
-              <div key={`${ej.ejercicio_id}-${idx}`} className="flex items-center justify-between gap-3 p-3 border border-[#30332f] rounded-lg bg-[#171817]">
-                <span className="text-[13.5px] text-[#f2f4ef]"><strong className="text-[#b56cff] mr-2">{idx + 1}.</strong>{ej.nombre}</span>
-                <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => moverEjercicio(idx, -1)} disabled={idx === 0} className="px-2.5 py-1 border border-[#41463f] rounded-md text-[#a9afa7] text-xs cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] disabled:opacity-30 disabled:cursor-not-allowed">↑</button>
-                  <button type="button" onClick={() => moverEjercicio(idx, 1)} disabled={idx === seleccionados.length - 1} className="px-2.5 py-1 border border-[#41463f] rounded-md text-[#a9afa7] text-xs cursor-pointer hover:border-[#b56cff] hover:text-[#d7adff] disabled:opacity-30 disabled:cursor-not-allowed">↓</button>
-                  <button type="button" onClick={() => quitarEjercicio(idx)} className="px-2.5 py-1 border border-[rgba(255,121,121,.4)] rounded-md text-[#ff7979] text-xs cursor-pointer hover:bg-[#351b1b]">Quitar</button>
-                </div>
+  return <main className="routine-page routine-form-page">
+    <header className="routine-header routine-form-header">
+      <Link href={back} aria-label="Volver a rutinas">←<span className="routine-visually-hidden">Volver a rutinas</span></Link>
+      <h1>{title}</h1>
+    </header>
+    {(loading || form.cargandoDatos) ? <p role="status">Cargando formulario…</p>
+      : form.loadError ? <p role="alert" className="routine-error">{form.loadError} <button type="button" onClick={form.retryLoad}>Reintentar</button></p>
+      : <form onSubmit={form.guardarRutina} onInvalidCapture={(event) => {
+        const details = event.target.closest("details");
+        if (details) details.open = true;
+      }}>
+        <fieldset className="routine-stack" disabled={form.guardando}>
+          <section className="routine-stack" aria-label="Información general">
+            <label>Nombre de la rutina<input type="text" required maxLength={60} value={info.nombre} onChange={(event) => changeInfo("nombre", event.target.value)} /></label>
+            <label>Descripción opcional<textarea rows={2} placeholder="Describe tu rutina…" maxLength={500} value={info.descripcion} onChange={(event) => changeInfo("descripcion", event.target.value)} /></label>
+            <fieldset>
+              <legend>Días asignados</legend>
+              <div className="routine-days">{weekdays.map((day, index) => {
+                const value = index + 1;
+                return <label key={day} title={day}><input className="routine-visually-hidden" type="checkbox" aria-label={day} checked={info.dias.includes(value)} onChange={(event) => changeInfo("dias",
+                  event.target.checked ? [...info.dias, value].sort((a, b) => a - b) : info.dias.filter((day) => day !== value))} />{dayInitials[index]}</label>;
+              })}</div>
+            </fieldset>
+            <details className="routine-extra">
+              <summary>Objetivo y notas generales</summary>
+              <div className="routine-fields">
+                <label>Objetivo<input type="text" maxLength={120} value={info.objetivo} onChange={(event) => changeInfo("objetivo", event.target.value)} /></label>
+                <label>Notas generales<textarea maxLength={200} value={info.notas} onChange={(event) => changeInfo("notas", event.target.value)} /></label>
+                {info.diaEtiqueta && <label>Etiqueta anterior<input maxLength={40} value={info.diaEtiqueta} onChange={(event) => changeInfo("diaEtiqueta", event.target.value)} /></label>}
               </div>
-            ))}
-          </div>
-
-          <button
-            type="submit"
-            disabled={guardando}
-            className="w-full p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {guardando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear rutina"}
-          </button>
-        </form>
-      </section>
-    </main>
-  );
+            </details>
+          </section>
+          <section aria-labelledby="routine-exercises-heading" className="routine-stack">
+            <div className="routine-section-heading">
+              <h2 id="routine-exercises-heading">Ejercicios</h2>
+              <p aria-live="polite">{seleccionados.length} ejercicios · {stats.series} series
+                {stats.minutes != null && <span title="Estimación basada en repeticiones o duración, descansos y transiciones"> · {stats.minutes} min aprox.</span>}
+              </p>
+            </div>
+            {entrenamiento && <button type="button" onClick={form.quitarCargasImportadas}>Descartar pesos importados</button>}
+            <ol className="routine-stack">{seleccionados.map((item, index) => <RoutineExerciseEditor
+              key={item.key} item={item} index={index} count={seleccionados.length}
+              configure={form.configurarEjercicio} move={form.moverEjercicio} remove={(key) => {
+                if (replacing?.key === key) setReplacing(null);
+                form.quitarEjercicio(key);
+              }} replace={startReplacement} />)}</ol>
+            {!!stats.groups.length && <div className="routine-tags">{stats.groups.map((group) => <span key={group}>{group}</span>)}</div>}
+            <details ref={catalog} className="routine-catalog-anchor routine-catalog-panel">
+              <summary>+ Añadir ejercicios</summary>
+              <RoutineExercisePicker catalogo={form.catalogo} selected={seleccionados} replacing={replacing}
+                onAdd={(item) => {
+                  form.agregarEjercicio(item, replacing?.key);
+                  if (replacing && catalog.current) catalog.current.open = false;
+                  setReplacing(null);
+                }}
+                onRemove={form.quitarEjercicio} onCancel={() => setReplacing(null)} />
+            </details>
+          </section>
+        </fieldset>
+        <div className="routine-save">
+          {form.error && <p className="routine-error" role="alert">{form.error}</p>}
+          <button className="routine-primary" disabled={form.guardando} type="submit">{form.guardando ? "Guardando…" : rutinaId ? "Guardar cambios" : "Guardar rutina"}</button>
+          <Link href={back}>Descartar</Link>
+        </div>
+      </form>}
+  </main>;
 }
