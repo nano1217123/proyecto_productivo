@@ -19,7 +19,7 @@ driver = "http://127.0.0.1:19446"
 active = None
 history = []
 network_error = False
-exercise = {"id": 1, "nombre": "Press con mancuernas", "grupo_slug": "pecho", "grupo_nombre": "Pecho", "equipo": "Mancuernas", "descripcion": "Baja con control."}
+exercise = {"id": 1, "nombre": "Press con mancuernas", "grupo_slug": "pecho", "grupo_nombre": "Pecho", "equipo": "Mancuernas", "descripcion": "Baja con control.", "imagen_url": "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"}
 cardio = {"id": 2, "nombre": "Caminadora", "grupo_slug": "cardio", "grupo_nombre": "Cardio", "equipo": "Caminadora"}
 routine = {"id": "training-browser", "nombre": "Rutina móvil", "dias": [], "archivada": False,
            "actualizadoEn": "2026-11-27T00:00:00Z", "ejercicios": [{"ejercicio_id": 1, "orden": 1,
@@ -169,7 +169,7 @@ with ExitStack() as resources:
     def click(text):
         def try_click():
             try:
-                return js("const b = [...document.querySelectorAll('button,a,summary')].find(b => b.textContent.trim() === arguments[0] && !b.disabled && b.getBoundingClientRect().height > 0); if (!b) return false; b.click(); return true", text)
+                return js("const b = [...document.querySelectorAll('button,a,summary')].find(b => (b.textContent.trim() === arguments[0] || b.getAttribute('aria-label') === arguments[0]) && !b.disabled && b.getBoundingClientRect().height > 0); if (!b) return false; b.click(); return true", text)
             except RuntimeError as error:
                 if "unexpected alert open" in str(error):
                     return True
@@ -249,11 +249,12 @@ with ExitStack() as resources:
     click("Volver a rutinas")
     has("Mis rutinas")
     fit()
+    wait_for(lambda: js("return !!document.querySelector('.routine-featured .routine-cover')"), "Rutina destacada con imagen")
     click("Semana")
     has("Sin rutinas asignadas")
     click("Activas")
     click("+ Nueva rutina")
-    has("Información general")
+    has("Nombre de la rutina")
     def set_control(label, value):
         element = wait_for(lambda: js("""
           return [...document.querySelectorAll('label')].find(item =>
@@ -267,6 +268,8 @@ with ExitStack() as resources:
             if value:
                 wd(f"/element/{key}/value", "POST", {"text": value})
     set_control("Nombre de la rutina", "Fuerza y bicicleta")
+    assert js("return !document.querySelector('.routine-catalog-panel').open")
+    click("+ Añadir ejercicios")
     set_control("Buscar ejercicios", "press")
     wait_for(lambda: js("return document.querySelectorAll('[aria-label^=Agregar]').length === 1"), "Búsqueda por nombre")
     action("Agregar Press con mancuernas")
@@ -275,15 +278,14 @@ with ExitStack() as resources:
     action("Agregar Caminadora")
     action("Subir Caminadora")
     set_control("Duración (s)", "120")
-    js("const item = [...document.querySelectorAll('details > summary')].find(node => node.textContent.includes('Fuerza con peso')); item.parentElement.open = true")
     set_control("Repeticiones objetivo / mín.", "8")
     set_control("Repeticiones máx.", "12")
-    js("[...document.querySelectorAll('label')].find(label=>label.textContent.trim()==='Lunes').querySelector('input').click()")
+    js("document.querySelector('[aria-label=Lunes]').click()")
     routine_error = True
-    click("Crear rutina")
+    click("Guardar rutina")
     has("No se pudo guardar la rutina")
     routine_error = False
-    click("Crear rutina")
+    click("Guardar rutina")
     wait_for(lambda: js("return !!document.querySelector('.routine-measures')"), "Detalle de la rutina guardada")
     saved = next(item for key, item in routines.items() if key != routine["id"])
     assert saved["planes"][1]["repeticionesMax"] == 12, saved["planes"]
@@ -298,14 +300,14 @@ with ExitStack() as resources:
     wait_for(lambda: (js("return document.querySelector('input[maxlength=\"60\"]')?.value") or "").endswith("(copia)"), "Nombre de la copia")
     set_control("Nombre de la rutina", "Copia ajustada")
     action("Bajar Caminadora")
-    click("Crear rutina")
+    click("Guardar rutina")
     has("Copia ajustada")
     has("1. Press con mancuernas")
     assert routines[original]["ejercicioIds"] == [2, 1]
     click("Opciones")
     click("Editar")
     has("Editar rutina")
-    has("Información general")
+    has("Nombre de la rutina")
     set_control("Nombre de la rutina", "Cambio pendiente")
     click("Descartar")
     wd("/alert/dismiss", "POST", {})
@@ -315,8 +317,8 @@ with ExitStack() as resources:
     wait_for(lambda: js("return document.querySelector('.routine-header h1')?.textContent === 'Copia ajustada'"), "Edición descartada")
     click("Opciones")
     click("Editar")
-    has("Información general")
-    js("[...document.querySelectorAll('label')].find(label=>label.textContent.trim()==='Martes').querySelector('input').click()")
+    has("Nombre de la rutina")
+    js("document.querySelector('[aria-label=Martes]').click()")
     js("[...document.querySelectorAll('ol > li')].find(item=>item.innerText.includes('Caminadora')).querySelector('button.routine-danger').click()")
     click("Guardar cambios")
     wait_for(lambda: js("return document.querySelector('.routine-header h1')?.textContent === 'Copia ajustada'"), "Edición guardada")
