@@ -1,6 +1,6 @@
 "use client";
 
-import { claveSedeAdmin } from "@/src/features/admin/hooks/useAdminDashboard";
+import { claveSedeAdmin, leerSedeAdmin } from "@/src/features/admin/hooks/useAdminDashboard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
@@ -12,11 +12,9 @@ function ReportePorSede({ perfil, desdePanel, membresias = false }) {
   const { sedes, nombreSede, error } = useSedes();
   const permisos = accesoReportes(perfil, sedes);
   const clave = claveSedeAdmin(perfil);
-  const [preferida, setPreferida] = useState(desdePanel ?? "");
+  const [preferida, setPreferida] = useState(() => desdePanel ?? leerSedeAdmin(clave) ?? "");
   useEffect(() => {
-    if (!desdePanel) {
-      try { setPreferida(sessionStorage.getItem(clave) ?? ""); } catch { /* sin almacenamiento */ }
-    } else setPreferida(desdePanel);
+    setPreferida(desdePanel ?? leerSedeAdmin(clave) ?? "");
   }, [clave, desdePanel]);
   const [alcance, setAlcance] = useState("sede");
   const seleccionada = permisos.sedes.includes(preferida) ? preferida : permisos.sedes[0];

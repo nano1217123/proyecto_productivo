@@ -5,6 +5,10 @@ import { PESTANA_INICIAL, restaurarPestana } from "../lib/adminTabs.js";
 
 export const claveSedeAdmin = (perfil) => `jjgym:admin:sede:${perfil?.idusuario ?? perfil?.tipo_usuario ?? ""}`;
 
+export function leerSedeAdmin(clave) {
+  try { return sessionStorage.getItem(clave); } catch { return null; }
+}
+
 const CLAVE_PESTANA = "jjgym:admin:pestana";
 // «Miembros» se retiró: el plan, el vencimiento y el cobro del alumno se
 // gestionan fuera de la plataforma (RN-014). Los clientes reales de cada sede
@@ -43,12 +47,10 @@ export function useAdminDashboard() {
   // Sede elegida en el panel. Las opciones salen del servidor: las sedes
   // del admin (admin_sedes) o el catálogo completo para el super_admin.
   const clave = claveSedeAdmin(profile);
-  const [gymSeleccionado, setGymSeleccionadoEstado] = useState(null);
-  useEffect(() => {
-    try { setGymSeleccionadoEstado(sessionStorage.getItem(clave)); } catch { /* sin almacenamiento */ }
-  }, [clave]);
+  const [seleccion, setSeleccion] = useState(() => ({ clave, sede: leerSedeAdmin(clave) }));
+  const gymSeleccionado = seleccion.clave === clave ? seleccion.sede : leerSedeAdmin(clave);
   const setGymSeleccionado = useCallback((id) => {
-    setGymSeleccionadoEstado(id);
+    setSeleccion({ clave, sede: id });
     try { sessionStorage.setItem(clave, id); } catch { /* sin almacenamiento */ }
   }, [clave]);
   
