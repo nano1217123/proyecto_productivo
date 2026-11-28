@@ -29,7 +29,7 @@ router.post(
   validateCreateResena,
   createResena
 );
-// Consultar reseñas positivas: clientes, particulares, administradores y superadministradores.
+// Consultar reseñas del gimnasio: clientes, particulares, administradores y superadministradores.
 router.get(
   "/gimnasio/:gymSlug",
   requireRole("cliente", "usuario_particular", "admin", "super_admin"),

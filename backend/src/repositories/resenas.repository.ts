@@ -120,14 +120,11 @@ export function createResenasRepository(db: typeof prisma = prisma) {
         throw new AppError(500, "No se pudo guardar la reseña.");
       }
     },
-    // Consulta únicamente reseñas positivas para la vista de clientes.
+    // Consulta las reseñas de la comunidad de un gimnasio.
     async findPublicByGym(gymSlug: string): Promise<ResenaOutput[]> {
       try {
         const resenas = await db.resena.findMany({
-          where: {
-            gymSlug,
-            calificacion: { gte: 4 },
-          },
+          where: { gymSlug },
           orderBy: { creadoEn: "desc" },
           select: {
             id: true,

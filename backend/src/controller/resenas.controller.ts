@@ -21,7 +21,7 @@ export const createResena: RequestHandler = asyncHandler(async (req, res) => {
   return res.status(201).json({ resena });
 });
 // GET /api/resenas/gimnasio/:gymSlug
-// Devuelve únicamente las reseñas positivas.
+// Devuelve las reseñas de la comunidad del gimnasio solicitado.
 export const listResenasPublicas: RequestHandler = asyncHandler(
   async (req, res) => {
     if (!req.userRole) {

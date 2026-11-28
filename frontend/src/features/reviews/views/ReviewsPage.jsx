@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import reviewsApi from "../api/reviewsApi";
@@ -19,6 +19,9 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
   const [publicando, setPublicando] = useState(false);
 
   const solicitudActual = useRef(0);
+  const contextoActual = useRef(null);
+  const publicacionPendiente = useRef(false);
+  const usuarioId = user?.idusuario;
   const rol = user?.tipo_usuario;
   // El cliente reseña la sede registrada en el servidor, no la de la URL.
   const sedeResena = rol === "cliente" ? user?.sede ?? null : gym;
@@ -28,7 +31,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
   const cargarResenas = useCallback(async () => {
     const solicitud = ++solicitudActual.current;
 
-    if (!user) {
+    if (!usuarioId) {
       setCargando(false);
       return;
     }
@@ -37,12 +40,12 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
     setError("");
 
     try {
-      if (user.tipo_usuario !== "super_admin" && !sedeResena) {
+      if (rol !== "super_admin" && !sedeResena) {
         if (solicitud === solicitudActual.current) setResenas([]);
         return;
       }
       const resultado =
-        user.tipo_usuario === "super_admin"
+        rol === "super_admin"
           ? await reviewsApi.getAllReviews()
           : await reviewsApi.getPublicReviews(sedeResena);
 
@@ -50,33 +53,44 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
       if (solicitud === solicitudActual.current) {
         setResenas(resultado);
       }
-    } catch (err) {
+    } catch {
       if (solicitud === solicitudActual.current) {
-        setError(err.message || "No se pudieron cargar las reseñas.");
+        setError("No se pudieron cargar las reseñas. Puedes volver a actualizar el listado.");
       }
     } finally {
       if (solicitud === solicitudActual.current) {
         setCargando(false);
       }
     }
-  }, [user, sedeResena]);
+  }, [usuarioId, rol, sedeResena]);
 
   // Carga las reseñas cuando termina la autenticación.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (authLoading) return;
 
+    contextoActual.current = Symbol();
+    setPublicando(publicacionPendiente.current);
+    setResenas([]);
+    setError("");
+    setMensaje("");
+    setComentario("");
+    setCalificacion(5);
     cargarResenas();
 
     return () => {
       // Invalida cualquier solicitud pendiente al cambiar
       // de usuario, gimnasio o desmontar el componente.
       solicitudActual.current += 1;
+      contextoActual.current = null;
     };
   }, [authLoading, cargarResenas]);
 
   // Publica una reseña del cliente.
   async function handlePublicar(event) {
     event.preventDefault();
+    const contexto = contextoActual.current;
+    if (!contexto || publicacionPendiente.current) return;
+
     setError("");
     setMensaje("");
 
@@ -85,6 +99,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
       return;
     }
 
+    publicacionPendiente.current = true;
     setPublicando(true);
 
     try {
@@ -93,24 +108,22 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
         calificacion,
         comentario,
       });
-
-      setComentario("");
-      setCalificacion(5);
-
-      if (calificacion >= 4) {
-        await cargarResenas();
-      }
-
-      setMensaje(
-        calificacion >= 4
-          ? "¡Tu reseña se publicó correctamente!"
-          : "Tu reseña fue enviada correctamente. Las reseñas de baja calificación no son públicas."
-      );
     } catch (err) {
-      setError(err.message || "No se pudo publicar la reseña.");
+      if (contexto === contextoActual.current) {
+        setError(err?.message || "No se pudo publicar la reseña.");
+      }
+      return;
     } finally {
-      setPublicando(false);
+      publicacionPendiente.current = false;
+      if (contextoActual.current) setPublicando(false);
     }
+
+    if (contexto !== contextoActual.current) return;
+
+    setComentario("");
+    setCalificacion(5);
+    setMensaje("Tu reseña se publicó correctamente.");
+    await cargarResenas();
   }
 
   if (authLoading || cargando) {
@@ -168,10 +181,6 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
             <h2 className="mb-2 text-xl font-bold">
               Comparte tu experiencia
             </h2>
-
-            <p className="mb-5 text-sm text-[#a9afa7]">
-              Las calificaciones de 4 y 5 se publican. Las de 1 a 3 se envían de forma privada al gimnasio.
-            </p>
 
             <form onSubmit={handlePublicar}>
               <label className="mb-3 block text-sm font-semibold">

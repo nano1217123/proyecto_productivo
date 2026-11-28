@@ -101,7 +101,7 @@ export function createResenasService(
       }
       return repository.create(usuarioId, input);
     },
-    // Consulta únicamente las reseñas positivas de un gimnasio.
+    // Consulta las reseñas de la comunidad de un gimnasio.
     async listPublic(
       gymSlug: string,
       rol: TipoUsuario

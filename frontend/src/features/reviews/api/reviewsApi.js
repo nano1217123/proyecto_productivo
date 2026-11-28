@@ -10,7 +10,7 @@ function withMessage(err, message) {
 }
 
 export const reviewsApi = {
-  // Consulta las reseñas positivas de un gimnasio.
+  // Consulta las reseñas de la comunidad de un gimnasio.
   async getPublicReviews(gymSlug) {
     if (!gymSlug) {
       throw new HttpError("Debes seleccionar un gimnasio.");
