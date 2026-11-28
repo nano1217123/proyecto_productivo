@@ -118,7 +118,9 @@ export function AuthProvider({ children }) {
   }
 
   async function updatePassword(token, newPassword) {
-    return authApi.resetPassword({ token, password: newPassword });
+    const result = await withSessionLock(() => authApi.resetPassword({ token, password: newPassword }));
+    if (user) void refreshProfile();
+    return result;
   }
 
   function loginWithGoogle(gym) {

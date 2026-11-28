@@ -20,7 +20,7 @@ const flowCookieBase: CookieOptions = {
   httpOnly: true,
   secure: env.isProduction,
   sameSite: "lax",
-  maxAge: FLOW_TTL_MS,
+  path: "/",
 };
 
 export const googleStart: RequestHandler = (_req, res) => {
@@ -28,24 +28,26 @@ export const googleStart: RequestHandler = (_req, res) => {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
 
-  res.cookie(STATE_COOKIE, state, { ...flowCookieBase, path: "/" });
-  res.cookie(PKCE_COOKIE, codeVerifier, { ...flowCookieBase, path: "/" });
+  res.set("Cache-Control", "private, no-store");
+  res.cookie(STATE_COOKIE, state, { ...flowCookieBase, maxAge: FLOW_TTL_MS });
+  res.cookie(PKCE_COOKIE, codeVerifier, { ...flowCookieBase, maxAge: FLOW_TTL_MS });
 
   const authUrl = buildAuthorizationUrl(state, codeChallenge);
   return res.redirect(authUrl);
 };
 
 export const googleCallback: RequestHandler = asyncHandler(async (req, res) => {
-  const { code, state, error } = req.query as Record<string, string | undefined>;
+  const { code, state, error } = req.query;
 
-  res.clearCookie(STATE_COOKIE, { ...flowCookieBase, path: "/" });
-  res.clearCookie(PKCE_COOKIE, { ...flowCookieBase, path: "/" });
+  res.set("Cache-Control", "private, no-store");
+  res.clearCookie(STATE_COOKIE, flowCookieBase);
+  res.clearCookie(PKCE_COOKIE, flowCookieBase);
 
   if (error) {
     return res.redirect(`${env.frontendUrl}/login?oauth=cancelled`);
   }
 
-  if (!code || !state) {
+  if (typeof code !== "string" || !code || typeof state !== "string" || !state) {
     return res.redirect(`${env.frontendUrl}/login?oauth=invalid`);
   }
 

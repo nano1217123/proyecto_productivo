@@ -32,6 +32,10 @@ export function createOAuthService(
     //   - Si existe con el mismo provider: solo inicia sesión.
     // Devuelve tokens para setear cookies.
     async loginWithProfile(profile: OAuthProfile): Promise<OAuthLoginResult> {
+      if (profile.emailVerified !== true || typeof profile.providerId !== "string" || !profile.providerId.trim()) {
+        throw new AppError(403, "El proveedor no confirmó la identidad y el correo de la cuenta.");
+      }
+
       const existente = await repo.findByEmail(profile.email);
 
       let usuarioId: string;

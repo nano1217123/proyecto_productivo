@@ -75,11 +75,11 @@ async function exchangeCodeForTokens(
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
-    const errBody = await response.text();
-    console.error("Google token exchange error:", response.status, errBody);
+    console.error("Google token exchange error:", response.status);
     throw new AppError(401, "No se pudo validar el código con Google.");
   }
 
@@ -102,6 +102,7 @@ async function fetchUserProfile(
 ): Promise<GoogleUserInfo> {
   const response = await fetch(GOOGLE_USERINFO_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {

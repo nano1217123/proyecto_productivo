@@ -1,6 +1,5 @@
 import { AppError } from "../errors/AppError.js";
 import { env } from "../config/env.js";
-import { prisma } from "../lib/prisma.js";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email.js";
 import { comparePassword, hashPassword } from "../lib/hash.js";
 import {
@@ -379,7 +378,7 @@ export function createAuthService(
       }
     },
 
-    async resetPassword(input: ResetPasswordInput): Promise<MessageResult> {
+    async resetPassword(input: ResetPasswordInput): Promise<MessageResult & { usuarioId: string }> {
       try {
         const tokenHash = hashResetToken(input.token);
         const stored = await resets.findActive(tokenHash);
@@ -390,16 +389,10 @@ export function createAuthService(
 
         const passwordHash = await hashPassword(input.password);
 
-        await prisma.usuario.update({
-          where: { idusuario: stored.usuarioId },
-          data: { passwordHash },
-        });
+        const changed = await resets.consumeAndReset(stored.id, stored.usuarioId, passwordHash);
+        if (!changed) throw new AppError(400, "Token inválido o expirado.");
 
-        await resets.markUsed(stored.id);
-        // Revoca todas las sesiones activas por seguridad.
-        await sessions.revokeAllForUser(stored.usuarioId);
-
-        return { message: "Contraseña actualizada. Inicia sesión de nuevo." };
+        return { message: "Contraseña actualizada. Inicia sesión de nuevo.", usuarioId: stored.usuarioId };
       } catch (error: unknown) {
         return toAppError(error);
       }
