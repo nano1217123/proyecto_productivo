@@ -282,7 +282,7 @@ with ExitStack() as resources:
         assert js("""
             return [...document.querySelectorAll('.dashboard-sidebar nav a')].filter(a => a.getClientRects().length)
               .map(a => a.textContent.trim()).join('|');
-        """) == "Inicio|Ejercicios en casa|Registrar entrenamiento|Mis rutinas|Historial|Nutrición|Mi progreso|Suscripción|Reportes"
+        """) == "Inicio|Ejercicios en casa|Registrar entrenamiento|Mis rutinas|Historial|Nutrición|Mi progreso|Suscripción|Reseñas|Reportes"
         wd("/frame/parent", "POST", {})
     mode = "progress"
     navigate("/dashboard/particular")

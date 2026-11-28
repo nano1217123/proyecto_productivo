@@ -17,10 +17,28 @@ export function ExerciseHeading({ item, position }) {
 
 export function RoutineExerciseEditor({ item, index, count, configure, move, replace, remove }) {
   const { key, plan, timed } = item;
-  return <li className="routine-card routine-panel">
-    <ExerciseHeading item={item} position={index + 1} />
-    <details open={index === 0 ? true : undefined}>
-      <summary>Configurar · {modes[plan.tipo].label}</summary>
+  const fields = fieldsFor(plan.tipo, timed);
+  const optional = ["pesoKg", "asistenciaKg", "distanciaKm"];
+
+  function control(field) {
+    const { label, min, max, step = 1 } = planFields[field];
+    return <label key={field}>{plan.tipo === "carga_adicional" && field === "pesoKg" ? "Carga adicional objetivo (kg)" : label}
+      <input type="number" min={field === "repeticionesMax" ? plan.repeticiones ?? min : min} max={max} step={step}
+        required={["series", "duracionSeg", "repeticiones"].includes(field)}
+        value={plan[field] ?? ""} onChange={(event) => configure(key, field, event.target.value)} />
+    </label>;
+  }
+
+  return <li className="routine-card routine-exercise-editor">
+    <div className="routine-exercise-top">
+      <ExerciseHeading item={item} position={index + 1} />
+      <button type="button" className="routine-danger" aria-label={`Quitar ${item.nombre}`} onClick={() => remove(key)}>Quitar</button>
+    </div>
+    <div className="routine-exercise-fields">
+      {fields.filter((field) => !optional.includes(field)).map(control)}
+    </div>
+    <details className="routine-extra">
+      <summary>{fields.includes("pesoKg") ? "Peso objetivo y notas" : "Configuración y notas"}</summary>
       <div className="routine-fields">
         <label>Tipo de ejercicio<select value={plan.tipo} onChange={(event) => configure(key, "tipo", event.target.value)}>
           {Object.entries(modes).map(([value, mode]) => <option key={value} value={value}>{mode.label}</option>)}
@@ -29,31 +47,14 @@ export function RoutineExerciseEditor({ item, index, count, configure, move, rep
           onChange={(event) => configure(key, "timed", event.target.value === "time")}>
           <option value="reps">Repeticiones</option><option value="time">Duración</option>
         </select></label>}
-        {fieldsFor(plan.tipo, timed).map((field) => {
-          const { label, min, max, step = 1 } = planFields[field];
-          const value = plan[field] ?? "";
-          const input = <label>{plan.tipo === "carga_adicional" && field === "pesoKg" ? "Carga adicional objetivo (kg)" : label}
-            <input type="number" min={field === "repeticionesMax" ? plan.repeticiones ?? min : min} max={max} step={step}
-              required={field === "series" || field === "duracionSeg" || field === "repeticiones"}
-              value={value} onChange={(event) => configure(key, field, event.target.value)} />
-          </label>;
-          if (!["series", "descanso"].includes(field)) return <div key={field}>{input}</div>;
-          return <div className="routine-stepper" key={field}>
-            <button type="button" aria-label={`Reducir ${label.toLowerCase()}`} disabled={(value || min) <= min}
-              onClick={() => configure(key, field, Math.max(min, Number(value) - (field === "descanso" ? 15 : 1)))}>−</button>
-            {input}
-            <button type="button" aria-label={`Aumentar ${label.toLowerCase()}`} disabled={value >= max}
-              onClick={() => configure(key, field, Math.min(max, Number(value || (field === "descanso" ? 60 : min)) + (field === "descanso" ? 15 : 1)))}>+</button>
-          </div>;
-        })}
+        {fields.filter((field) => optional.includes(field)).map(control)}
         <label>Notas del ejercicio<textarea maxLength={200} value={plan.notas ?? ""} onChange={(event) => configure(key, "notas", event.target.value)} /></label>
       </div>
     </details>
-    <div className="routine-actions">
+    <div className="routine-actions routine-exercise-actions">
       <button type="button" disabled={index === 0} aria-label={`Subir ${item.nombre}`} onClick={() => move(index, -1)}>↑ Subir</button>
       <button type="button" disabled={index === count - 1} aria-label={`Bajar ${item.nombre}`} onClick={() => move(index, 1)}>↓ Bajar</button>
       <button type="button" onClick={() => replace(item)}>Sustituir</button>
-      <button type="button" className="routine-danger" onClick={() => remove(key)}>Quitar</button>
     </div>
   </li>;
 }

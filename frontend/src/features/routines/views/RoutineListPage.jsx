@@ -39,24 +39,30 @@ export default function RoutineListPage({ gym = "jj-poblado" }) {
     ? a.nombre.localeCompare(b.nombre, "es")
     : Date.parse(b.actualizadoEn) - Date.parse(a.actualizadoEn));
 
-  return <main className="routine-page">
+  return <main className="routine-page routine-list-page">
     <header className="routine-header">
-      <div><h1>Mis rutinas</h1><p>Prepara tus ejercicios y organiza tu semana de entrenamiento.</p></div>
-      <Link className="routine-primary" href={create}>+ Nueva rutina</Link>
+      <div><h1>Mis rutinas</h1><p>Organiza tus entrenamientos a tu manera.</p></div>
+      <Link className="routine-primary routine-new" href={create}>+ Nueva rutina</Link>
     </header>
-    <nav className="routine-actions routine-tabs" aria-label="Vistas de rutinas">
-      {[["active", "Activas"], ["archived", "Archivadas"], ["week", "Semana"]].map(([id, label]) =>
-        <button type="button" key={id} aria-pressed={view === id} onClick={() => {
-          if ((id === "archived") !== archived) setItems(null);
-          setView(id);
-        }}>{label}</button>)}
-    </nav>
-    {view !== "week" && <div className="routine-filters">
-      <label>Buscar rutina<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-      <label>Ordenar por<select value={sort} onChange={(event) => setSort(event.target.value)}>
-        <option value="updated">Última modificación</option><option value="name">Nombre</option>
-      </select></label>
-    </div>}
+    {view !== "week" && <label className="routine-search">
+      <span className="routine-visually-hidden">Buscar rutina</span>
+      <input type="search" placeholder="Buscar mis rutinas…" value={search} onChange={(event) => setSearch(event.target.value)} />
+    </label>}
+    <div className="routine-list-controls">
+      <nav className="routine-actions routine-tabs" aria-label="Vistas de rutinas">
+        {[["active", "Activas"], ["archived", "Archivadas"], ["week", "Semana"]].map(([id, label]) =>
+          <button type="button" key={id} aria-pressed={view === id} onClick={() => {
+            if ((id === "archived") !== archived) setItems(null);
+            setView(id);
+          }}>{label}</button>)}
+      </nav>
+      {view !== "week" && <label className="routine-sort">
+        <span className="routine-visually-hidden">Ordenar por</span>
+        <select value={sort} onChange={(event) => setSort(event.target.value)}>
+          <option value="updated">Más recientes</option><option value="name">Por nombre</option>
+        </select>
+      </label>}
+    </div>
     {actions.notice && <p role="status">{actions.notice}</p>}
     {actions.actionError && <p className="routine-error" role="alert">{actions.actionError}</p>}
     {error && <p className="routine-error" role="alert">{error} <button type="button" onClick={() => setReload(reload + 1)}>Reintentar</button></p>}
@@ -75,7 +81,7 @@ export default function RoutineListPage({ gym = "jj-poblado" }) {
     </section> : <>
       <p role="status" className="routine-muted">{filtered.length} de {items.length} rutinas {archived ? "archivadas" : "activas"}</p>
       {filtered.length ? <section className="routine-grid" aria-label="Rutinas">
-        {filtered.map((rutina) => <RoutineCard key={rutina.id} rutina={rutina} gym={gym} onChange={actions.change} busy={actions.busy} />)}
+        {filtered.map((rutina, index) => <RoutineCard key={rutina.id} featured={!archived && index === 0} rutina={rutina} gym={gym} onChange={actions.change} busy={actions.busy} />)}
       </section> : <section className="routine-card routine-empty">
         <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 8v8m3-11v14m12-14v14m3-11v8M6 12h12M1 12h2m18 0h2"/></svg>
         <h2>{items.length ? "Sin coincidencias" : archived ? "No tienes rutinas archivadas" : "Crea tu primera rutina"}</h2>

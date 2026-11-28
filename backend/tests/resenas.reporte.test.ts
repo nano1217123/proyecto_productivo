@@ -178,6 +178,7 @@ test("parametriza la sede y los límites inclusivos de calendario de Bogotá", a
     const sentencia = sql.join("?");
     assert.match(sentencia, /p.autorizado AND \(\s*r.gym_slug = p.sede/);
     assert.match(sentencia, /calificacion BETWEEN 1 AND 5/);
+    assert.match(sentencia, /r\.visibilidad = 'VISIBLE'/);
     assert.match(sentencia, /creado_en >= \(p.desde::timestamp AT TIME ZONE 'America\/Bogota'\)/);
     assert.match(sentencia, /creado_en < \(\(p.hasta \+ 1\)::timestamp AT TIME ZONE 'America\/Bogota'\)/);
   }
@@ -320,6 +321,7 @@ test("entrega PDF por sede y consolidado y verifica límites previos al adjunto"
     assert.equal(bytes.subarray(0, 5).toString(), "%PDF-");
     assert.match(bytes.subarray(-32).toString(), /%%EOF/);
     assert.deepEqual(consultaReporte.mock.calls.at(-1)?.arguments.slice(-3), [501, 500, 1024 * 1024]);
+    assert.match(consultaReporte.mock.calls.at(-1)!.arguments[0].join("?"), /r\.visibilidad = 'VISIBLE'/);
   }
   for (const estado of ["limite_filas", "limite_bytes"]) {
     consultaReporte.mock.mockImplementationOnce(async () => [estadoConsulta(estado)]);

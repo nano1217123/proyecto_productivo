@@ -25,13 +25,14 @@ export default function DashboardNavigation() {
     ["/entrenamientos/historial", "Historial", "history"],
     ["/nutricion", "Nutrición", "nutrition"],
     ["/particular", "Mi progreso", "trend"],
-    ...(rol === "cliente" && profile.sede ? [["/resenas", "Reseñas de mi sede", "reviews"]] : []),
     ...(rol === "usuario_particular" ? [["/pagos", "Suscripción", "card"]] : []),
   ];
   const adminIcons = { clientes: "routine", imagenes: "training", configuracion: "house", suscripcion: "card", "crear-admin": "routine" };
   const destinosAdmin = pestanasAdmin({ esAdmin: rol === "admin", esSuperAdmin: rol === "super_admin" })
     .map(({ id, etiqueta }) => ["", etiqueta, adminIcons[id], id]);
-  const destinos = [["", "Inicio", "house"], ...(admin ? destinosAdmin : personal), ["/reportes", "Reportes", "routine"]];
+  const tieneResenas = admin || rol === "cliente" || rol === "usuario_particular";
+  const destinos = [["", "Inicio", "house"], ...(admin ? destinosAdmin : personal),
+    ...(tieneResenas ? [["/resenas", "Reseñas", "reviews"]] : []), ["/reportes", "Reportes", "routine"]];
   const subseccion = admin && ruta === base ? params.get("seccion") ?? "" : "";
   const activo = destinos.filter(([path, , , seccion = ""]) =>
     path ? ruta === base + path || ruta.startsWith(base + path + "/") : ruta === base && subseccion === seccion)
@@ -41,7 +42,9 @@ export default function DashboardNavigation() {
     const query = new URLSearchParams();
     const gym = rol === "cliente" ? profile.sede : params.get("gym");
     if (seccion) query.set("seccion", seccion);
-    if (gym && !admin) query.set("gym", gym);
+    if (gym && (!admin || (path === "/resenas" && rol === "admin" && profile.sedes_administradas?.includes(gym)))) {
+      query.set("gym", gym);
+    }
     if (enCasa && !admin) query.set("modo", "casa");
     return base + path + (query.size ? "?" + query : "");
   }
