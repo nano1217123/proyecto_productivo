@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 
-export function useRegisterForm() {
+export function useRegisterForm(gym) {
   const { signUp } = useAuth();
   const router = useRouter();
 
@@ -12,12 +12,13 @@ export function useRegisterForm() {
     email: "",
     password: "",
     confirmPassword: "",
-    gym: "jj-poblado",
   });
+  const [errorConfirmacion, setErrorConfirmacion] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   function handleChange(campo, valor) {
+    if (campo === "password" || campo === "confirmPassword") setErrorConfirmacion("");
     setForm((prev) => ({ ...prev, [campo]: valor }));
   }
 
@@ -26,14 +27,15 @@ export function useRegisterForm() {
     setError("");
 
     if (form.password !== form.confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+      setErrorConfirmacion("Las contraseñas no coinciden.");
+      e.currentTarget.elements.namedItem("confirmPassword")?.focus();
       return;
     }
 
     setSubmitting(true);
     try {
       await signUp(form.nombres, form.apellidos, form.email, form.password);
-      router.push(`/verify-otp?email=${encodeURIComponent(form.email)}`);
+      router.push(`/verify-otp?email=${encodeURIComponent(form.email)}${gym ? `&gym=${encodeURIComponent(gym)}` : ""}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,5 +43,5 @@ export function useRegisterForm() {
     }
   }
 
-  return { form, error, submitting, handleChange, handleSubmit };
+  return { form, error, errorConfirmacion, submitting, handleChange, handleSubmit };
 }

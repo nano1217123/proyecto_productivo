@@ -141,7 +141,11 @@ export function AuthProvider({ children }) {
     return authApi.resetPassword({ token, password: newPassword });
   }
 
-  function loginWithGoogle() {
+  function loginWithGoogle(gym) {
+    try {
+      if (gym) sessionStorage.setItem("jjgym:oauth:sede", gym);
+      else sessionStorage.removeItem("jjgym:oauth:sede");
+    } catch { /* sin almacenamiento */ }
     window.location.href = "/api/auth/oauth/google";
   }
 

@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 
 function ResetPasswordForm() {
   const { updatePassword } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
 
@@ -34,7 +33,6 @@ function ResetPasswordForm() {
     try {
       await updatePassword(token, password);
       setDone(true);
-      setTimeout(() => router.push("/login"), 2000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,26 +75,27 @@ function ResetPasswordForm() {
         </p>
 
         {error && (
-          <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">
+          <div role="alert" className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">
             {error}
           </div>
         )}
 
         {done ? (
           <div className="mb-4 p-[10px_12px] border border-[rgba(181,108,255,0.32)] rounded-lg bg-[#251833] text-[#d7adff] text-[13px] leading-[1.5]">
-            Tu contraseña se actualizó correctamente. Te llevaremos al inicio de
-            sesión...
+            Tu contraseña se actualizó correctamente.
+            <Link href="/login" className="mt-2 block font-bold underline">Ir a iniciar sesión</Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="mb-4 [&_label]:block [&_label]:mb-2 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#c0c7bd] [&_input]:w-full [&_input]:p-[12px_13px] [&_input]:border [&_input]:border-[#41463f] [&_input]:rounded-[10px] [&_input]:outline-0 [&_input]:bg-[#151714] [&_input]:text-[#f2f4ef] [&_input]:text-sm [&_input]:focus:border-[#b56cff] [&_input]:focus:ring-4 [&_input]:focus:ring-[rgba(181,108,255,.18)]">
               <label htmlFor="password">Nueva contraseña</label>
+              <p id="reglas-clave" className="mb-2 text-sm text-[#a9afa7]">De 8 a 30 caracteres, con al menos una mayúscula y un número.</p>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Mínimo 8 caracteres, 1 mayúscula y 1 número"
+                aria-describedby="reglas-clave"
                 required
                 minLength={8}
                 maxLength={30}

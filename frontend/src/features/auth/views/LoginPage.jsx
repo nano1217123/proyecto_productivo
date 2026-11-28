@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import { RecaptchaScript } from "../components/RecaptchaScript";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -12,15 +13,20 @@ function LoginForm() {
   const { login, loginWithGoogle } = useAuth();
   const searchParams = useSearchParams();
   const gym = searchParams.get("gym");
+  const { sede } = useSedes();
+  const nombreSede = gym ? sede(gym)?.nombre : null;
   const destination = gym
     ? `/dashboard?gym=${encodeURIComponent(gym)}`
     : "/dashboard";
 
-  const { email, setEmail, password, setPassword, error, setError, submitting, handleLogin } = useAuthForm(destination);
+  const { email, setEmail, password, setPassword, error, setError, submitting, handleLogin } = useAuthForm(destination, gym);
 
   // Maneja los errores que el backend agrega a la URL (?oauth=error)
   useEffect(() => {
     const oauthError = searchParams.get("oauth");
+    if (oauthError) {
+      try { sessionStorage.removeItem("jjgym:oauth:sede"); } catch { /* sin almacenamiento */ }
+    }
     if (oauthError === "cancelled") {
       setError("Cancelaste el inicio de sesión con Google.");
     } else if (oauthError === "invalid") {
@@ -40,10 +46,10 @@ function LoginForm() {
       <RecaptchaScript />
       <div className="w-full max-w-[410px] p-[38px_34px_32px] border border-[#383c35] rounded-[18px] bg-[rgba(28,30,27,0.95)] shadow-[0_22px_54px_rgba(0,0,0,0.42)]">
         <h1 className="m-0 mb-2 text-[27px] font-bold tracking-[-0.7px]">Iniciar sesión</h1>
-        <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">Ingresa tus credenciales para continuar</p>
+        <p className="m-0 mb-7 text-sm leading-[1.5] text-[#a9afa7]">{nombreSede ? `Acceso desde ${nombreSede}` : "Ingresa tus credenciales para continuar"}</p>
 
         {error && (
-          <div className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>
+          <div role="alert" className="mb-4 p-[10px_12px] border border-[rgba(255,121,121,0.32)] rounded-lg bg-[#351b1b] text-[#ff7979] text-[13px]">{error}</div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -70,9 +76,9 @@ function LoginForm() {
 
         <div className="flex items-center gap-2.5 my-[22px] text-xs text-[#a9afa7] before:content-[''] before:flex-1 before:h-px before:bg-[#30332f] after:content-[''] after:flex-1 after:h-px after:bg-[#30332f]">o</div>
 
-        <button type="button" className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]" onClick={loginWithGoogle}>Continuar con Google</button>
+        <button type="button" className="w-full p-3 border border-[#41463f] rounded-[10px] bg-[#151714] text-[#f2f4ef] text-sm font-bold cursor-pointer transition hover:border-[#b56cff] hover:bg-[#321d47]" onClick={() => loginWithGoogle(gym)}>Continuar con Google</button>
 
-        <p className="mt-5 text-[13px] text-center text-[#a9afa7]">¿No tienes cuenta? <Link href="/register">Regístrate</Link></p>
+        <p className="mt-5 text-[13px] text-center text-[#a9afa7]">¿No tienes cuenta? <Link href={gym ? `/register?gym=${encodeURIComponent(gym)}` : "/register"}>Regístrate</Link></p>
       </div>
     </div>
   );

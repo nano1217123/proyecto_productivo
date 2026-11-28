@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 
@@ -12,6 +13,17 @@ export default function DashboardNavigation() {
   const ruta = usePathname();
   const params = useSearchParams();
   const rol = profile?.tipo_usuario;
+  useEffect(() => {
+    if (ruta !== base || params.get("oauth") !== "ok") return;
+    try {
+      const sede = sessionStorage.getItem("jjgym:oauth:sede");
+      sessionStorage.removeItem("jjgym:oauth:sede");
+      const destino = new URL(window.location.href);
+      destino.searchParams.delete("oauth");
+      if (sede) destino.searchParams.set("gym", sede);
+      window.history.replaceState(null, "", destino);
+    } catch { /* sin almacenamiento */ }
+  }, [params, ruta]);
   if (!rol) return null;
 
   const admin = rol === "admin" || rol === "super_admin";
@@ -51,12 +63,12 @@ export default function DashboardNavigation() {
       <div className="mx-auto flex max-w-[1060px] flex-wrap items-start justify-between gap-2 py-2">
         <nav aria-label="Navegación del panel" className="hidden min-w-0 flex-1 flex-wrap gap-1 lg:flex">{links()}</nav>
         <details className="min-w-0 flex-1 lg:hidden">
-          <summary className="min-h-11 cursor-pointer py-3 text-sm font-bold">Menú del panel</summary>
+          <summary className="min-h-11 cursor-pointer list-none py-3 text-sm font-bold [&::-webkit-details-marker]:hidden">{destinos.find(([path]) => path === activo)?.[1] ?? "Panel"} · Menú</summary>
           <nav aria-label="Navegación del panel" className="grid gap-1">
             {links((event) => { event.currentTarget.closest("details").open = false; })}
           </nav>
         </details>
-        <button type="button" onClick={logout} className={`${estilo} cursor-pointer text-[#a9afa7]`}>Cerrar sesión</button>
+        <button type="button" data-salida-rutina onClick={(event) => { if (!event.defaultPrevented) logout(); }} className={`${estilo} cursor-pointer text-[#a9afa7]`}>Cerrar sesión</button>
       </div>
     </header>
   );
