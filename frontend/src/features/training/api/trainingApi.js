@@ -24,7 +24,25 @@ function withMessage(err, message) {
   return new HttpError(message);
 }
 
+const activa = "/api/entrenamientos/activa";
+
 export const trainingApi = {
+  async active() {
+    return (await http.get(activa)).sesion;
+  },
+
+  async start(id, contenido) {
+    return (await http.post(activa, { id, contenido })).sesion;
+  },
+
+  async sync(id, revision, contenido) {
+    return (await http.put(`${activa}/${id}`, { revision, contenido })).sesion;
+  },
+
+  async close(id, revision, action) {
+    return (await http.post(`${activa}/${id}/${action}`, { revision })).sesion;
+  },
+
   /**
    * Guarda una sesión completa: entrenamiento + series.
    *
@@ -71,12 +89,15 @@ export const trainingApi = {
         id: e.id,
         fecha: e.fecha,
         notas: e.notas,
+        nombre: e.nombre, iniciadoEn: e.iniciadoEn, finalizadoEn: e.finalizadoEn, sesion: e.sesion,
         series_entrenamiento: e.series.map((s) => ({
           id: s.id,
           ejercicio_id: s.ejercicio_id,
           numero_serie: s.numero_serie,
           repeticiones: s.repeticiones,
           peso_kg: s.peso_kg,
+          tipo: s.tipo, grupo: s.grupo, duracion_seg: s.duracion_seg,
+          distancia_km: s.distancia_km, asistencia_kg: s.asistencia_kg,
           ejercicios: { nombre: s.ejercicio_nombre },
         })),
       }));

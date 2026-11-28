@@ -1,176 +1,224 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
-import { useTrainingSession } from "../hooks/useTrainingSession";
-import SetRow from "../components/SetRow";
-import TrainingExercisePicker from "../components/TrainingExercisePicker";
+import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
+import { routinesApi } from "@/src/features/routines/api/routinesApi";
+import { trainingApi } from "../api/trainingApi";
+import ActiveTraining from "../components/ActiveTraining";
+import { useActiveTraining } from "../hooks/useActiveTraining";
+import { duration, formatTime, historyReference, measureLabel, newExercise, repeatContent, sessionStats } from "../hooks/trainingSessionModel";
+import "./training.css";
 
-const ESTILO_FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d7adff]";
+function TrainingSummary({ session, catalog, history, onRepeat, onBack, historyUrl }) {
+  const [routineStatus, setRoutineStatus] = useState("");
+  const { sesion: content } = session;
+  const stats = sessionStats(content);
+  const names = new Map(catalog.flatMap((group) => group.ejercicios.map((item) => [item.id, item.nombre])));
+  const previous = history.filter((item) => item.id !== session.id);
+  const personalRecords = content.ejercicios.flatMap((item) => {
+    if (!["fuerza", "carga_adicional"].includes(item.tipo)) return [];
+    const { best } = historyReference(previous, item.ejercicio_id, item.tipo);
+    const achieved = Math.max(...item.series.map((set) => set.peso_kg ?? 0));
+    return best !== null && achieved > best ? [{ id: item.ejercicio_id, achieved }] : [];
+  });
 
-function TrainingPageContent({ gym = "jj-poblado" }) {
-  const { loading } = useAuth();
-  const {
-    catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
-    fecha, setFecha,
-    notas, setNotas,
-    filas, guardando, error, erroresFilas, focoValidacion, exito,
-    actualizarFila, agregarFila, quitarFila,
-    guardarEntrenamiento
-  } = useTrainingSession();
-  const catalogoDisponible = !errorCatalogo && !cargandoCatalogo;
-  // Tras un reintento exitoso el botón desaparece: lleva el foco al primer
-  // campo del formulario para no dejarlo en <body>.
-  const reintentoRef = useRef(false);
-  const fechaRef = useRef(null);
-  const repeticionesRef = useRef(null);
-  const [filaConFoco, setFilaConFoco] = useState(null);
-
-  useEffect(() => {
-    if (focoValidacion) document.getElementById(`reps-${focoValidacion.id}`)?.focus();
-  }, [focoValidacion]);
-
-  useEffect(() => {
-    if (filaConFoco) repeticionesRef.current?.focus();
-  }, [filaConFoco]);
-
-  function agregarYEnfocar(ejercicioId) {
-    setFilaConFoco(agregarFila(ejercicioId));
+  async function saveRoutine() {
+    setRoutineStatus("Guardando rutina…");
+    try {
+      await routinesApi.createRoutine({
+        nombre: content.nombre,
+        ejercicioIds: content.ejercicios.map((item) => item.ejercicio_id),
+      });
+      setRoutineStatus("Rutina creada.");
+    } catch (error) {
+      setRoutineStatus(error.message);
+    }
   }
 
-  useEffect(() => {
-    if (!catalogoDisponible || !reintentoRef.current) return;
-    reintentoRef.current = false;
-    fechaRef.current?.focus();
-  }, [catalogoDisponible]);
+  return <section className="training-card">
+    <p className="training-eyebrow" role="status">Entrenamiento guardado</p>
+    <h1>{content.nombre}</h1>
+    <p>{new Date(session.finalizadoEn).toLocaleString("es-CO")}</p>
+    <div className="training-metrics">
+      <div><strong>{formatTime(duration(session))}</strong><small>Duración</small></div>
+      <div><strong>{stats.exercises}</strong><small>Ejercicios</small></div>
+      <div><strong>{stats.done}</strong><small>Series completadas</small></div>
+      {stats.volume > 0 && <div><strong>{stats.volume.toLocaleString("es-CO")}</strong><small>Volumen (kg × reps)</small></div>}
+    </div>
+    {content.notas && <p>{content.notas}</p>}
+    {!!personalRecords.length && <div><h2>Récords personales</h2><ul>
+      {personalRecords.map((item, index) => <li key={index}>{names.get(item.id) || `Ejercicio ${item.id}`}: {item.achieved} kg</li>)}
+    </ul></div>}
+    <h2>Detalles de la sesión</h2>
+    {content.ejercicios.map((item, index) => <div key={index} className="training-summary-exercise">
+      <strong>{names.get(item.ejercicio_id) || `Ejercicio ${item.ejercicio_id}`}</strong>
+      {item.notas && <p>{item.notas}</p>}
+      <ol>{item.series.map((set, i) => <li key={i}>{measureLabel(set)}</li>)}</ol>
+    </div>)}
+    <div className="training-actions">
+      <button type="button" className="training-primary" onClick={onBack}>Volver al panel</button>
+      <button type="button" onClick={() => onRepeat(repeatContent(session))}>Repetir</button>
+      <button type="button" onClick={saveRoutine} disabled={["Guardando rutina…", "Rutina creada."].includes(routineStatus)}>Guardar como rutina</button>
+      <Link href={historyUrl}>Ver historial</Link>
+    </div>
+    {routineStatus && <p role="status">{routineStatus}</p>}
+  </section>;
+}
 
-  function reintentarCatalogo() {
-    reintentoRef.current = true;
-    cargarCatalogo();
+function TrainingDashboard({ gym, userId }) {
+  const params = useSearchParams();
+  const active = useActiveTraining(userId);
+  const [catalog, setCatalog] = useState([]);
+  const [catalogError, setCatalogError] = useState("");
+  const [history, setHistory] = useState(null);
+  const [routines, setRoutines] = useState(null);
+  const [historyError, setHistoryError] = useState("");
+  const [routineError, setRoutineError] = useState("");
+  const [starting, setStarting] = useState(false);
+  const [continueDraft, setContinueDraft] = useState(false);
+  const [routineId, setRoutineId] = useState(params.get("rutina") || "");
+  const repeatId = params.get("repetir");
+  const query = `gym=${encodeURIComponent(gym)}`;
+  const historyUrl = `/dashboard/entrenamientos/historial?${query}`;
+
+  const loadCatalog = useCallback(() => exercisesApi.getExerciseCatalog().then((groups) => {
+    setCatalog(groups);
+    setCatalogError("");
+  }).catch((error) => setCatalogError(error.message)), []);
+  const loadHistory = useCallback(() => trainingApi.getTrainingHistory().then((sessions) => {
+    setHistory(sessions);
+    setHistoryError("");
+  }).catch((error) => setHistoryError(error.message)), []);
+  const loadRoutines = useCallback(() => routinesApi.getRoutines().then((items) => {
+    setRoutines(items);
+    setRoutineError("");
+  }).catch((error) => setRoutineError(error.message)), []);
+
+  useEffect(() => { void loadCatalog(); void loadHistory(); void loadRoutines(); }, [loadCatalog, loadHistory, loadRoutines]);
+  useEffect(() => { if (active.summary) void loadHistory(); }, [active.summary, loadHistory]);
+
+  function start(content) {
+    active.start(content);
+    setContinueDraft(true);
   }
 
-  if (loading || (cargandoCatalogo && !errorCatalogo && catalogo.length === 0)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]">
-        <p className="text-sm text-[#a9afa7]">Cargando...</p>
-      </div>
-    );
+  async function startRoutine() {
+    if (!routineId || starting) return;
+    setRoutineError("");
+    setStarting(true);
+    try {
+      const routine = await routinesApi.getRoutineDetail(routineId);
+      const exercises = new Map(catalog.flatMap((group) => group.ejercicios.map((exercise) => [exercise.id, exercise])));
+      const ejercicios = routine.ejercicios.map((item) => {
+        const exercise = newExercise(item.ejercicio_id, exercises.get(item.ejercicio_id));
+        if (item.descanso != null) exercise.descanso = item.descanso;
+        if (item.series != null) exercise.series = Array.from({ length: item.series }, () => ({
+          completada: false,
+          ...(item.repeticiones && ["fuerza", "corporal", "carga_adicional", "asistido"].includes(exercise.tipo)
+            ? { repeticiones: item.repeticiones } : {}),
+        }));
+        return exercise;
+      });
+      if (ejercicios.length > 30 || ejercicios.reduce((sum, item) => sum + item.series.length, 0) > 200) {
+        throw new Error("La rutina supera el límite de 30 ejercicios o 200 series.");
+      }
+      start({ nombre: routine.nombre, notas: "", ejercicios });
+    } catch (error) {
+      setRoutineError(error.message);
+    } finally {
+      setStarting(false);
+    }
   }
 
-  const nombresPorId = new Map(catalogo.flatMap((grupo) =>
-    grupo.ejercicios.map((ejercicio) => [String(ejercicio.id), ejercicio.nombre]),
-  ));
-  const filasPorEjercicio = new Map();
-  for (const fila of filas) {
-    if (!filasPorEjercicio.has(fila.ejercicioId)) filasPorEjercicio.set(fila.ejercicioId, []);
-    filasPorEjercicio.get(fila.ejercicioId).push(fila);
-  }
+  const bogotaDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
+  const weekStart = new Date(`${bogotaDate}T00:00:00Z`);
+  weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+  const weekly = history?.filter((item) => item.fecha >= weekStart.toISOString().slice(0, 10) && item.fecha <= bogotaDate) || [];
+  const times = weekly.map(duration).filter((value) => value !== null);
+  const weeklyDuration = times.reduce((total, value) => total + value, 0);
+  const repeat = history?.find((item) => item.id === repeatId) || history?.[0];
+  const syncError = active.error && <div className="training-card training-error" role="alert">
+    <p>{active.error}</p>
+    <div className="training-actions">
+      <button type="button" onClick={active.sync}>Reintentar sincronización</button>
+      {active.status === "Conflicto de sincronización" && <button type="button" onClick={() => {
+        if (window.confirm("¿Descartar los cambios locales y cargar la sesión del servidor?")) void active.recoverServer();
+      }}>Cargar sesión del servidor</button>}
+    </div>
+  </div>;
 
-  return (
-    <main className="min-h-screen px-4 pb-[72px] sm:px-6 bg-[#171817]">
+  return <main className="training-page">
+    <div className="training-shell">
+      <nav className="training-top" aria-label="Entrenamientos">
+        <Link href={`/dashboard/entrenamientos?${query}`} onClick={() => setContinueDraft(false)}>Entrenamientos</Link>
+        <Link href={historyUrl}>Historial y progreso</Link>
+      </nav>
+      {active.draft && <p className="training-sync" role="status">{active.status}</p>}
+      {active.storageError && <p className="training-error" role="alert">El navegador impide guardar una copia local. Mantén esta pantalla abierta hasta sincronizar.</p>}
+      {syncError}
+      {!active.ready && !active.error && <p role="status">Buscando entrenamientos pendientes…</p>}
+      {active.summary && <TrainingSummary session={active.summary} catalog={catalog} history={history || []}
+        onRepeat={start} onBack={() => { active.dismissSummary(); setContinueDraft(false); }} historyUrl={historyUrl} />}
+      {active.ready && !active.summary && (active.draft && continueDraft ? (
+        <ActiveTraining key={active.draft.id} draft={active.draft} edit={active.edit} close={active.close}
+          catalog={catalog} catalogError={catalogError} retryCatalog={loadCatalog} history={history || []} />
+      ) : (
+        <>
+          <header className="training-hero">
+            <h1>Registro de entrenamiento</h1>
+            <p>Registra tus series mientras entrenas.</p>
+            {active.draft
+              ? <button type="button" className="training-primary" onClick={() => setContinueDraft(true)}>Continuar {active.draft.contenido.nombre || "entrenamiento"}</button>
+              : <button type="button" className="training-primary" disabled={starting}
+                onClick={() => start({ nombre: "Entrenamiento libre", notas: "", ejercicios: [] })}>+ Iniciar entrenamiento libre</button>}
+          </header>
+          <section className="training-card">
+            <h2>Esta semana</h2>
+            {historyError && <p role="alert">{historyError} <button type="button" onClick={loadHistory}>Reintentar historial</button></p>}
+            {history === null && !historyError && <p role="status">Cargando actividad…</p>}
+            {history?.length === 0 && <p className="training-muted">Tu historial comienza con la primera sesión. Inicia un entrenamiento y registra tus series.</p>}
+            {!!history?.length && <div className="training-metrics">
+              <div><strong>{weekly.length}</strong><small>Entrenamientos</small></div>
+              <div><strong>{times.length ? formatTime(weeklyDuration) : "—"}</strong><small>Tiempo registrado</small></div>
+              <div><strong>{times.length ? formatTime(Math.floor(weeklyDuration / times.length)) : "—"}</strong><small>Duración promedio</small></div>
+              <div><strong>{history[0].fecha}</strong><small>Último entrenamiento</small></div>
+            </div>}
+          </section>
+          {!active.draft && <section className="training-card">
+            <h2>Iniciar desde una plantilla</h2>
+            {routineError && <p role="alert">{routineError} <button type="button" onClick={loadRoutines}>Recargar rutinas</button></p>}
+            {routines === null && !routineError && <p role="status">Cargando rutinas…</p>}
+            {routines?.length === 0 && <Link href={`/dashboard/rutinas/nueva?${query}`}>Crear una rutina</Link>}
+            {!!routines?.length && <div className="training-actions">
+              <label>Mis rutinas<select value={routineId} onChange={(event) => setRoutineId(event.target.value)}>
+                <option value="">Elige una rutina</option>
+                {routines.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+              </select></label>
+              <button type="button" disabled={starting || !routines.some((item) => item.id === routineId)}
+                onClick={startRoutine}>{starting ? "Cargando rutina…" : "Iniciar rutina"}</button>
+            </div>}
+            {repeat && <button type="button" disabled={starting} onClick={() => start(repeatContent(repeat))}>
+              Repetir {repeat.nombre || `sesión del ${repeat.fecha}`}
+            </button>}
+          </section>}
+        </>
+      ))}
+    </div>
+  </main>;
+}
 
-      <section className="w-full max-w-[1060px] mx-auto pt-8 pb-6">
-        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Registrar entrenamiento</h1>
-      </section>
-
-      <section className="w-full max-w-[1060px] mx-auto pb-10">
-        {errorCatalogo && (
-          <div className="p-[26px] border border-[rgba(255,121,121,0.32)] rounded-xl bg-[#212320]">
-            <p role="alert" className="m-0 mb-2 text-sm font-bold text-[#ff7979]">{errorCatalogo}</p>
-            <p className="m-0 mb-5 text-[13px] text-[#a9afa7]">
-              Sin el catálogo no puedes elegir ejercicios. Tu fecha, notas y series se conservan mientras reintentas.
-            </p>
-            <button
-              type="button"
-              onClick={reintentarCatalogo}
-              aria-disabled={cargandoCatalogo}
-              className={`px-4 py-2.5 border-0 rounded-lg bg-[#b56cff] text-[#10110f] text-[13px] font-extrabold cursor-pointer transition hover:bg-[#d7adff] aria-disabled:opacity-60 aria-disabled:cursor-wait ${ESTILO_FOCO}`}
-            >
-              {cargandoCatalogo ? "Cargando catálogo..." : "Reintentar carga del catálogo"}
-            </button>
-          </div>
-        )}
-
-        {catalogoDisponible && (
-          <form onSubmit={guardarEntrenamiento} className="rounded-xl border border-[#41433f] bg-[#212320] p-4 sm:p-6">
-            <fieldset disabled={guardando} className="min-w-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-[15px] mb-6">
-                <label className="text-xs font-bold text-[#c0c7bd]">
-                  Fecha
-                  <input
-                    ref={fechaRef}
-                    type="date"
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                    required
-                    className="w-full mt-2 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm focus-visible:outline-2 focus-visible:outline-[#b56cff]"
-                  />
-                </label>
-                <label className="text-xs font-bold text-[#c0c7bd]">
-                  Notas (opcional)
-                  <input
-                    type="text"
-                    value={notas}
-                    onChange={(e) => setNotas(e.target.value)}
-                    maxLength={200}
-                    placeholder="Ej: Día de empuje, buena energía"
-                    className="w-full mt-2 p-[10px_12px] bg-[#151714] border border-[#41463f] rounded-lg text-[#f2f4ef] text-sm focus-visible:outline-2 focus-visible:outline-[#b56cff]"
-                  />
-                </label>
-              </div>
-
-              <TrainingExercisePicker catalogo={catalogo} onAdd={agregarYEnfocar} />
-
-              <section aria-labelledby="series-entrenamiento" className="mb-6 grid gap-3">
-                <h2 id="series-entrenamiento" className="text-base font-bold text-[#f2f4ef]">Series del entrenamiento ({filas.length})</h2>
-                {filas.length > 0 && <p className="text-sm text-[#a9afa7]">Ingresa las repeticiones de cada serie o quita las que no hiciste.</p>}
-                {filas.length === 0 && <p className="text-sm text-[#a9afa7]">Agrega un ejercicio para registrar tu primera serie.</p>}
-                {Array.from(filasPorEjercicio, ([ejercicioId, series]) => {
-                  const nombre = nombresPorId.get(ejercicioId);
-                  const titulo = nombre ?? `Ejercicio no disponible (${ejercicioId})`;
-                  return (
-                    <fieldset key={ejercicioId} className="grid min-w-0 gap-2 rounded-lg border border-[#41463f] p-3">
-                      <legend className="px-1 text-sm font-bold text-[#f2f4ef]">{titulo}</legend>
-                      {series.map((fila, index) => (
-                        <SetRow key={fila.id} fila={fila} numero={index + 1} ejercicio={titulo} error={erroresFilas[fila.id]}
-                          repeticionesRef={fila.id === filaConFoco ? repeticionesRef : null}
-                          onUpdate={actualizarFila} onRemove={quitarFila} />
-                      ))}
-                      {nombre && (
-                        <button type="button" onClick={() => agregarYEnfocar(ejercicioId)}
-                          aria-label={`Agregar serie de ${nombre}`}
-                          className={`min-h-10 justify-self-start rounded-lg border border-[#41463f] px-3 py-2 text-sm font-bold text-[#f2f4ef] hover:border-[#b56cff] ${ESTILO_FOCO}`}>
-                          Agregar serie
-                        </button>
-                      )}
-                    </fieldset>
-                  );
-                })}
-              </section>
-
-            </fieldset>
-
-            {error && <p role="alert" className="mb-4 rounded-lg border border-[rgba(255,121,121,0.32)] bg-[#351b1b] p-3 text-sm text-[#ff7979]">{error}</p>}
-            {exito && <p role="status" className="mb-4 rounded-lg border border-[rgba(181,108,255,0.32)] bg-[#321d47] p-3 text-sm text-[#d7adff]">{exito} <Link href={`/dashboard/entrenamientos/historial?gym=${encodeURIComponent(gym)}`} className="ml-2 font-bold underline">Ver historial</Link></p>}
-            <button
-              type="submit"
-              disabled={guardando}
-              className="w-full p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {guardando ? "Guardando..." : "Guardar entrenamiento"}
-            </button>
-          </form>
-        )}
-      </section>
-    </main>
-  );
+function TrainingPageContent({ gym }) {
+  const { user, loading } = useAuth();
+  if (loading) return <p className="training-page" role="status">Cargando sesión…</p>;
+  if (!user?.idusuario) return <p className="training-page">Inicia sesión para entrenar.</p>;
+  return <TrainingDashboard key={user.idusuario} gym={gym} userId={user.idusuario} />;
 }
 
 export default function TrainingPage({ gym = "jj-poblado" }) {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6 bg-[#171817]"><p className="text-sm text-[#a9afa7]">Cargando...</p></div>}>
-      <TrainingPageContent gym={gym} />
-    </Suspense>
-  );
+  return <Suspense fallback={<p className="training-page" role="status">Cargando entrenamiento…</p>}>
+    <TrainingPageContent gym={gym} />
+  </Suspense>;
 }

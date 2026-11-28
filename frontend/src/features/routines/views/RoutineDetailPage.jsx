@@ -31,8 +31,7 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
   }
 
   function handleIniciar() {
-    const ids = rutina.ejercicios.map((e) => e.ejercicio_id).join(",");
-    router.push(`/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}&rutina=${ids}`);
+    router.push(`/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}&rutina=${encodeURIComponent(rutina.id)}`);
   }
 
   if (loading || cargando) {

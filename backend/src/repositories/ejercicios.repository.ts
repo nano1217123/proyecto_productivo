@@ -33,6 +33,7 @@ export function createEjerciciosRepository(db: typeof prisma = prisma) {
             descripcion: true,
             consejo: true,
             imagenUrl: true,
+            videoUrl: true,
           },
         });
         const grupos = new Map<
@@ -51,6 +52,7 @@ export function createEjerciciosRepository(db: typeof prisma = prisma) {
               descripcion?: string | null;
               consejo?: string | null;
               imagen_url: string | null;
+              video_url: string | null;
             }[];
           }
         >();
@@ -74,6 +76,7 @@ export function createEjerciciosRepository(db: typeof prisma = prisma) {
             descripcion: ej.descripcion,
             consejo: ej.consejo,
             imagen_url: ej.imagenUrl,
+            video_url: ej.videoUrl,
           });
         }
 
