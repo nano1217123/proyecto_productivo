@@ -33,6 +33,7 @@ function NutritionCalculator({ gym }) {
       <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] items-start gap-[18px] pb-10">
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Tus datos</h2>
+          <p className="text-sm text-[#a9afa7]">70 kg y 170 cm son valores de ejemplo. Sustitúyelos por tus datos.</p>
           <div className="grid grid-cols-2 gap-[15px] my-[27px_0_22px] [&_label]:text-xs [&_label]:font-bold [&_label]:text-[#c0c7bd]">
             <label htmlFor="nutri-weight">Peso<div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff] [&_input]:w-full [&_input]:min-w-0 [&_input]:py-2 [&_input]:border-0 [&_input]:outline-0 [&_input]:bg-transparent [&_input]:text-[#f2f4ef] [&_input]:text-[22px] [&_input]:font-bold [&_span]:text-[#b56cff] [&_span]:text-xs [&_span]:font-extrabold"><input id="nutri-weight" type="number" min="1" max="500" value={weight} onChange={(event) => setWeight(event.target.value)} /><span>kg</span></div></label>
             <label htmlFor="nutri-height">Estatura<div className="flex items-center mt-2 border-b border-[#4b504a] transition focus-within:border-[#b56cff] [&_input]:w-full [&_input]:min-w-0 [&_input]:py-2 [&_input]:border-0 [&_input]:outline-0 [&_input]:bg-transparent [&_input]:text-[#f2f4ef] [&_input]:text-[22px] [&_input]:font-bold [&_span]:text-[#b56cff] [&_span]:text-xs [&_span]:font-extrabold"><input id="nutri-height" type="number" min="1" max="300" value={height} onChange={(event) => setHeight(event.target.value)} /><span>cm</span></div></label>
@@ -63,7 +64,7 @@ function NutritionCalculator({ gym }) {
 
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
           <h2 className="m-0 mb-[18px] text-xl tracking-[-0.4px]">Elige tus alimentos</h2>
-          <p className="m-[-10px_0_18px] text-[13px] leading-[1.55] text-[#a9afa7]">Son opciones para escoger, no una obligación. Marca los que quieras comer hoy y mira cuánta proteína vas sumando.</p>
+          <p className="m-[-10px_0_18px] text-[13px] leading-[1.55] text-[#a9afa7]">Son opciones para escoger, no una obligación. Marca los que quieras comer hoy. Al cambiar el objetivo, el total solo cuenta los alimentos disponibles para ese objetivo.</p>
 
           <div className="mb-[18px]" aria-live="polite">
             <div className="h-2.5 rounded-md bg-[#151714] overflow-hidden"><div className="h-full rounded-md bg-gradient-to-r from-[#8441c6] to-[#d7adff] transition-[width] duration-200" style={{ width: `${progressPercent}%` }} /></div>
@@ -78,11 +79,11 @@ function NutritionCalculator({ gym }) {
             {availableFoods.map((food) => {
               const active = selectedFoods.has(food.name);
               return (
-                <button key={food.name} type="button" className={`grid grid-cols-[22px_1fr_auto] items-center gap-3 p-[12px_14px] border rounded-[10px] bg-[#151714] text-[#f2f4ef] text-left font-inherit cursor-pointer transition hover:border-[#b56cff] ${active ? "border-[#b56cff] bg-[#321d47]" : "border-[#41463f]"}`} onClick={() => toggleFood(food.name)} aria-pressed={active}>
-                  <span className="text-xs font-bold">{active ? "Seleccionado" : "Agregar"}</span>
+                <button key={food.name} type="button" className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-[12px_14px] border rounded-[10px] bg-[#151714] text-[#f2f4ef] text-left font-inherit cursor-pointer transition hover:border-[#b56cff] ${active ? "border-[#b56cff] bg-[#321d47]" : "border-[#41463f]"}`} onClick={() => toggleFood(food.name)} aria-pressed={active}>
                   <span className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[13.5px] font-semibold">{food.name}</span>
                     <span className="text-[11.5px] text-[#a9afa7]">{food.category} · {food.serving}</span>
+                    <span className="text-xs font-bold">{active ? "Seleccionado" : "Agregar"}</span>
                   </span>
                   <span className="text-[13px] font-extrabold text-[#d7adff] whitespace-nowrap">{food.proteinPerServing} g</span>
                 </button>

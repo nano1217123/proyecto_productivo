@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
 import { useTrainingSession } from "../hooks/useTrainingSession";
@@ -14,7 +15,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
     catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
     notas, setNotas,
-    filas, guardando, error, exito,
+    filas, guardando, error, erroresFilas, exito,
     actualizarFila, agregarFila, quitarFila,
     guardarEntrenamiento
   } = useTrainingSession();
@@ -25,6 +26,11 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
   const fechaRef = useRef(null);
   const repeticionesRef = useRef(null);
   const [filaConFoco, setFilaConFoco] = useState(null);
+
+  useEffect(() => {
+    const id = Object.keys(erroresFilas)[0];
+    if (id) document.getElementById(`reps-${id}`)?.focus();
+  }, [erroresFilas]);
 
   useEffect(() => {
     if (filaConFoco) repeticionesRef.current?.focus();
@@ -119,6 +125,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
 
               <section aria-labelledby="series-entrenamiento" className="mb-6 grid gap-3">
                 <h2 id="series-entrenamiento" className="text-base font-bold text-[#f2f4ef]">Series del entrenamiento ({filas.length})</h2>
+                {filas.length > 0 && <p className="text-sm text-[#a9afa7]">Ingresa las repeticiones de cada serie o quita las que no hiciste.</p>}
                 {filas.length === 0 && <p className="text-sm text-[#a9afa7]">Agrega un ejercicio para registrar tu primera serie.</p>}
                 {Array.from(filasPorEjercicio, ([ejercicioId, series]) => {
                   const nombre = nombresPorId.get(ejercicioId);
@@ -127,7 +134,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
                     <fieldset key={ejercicioId} className="grid min-w-0 gap-2 rounded-lg border border-[#41463f] p-3">
                       <legend className="px-1 text-sm font-bold text-[#f2f4ef]">{titulo}</legend>
                       {series.map((fila, index) => (
-                        <SetRow key={fila.id} fila={fila} numero={index + 1} ejercicio={titulo}
+                        <SetRow key={fila.id} fila={fila} numero={index + 1} ejercicio={titulo} error={erroresFilas[fila.id]}
                           repeticionesRef={fila.id === filaConFoco ? repeticionesRef : null}
                           onUpdate={actualizarFila} onRemove={quitarFila} />
                       ))}
@@ -146,7 +153,7 @@ function TrainingPageContent({ gym = "jj-poblado" }) {
             </fieldset>
 
             {error && <p role="alert" className="mb-4 rounded-lg border border-[rgba(255,121,121,0.32)] bg-[#351b1b] p-3 text-sm text-[#ff7979]">{error}</p>}
-            {exito && <p role="status" className="mb-4 rounded-lg border border-[rgba(181,108,255,0.32)] bg-[#321d47] p-3 text-sm text-[#d7adff]">{exito}</p>}
+            {exito && <p role="status" className="mb-4 rounded-lg border border-[rgba(181,108,255,0.32)] bg-[#321d47] p-3 text-sm text-[#d7adff]">{exito} <Link href={`/dashboard/entrenamientos/historial?gym=${encodeURIComponent(gym)}`} className="ml-2 font-bold underline">Ver historial</Link></p>}
             <button
               type="submit"
               disabled={guardando}

@@ -3,10 +3,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
+import { useSedes } from "@/src/features/sedes/hooks/useSedes";
 import reviewsApi from "../api/reviewsApi";
 
 export default function ReviewsPage({ gym = "jj-poblado" }) {
   const { user, loading: authLoading } = useAuth();
+  const { sede: datosSede } = useSedes();
 
   const [resenas, setResenas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -136,7 +138,7 @@ export default function ReviewsPage({ gym = "jj-poblado" }) {
           OPINIONES DE NUESTROS USUARIOS
         </p>
 
-        <h1 className="mb-3 text-4xl font-bold">Reseñas</h1>
+        <h1 className="mb-3 text-4xl font-bold">{sedeResena && rol !== "super_admin" ? `Reseñas de ${datosSede(sedeResena)?.nombre ?? sedeResena}` : "Reseñas"}</h1>
 
         <p className="mb-8 text-sm text-[#a9afa7]">
           Conoce las experiencias y opiniones de nuestra comunidad.

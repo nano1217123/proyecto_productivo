@@ -25,6 +25,7 @@ export function useTrainingSession() {
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [erroresFilas, setErroresFilas] = useState({});
   const [exito, setExito] = useState("");
 
   function nuevaFila(ejercicioId) {
@@ -69,7 +70,12 @@ export function useTrainingSession() {
     };
   }, [cargarCatalogo]);
 
+  function limpiarErrorFila(id) {
+    setErroresFilas(({ [id]: descartado, ...resto }) => resto);
+  }
+
   function actualizarFila(id, campo, valor) {
+    if (campo === "repeticiones") limpiarErrorFila(id);
     setFilas((prev) => prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
   }
 
@@ -80,6 +86,7 @@ export function useTrainingSession() {
   }
 
   function quitarFila(id) {
+    limpiarErrorFila(id);
     setFilas((prev) => prev.filter((f) => f.id !== id));
   }
 
@@ -89,19 +96,27 @@ export function useTrainingSession() {
     setError("");
     setExito("");
 
-    if (filas.length === 0) {
+    const iniciadas = filas.filter((fila) => fila.ejercicioId || fila.repeticiones !== "" || fila.pesoKg !== "");
+    setErroresFilas({});
+    if (iniciadas.length === 0) {
       setError("Agrega al menos una serie con ejercicio y repeticiones.");
       return;
     }
 
     const idsDisponibles = new Set(catalogo.flatMap((grupo) => grupo.ejercicios.map((ejercicio) => String(ejercicio.id))));
-    if (filas.some((fila) => !idsDisponibles.has(fila.ejercicioId))) {
-      setError("Quita las series de los ejercicios que ya no están disponibles.");
+    const errores = {};
+    for (const fila of iniciadas) {
+      if (!idsDisponibles.has(fila.ejercicioId)) errores[fila.id] = "Este ejercicio no está disponible. Quita la serie y elige otro.";
+      else if (!fila.repeticiones) errores[fila.id] = "Ingresa las repeticiones de esta serie.";
+    }
+    if (Object.keys(errores).length) {
+      setErroresFilas(errores);
+      setError("Revisa las series marcadas antes de guardar.");
       return;
     }
 
     const contador = new Map();
-    const series = filas.map((f) => {
+    const series = iniciadas.map((f) => {
       const actual = (contador.get(f.ejercicioId) || 0) + 1;
       contador.set(f.ejercicioId, actual);
       return {
@@ -129,7 +144,7 @@ export function useTrainingSession() {
     catalogo, cargandoCatalogo, errorCatalogo, cargarCatalogo,
     fecha, setFecha,
     notas, setNotas,
-    filas, guardando, error, exito,
+    filas, guardando, error, erroresFilas, exito,
     actualizarFila, agregarFila, quitarFila,
     guardarEntrenamiento
   };

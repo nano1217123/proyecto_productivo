@@ -24,12 +24,12 @@ export default function DashboardPage() {
     {
       titulo: esParticular ? "Ejercicios en casa" : "Ejercicios",
       descripcion: esParticular ? "Explora ejercicios sin máquinas ni pesas." : "Encuentra ejercicios por grupo muscular.",
-      href: esParticular ? "/dashboard/ejercicios?modo=casa" : "/dashboard/ejercicios",
+      href: esParticular ? "/dashboard/ejercicios?modo=casa" : `/dashboard/ejercicios${gymQuery}`,
     },
     {
       titulo: "Nutrición",
       descripcion: "Consulta recomendaciones para acompañar tu entrenamiento.",
-      href: "/dashboard/nutricion",
+      href: `/dashboard/nutricion${gymQuery}`,
     },
     {
       titulo: "Centro de reportes",
@@ -60,12 +60,6 @@ export default function DashboardPage() {
           </nav>
         </section>
 
-        {esCliente && !slugSede && (
-          <p role="status" className="mb-6 rounded-lg border border-[rgba(255,196,87,.45)] bg-[rgba(120,86,20,.2)] p-4 text-sm text-[#ffcf70]">
-            Reseñas de mi sede: tu cuenta aún no tiene una sede asignada. Pídele a tu gimnasio que te vincule para ver su información y publicar reseñas.
-          </p>
-        )}
-
         <nav aria-labelledby="otras-herramientas" className="mb-6">
           <h2 id="otras-herramientas" className="mb-3 text-lg font-bold">Herramientas</h2>
           <ul className="grid gap-3 sm:grid-cols-3">
@@ -75,6 +69,19 @@ export default function DashboardPage() {
                   <p className="font-bold text-[#f2f4ef]">{titulo}</p>
                   <p className="mt-1 text-sm text-[#a9afa7]">{descripcion}</p>
                 </Link>
+              </li>
+            ))}
+            {esCliente && (slugSede ? (
+              <li>
+                <Link href={`/dashboard/resenas${gymQuery}`} className={`block h-full rounded-xl border border-[#41433f] bg-[#212320] p-4 no-underline hover:border-[#b56cff] ${foco}`}>
+                  <p className="font-bold text-[#f2f4ef]">Reseñas de mi sede</p>
+                  <p className="mt-1 text-sm text-[#a9afa7]">Consulta las opiniones y comparte tu experiencia.</p>
+                </Link>
+              </li>
+            ) : (
+              <li className="rounded-xl border border-[#41433f] bg-[#212320] p-4">
+                <p className="font-bold">Reseñas de mi sede</p>
+                <p className="mt-1 text-sm text-[#ffcf70]">Pídele a tu gimnasio que vincule tu cuenta a una sede para ver y publicar reseñas.</p>
               </li>
             ))}
           </ul>

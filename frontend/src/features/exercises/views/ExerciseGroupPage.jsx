@@ -334,7 +334,7 @@ export default function ExerciseGroupPage({ groupSlug, gym = "jj-poblado" }) {
         return (
           <dialog
             ref={dialogo}
-            className="m-auto w-[calc(100%-2rem)] max-w-[480px] overflow-visible bg-transparent p-0 text-[#f2f4ef] backdrop:bg-black/70"
+            className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-[480px] overflow-visible bg-transparent p-0 text-[#f2f4ef] backdrop:bg-black/70"
             aria-label={selected.name}
             onCancel={(event) => { event.preventDefault(); closeModal(); }}
             onClick={(event) => { if (event.target === event.currentTarget) closeModal(); }}

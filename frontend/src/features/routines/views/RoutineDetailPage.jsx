@@ -61,7 +61,14 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
             <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">{rutina.dia_etiqueta || "RUTINA"}</p>
             <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">{rutina.nombre}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleIniciar}
+            className="min-h-11 px-4 py-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px"
+          >
+            Empezar entrenamiento
+          </button>
             <Link
               href={`/dashboard/rutinas/${rutinaId}/editar?gym=${encodeURIComponent(gym)}`}
               className="px-4 py-2.5 border border-[#41463f] rounded-lg bg-transparent text-[#f2f4ef] text-[13px] font-bold no-underline transition hover:border-[#b56cff] hover:text-[#d7adff]"
@@ -73,7 +80,7 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
               onClick={handleEliminar}
               className="px-4 py-2.5 border border-[rgba(255,121,121,.4)] rounded-lg bg-transparent text-[#ff7979] text-[13px] font-bold cursor-pointer transition hover:bg-[#351b1b]"
             >
-              Eliminar
+              Eliminar rutina
             </button>
           </div>
         </div>
@@ -81,22 +88,16 @@ export default function RoutineDetailPage({ gym = "jj-poblado", rutinaId }) {
 
       <section className="w-full max-w-[1060px] mx-auto pb-10">
         <div className="p-[26px] border border-[#41433f] rounded-xl bg-[#212320]">
-          <div className="grid gap-2 mb-6">
+          <div className="grid gap-2">
             {rutina.ejercicios.map((ej, idx) => (
-              <div key={ej.ejercicio_id} className="flex items-center justify-between p-3 border border-[#30332f] rounded-lg bg-[#171817]">
+              <div key={`${ej.ejercicio_id}-${idx}`} className="flex items-center justify-between p-3 border border-[#30332f] rounded-lg bg-[#171817]">
                 <span className="text-[13.5px] text-[#f2f4ef]"><strong className="text-[#b56cff] mr-2">{idx + 1}.</strong>{ej.nombre}</span>
                 <span className="text-[11.5px] text-[#a9afa7]">{ej.grupo_nombre}</span>
               </div>
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={handleIniciar}
-            className="w-full p-3 border-0 rounded-[10px] bg-[#b56cff] text-[#10110f] text-sm font-extrabold cursor-pointer shadow-[0_10px_20px_rgba(181,108,255,0.15)] transition hover:bg-[#d7adff] hover:-translate-y-px"
-          >
-            Iniciar entrenamiento
-          </button>
+
         </div>
       </section>
     </main>

@@ -8,7 +8,7 @@ const metricas = [
   ["entrenamientoCompletado", "workoutDone", "Entrenamiento", (valor) => valor ? "Completado" : "Pendiente"],
 ];
 
-export default function DailyMetricsConflict({ conflicto, consultarNuevoDia, resolverConflicto, formularioRef }) {
+export default function DailyMetricsConflict({ conflicto, diaAnterior, consultarNuevoDia, resolverConflicto, formularioRef }) {
   const [revisando, setRevisando] = useState(false);
   const [seleccion, setSeleccion] = useState([]);
   const { cambios, nuevoDia, consultando, error } = conflicto;
@@ -36,7 +36,8 @@ export default function DailyMetricsConflict({ conflicto, consultarNuevoDia, res
     <section aria-label="Cambio de día" className="my-4 space-y-3 rounded-xl border border-gray-700 p-3 text-sm">
       <p role="status">
         Cambió el día en Bogotá. Tus cambios siguen en el borrador.
-        {nuevoDia && ` Nuevo día: ${nuevoDia.diaLocal}.`}
+        {diaAnterior && ` Fecha del borrador: ${diaAnterior}.`}
+        {(nuevoDia?.diaLocal || conflicto.diaInformado) && ` Nueva fecha: ${nuevoDia?.diaLocal ?? conflicto.diaInformado}.`}
       </p>
       {error && <p role="alert">{error}</p>}
       {nuevoDia ? (
@@ -73,7 +74,7 @@ export default function DailyMetricsConflict({ conflicto, consultarNuevoDia, res
                 disabled={seleccion.length === 0}
                 onClick={() => resolverYVolverAlFormulario(seleccion)}
               >
-                Aplicar selección al formulario
+                Llevar selección al {nuevoDia.diaLocal}
               </button>
             </fieldset>
           )}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/src/features/auth/context/AuthContext";
@@ -70,12 +71,18 @@ export default function TrainingHistoryPage({ gym = "jj-poblado" }) {
 
       <section className="w-full max-w-[1060px] mx-auto pt-[50px] pb-[30px]">
         <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[2.7px] text-[#b56cff]">ENTRENAMIENTO</p>
-        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Tu historial</h1>
+        <h1 className="m-0 text-[clamp(34px,5vw,54px)] tracking-[-1.8px] leading-[1.05]">Historial de entrenamientos</h1>
+        <nav aria-label="En esta pantalla" className="mt-4 flex flex-wrap gap-4 text-sm font-bold text-[#d7adff]">
+          <Link href={`/dashboard/entrenamientos?gym=${encodeURIComponent(gym)}`}>Registrar entrenamiento</Link>
+          <a href="#sesiones-guardadas">Sesiones guardadas</a>
+          <a href="#vista-previa-progreso">Progreso por ejercicio</a>
+        </nav>
       </section>
 
       <section className="w-full max-w-[1060px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-[18px] pb-10 items-start">
         {/* Columna izquierda: lista de sesiones */}
-        <div className="grid gap-3" aria-busy={cargandoHistorial}>
+        <div id="sesiones-guardadas" className="grid gap-3" aria-busy={cargandoHistorial}>
+          <h2 className="text-xl font-bold">Sesiones guardadas</h2>
           {errorHistorial && (
             <div className={ESTILO_ERROR}>
               <p role="alert" className="m-0 mb-3 text-[13px] text-[#ff7979]">{errorHistorial}</p>
