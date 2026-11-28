@@ -278,7 +278,7 @@ npx tsx scripts/asignar-super-admin.ts --correo persona@ejemplo.com   --confirma
 
 ```bash
 # Generar el cliente Prisma (necesario antes del primer arranque; no usa la base)
-npx prisma generate
+npx prisma generate --config prisma7.config.ts
 
 # Desarrollo
 npm run dev

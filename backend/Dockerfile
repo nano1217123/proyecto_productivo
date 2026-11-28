@@ -8,13 +8,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar todas las dependencias necesarias
-RUN npm install
+RUN npm ci
 
 # Copiar el resto del código fuente del backend
 COPY . .
 
 # Generar el cliente de Prisma para la base de datos de Neon
-RUN npx prisma generate
+RUN npx prisma generate --config prisma7.config.ts
 
 # Exponer el puerto por el que corre tu aplicación (ajusta si es necesario)
 EXPOSE 3000

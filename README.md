@@ -36,11 +36,11 @@ Prisma`. En el frontend, las vistas llaman a la API de cada módulo
 cd backend
 npm ci
 cp .env.example .env      # completa .env con tus valores (no lo subas a Git)
-npx prisma generate       # genera el cliente en src/generated/prisma (ignorado por Git)
+npx prisma generate --config prisma7.config.ts       # genera el cliente en src/generated/prisma (ignorado por Git)
 npm run dev               # tsx watch src/server.ts → http://localhost:4000
 ```
 
-- `npx prisma generate` no se conecta a la base: lee `prisma/schema.prisma`
+- `npx prisma generate --config prisma7.config.ts` no se conecta a la base: lee `prisma/schema.prisma`
   mediante `prisma7.config.ts`. Repítelo cuando cambie el esquema. Sin este
   paso el backend no compila ni arranca.
 - Variables en [`backend/.env.example`](./backend/.env.example). El backend
@@ -80,7 +80,8 @@ Variables en [`frontend/.env.local.example`](./frontend/.env.local.example):
   dominio del frontend y Next.js las reenvía a `BACKEND_URL`
   ([`next.config.js`](./frontend/next.config.js)); el
   [`proxy.js`](./frontend/src/proxy.js) lo usa también para validar la
-  sesión en `/dashboard`. Las reescrituras se calculan al arrancar
+  sesión al visitar `/login` o `/register`. El panel confirma o renueva la
+  sesión a través de la API antes de mostrar el contenido. Las reescrituras se calculan al arrancar
   `next dev` o al ejecutar `next build`: si cambias la variable, reinicia o
   vuelve a compilar. `NEXT_PUBLIC_API_URL` solo se usa como respaldo
   heredado.
@@ -91,6 +92,12 @@ Variables en [`frontend/.env.local.example`](./frontend/.env.local.example):
 base de datos usa ese backend**: eso depende del `.env` del backend.
 
 Comandos: `npm run dev`, `npm run build`, `npm start`.
+
+Para construir el frontend en Docker, pasa `BACKEND_URL` y, si está
+configurada, `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` como argumentos de compilación.
+Configura también `BACKEND_URL` en el contenedor en ejecución para las
+comprobaciones de sesión del proxy. Los archivos de entorno locales quedan fuera
+del contexto de construcción.
 
 ## Base de datos: qué conecta el backend
 
