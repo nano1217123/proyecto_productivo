@@ -162,13 +162,15 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
     </div>
   </div>;
 
+  const showingWorkout = active.ready && !active.summary && active.draft && continueDraft;
+
   return <main className="training-page">
     <div className="training-shell">
-      <nav className="training-top" aria-label="Entrenamientos">
+      {!showingWorkout && <nav className="training-top" aria-label="Entrenamientos">
         <Link href={`/dashboard/entrenamientos?${query}`} onClick={() => setContinueDraft(false)}>Entrenamientos</Link>
         <Link href={historyUrl}>Historial y progreso</Link>
-      </nav>
-      {active.draft && <p className="training-sync" role="status">{active.status}</p>}
+      </nav>}
+      {active.draft && !showingWorkout && <p className="training-sync" role="status">{active.status}</p>}
       {active.storageError && <p className="training-error" role="alert">El navegador impide guardar una copia local. Mantén esta pantalla abierta hasta sincronizar.</p>}
       {syncError}
       {!active.ready && !active.error && <p role="status">Buscando entrenamientos pendientes…</p>}
@@ -176,6 +178,7 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
         onRepeat={start} onBack={() => { active.dismissSummary(); setContinueDraft(false); }} historyUrl={historyUrl} />}
       {active.ready && !active.summary && (active.draft && continueDraft ? (
         <ActiveTraining key={active.draft.id} draft={active.draft} edit={active.edit} close={active.close}
+          status={active.status} onBack={() => setContinueDraft(false)}
           catalog={catalog} catalogError={catalogError} retryCatalog={loadCatalog} history={history || []} />
       ) : (
         <>
