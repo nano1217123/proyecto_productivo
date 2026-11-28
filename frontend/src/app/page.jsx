@@ -15,7 +15,7 @@ export const metadata = {
   alternates: { canonical: "/" },
   openGraph: {
     title, description, url: "/", siteName: "J&J GYM", locale: "es_CO", type: "website",
-    images: [{ url: "/landing/hero.webp", width: 1080, height: 1050, alt: "Entrenamiento con mancuernas" }],
+    images: [{ url: "/landing/hero.webp", width: 1080, height: 1050, alt: "Entrenamiento con barra" }],
   },
   twitter: { card: "summary_large_image", title, description, images: ["/landing/hero.webp"] },
   icons: { icon: "/landing/icon.svg" },

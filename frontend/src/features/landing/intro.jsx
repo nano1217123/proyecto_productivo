@@ -31,8 +31,8 @@ export function HeroSection() {
       </div>
     </div>
     <div className="ll-hero-visual">
-      <img src="/landing/hero.webp" srcSet="/landing/hero-small.webp 560w, /landing/hero.webp 1080w" sizes="(max-width: 767px) 94vw, 51vw" width="1080" height="1050" fetchPriority="high" alt="Deportista levantando una mancuerna en un gimnasio" />
-      <a className="ll-hero-preview" href="#demostracion"><Icon name="training" /><span><strong>J&amp;J GYM en acción</strong><small>Explora la interfaz de entrenamiento</small></span></a>
+      <img src="/landing/hero.webp" srcSet="/landing/hero-small.webp 560w, /landing/hero.webp 1080w" sizes="(max-width: 767px) 94vw, 51vw" width="1080" height="1050" fetchPriority="high" alt="Deportista levantando una barra en un gimnasio" />
+      <a className="ll-hero-preview" href="#demostracion"><Icon name="training" /><span><strong>J&amp;J GYM en acción</strong><small>Explora la interfaz de entrenamiento</small></span><picture><source media="(min-width: 48rem)" srcSet="/landing/hero-product.webp" /><img width="650" height="163" decoding="async" alt="" /></picture></a>
     </div>
   </section>;
 }

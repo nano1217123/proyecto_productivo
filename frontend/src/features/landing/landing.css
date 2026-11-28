@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Barlow Condensed Landing";
+  src: url("/landing/barlow-condensed-800.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
 .ll {
   --ll-bg: #141316;
   --ll-panel: #1d1b20;
@@ -5,7 +13,7 @@
   --ll-muted: #c2bac8;
   --ll-purple: var(--green);
   --ll-light: var(--lime);
-  --ll-display: "Barlow Condensed", "Arial Narrow", Barlow, sans-serif;
+  --ll-display: "Barlow Condensed Landing", "Barlow Condensed", "Arial Narrow", Barlow, sans-serif;
   background: var(--ll-bg);
   color: var(--ink);
   line-height: 1.55;
@@ -184,4 +192,12 @@
 .ll h2:focus { outline: 2px solid var(--ll-light); outline-offset: .25rem; }
 @media (max-width: 34rem) {
   .ll-hero .ll-actions .ll-button { flex: 1 1 100%; }
+}
+
+.ll-hero-preview { flex-wrap: wrap; }
+.ll-hero-preview picture { display: none; width: 100%; }
+.ll-hero-preview img { border-radius: .3rem; }
+@media (min-width: 48rem) {
+  .ll-hero-preview { width: min(19rem, 72%); }
+  .ll-hero-preview picture { display: block; }
 }
