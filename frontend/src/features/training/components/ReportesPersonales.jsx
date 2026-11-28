@@ -35,7 +35,7 @@ export default function ReportesPersonales() {
         <label className="grid gap-1">Hasta<input className="rounded bg-[#212320] p-2" type="date" name="hasta" disabled={ocupado} /></label>
         <BotonesDescarga cargando={ocupado} />
       </form>
-      {tipo === "progreso" && <Link href="/dashboard/entrenamientos/historial#vista-previa-progreso" className="mt-4 inline-block text-sm font-bold text-[#d7adff] underline">Ver progreso por ejercicio</Link>}
+      {tipo === "progreso" && <Link href="/dashboard/entrenamientos/progreso#vista-previa-progreso" className="mt-4 inline-block text-sm font-bold text-[#d7adff] underline">Ver progreso por ejercicio</Link>}
       <p role={estado?.estado === "error" ? "alert" : "status"} className="mt-2 text-sm">
         {ocupado ? "Preparando el reporte." : estado?.mensaje}
       </p>

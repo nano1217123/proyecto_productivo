@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { exercisesApi } from "@/src/features/exercises/api/exercisesApi";
-import { trainingApi } from "@/src/features/training/api/trainingApi";
+import { historyApi } from "@/src/features/training/api/historyApi";
 import { routinesApi } from "../api/routinesApi";
 import { exerciseType, fieldsFor, routineUrl } from "../routineModel";
 
@@ -97,7 +97,7 @@ export function useRoutineForm(gym, rutinaId, copia, entrenamiento, enabled) {
     Promise.all([
       exercisesApi.getExerciseCatalog(),
       source ? routinesApi.getRoutineDetail(source) : null,
-      entrenamiento && !source ? trainingApi.getTrainingHistory() : null,
+      entrenamiento && !source ? historyApi.detail(entrenamiento) : null,
     ]).then(([groups, routine, history]) => {
       if (!current) return;
       let details = empty;
@@ -108,7 +108,7 @@ export function useRoutineForm(gym, rutinaId, copia, entrenamiento, enabled) {
           objetivo: routine.objetivo || "", notas: routine.notas || "", dias: routine.dias };
         items = routine.ejercicios;
       } else if (history) {
-        const session = history.find((entry) => entry.id === entrenamiento);
+        const session = history;
         items = fromTraining(session, groups.flatMap((group) => group.ejercicios));
         details = { ...empty, nombre: (session.nombre || "Entrenamiento").slice(0, 60), notas: session.notas || "" };
       }
@@ -150,6 +150,10 @@ export function useRoutineForm(gym, rutinaId, copia, entrenamiento, enabled) {
       const parsed = value === "" ? null : field === "notas" ? value : Number(value);
       return { ...item, plan: { ...item.plan, [field]: parsed } };
     }));
+  }
+
+  function quitarCargasImportadas() {
+    setSeleccionados((previous) => previous.map((item) => ({ ...item, plan: { ...item.plan, pesoKg: null } })));
   }
 
   function quitarEjercicio(key) {
@@ -196,5 +200,5 @@ export function useRoutineForm(gym, rutinaId, copia, entrenamiento, enabled) {
 
   return { catalogo, cargandoDatos, info, changeInfo, seleccionados, guardando, error, loadError,
     retryLoad: () => setRetry((value) => value + 1), agregarEjercicio, quitarEjercicio, moverEjercicio,
-    configurarEjercicio, guardarRutina };
+    configurarEjercicio, quitarCargasImportadas, guardarRutina };
 }

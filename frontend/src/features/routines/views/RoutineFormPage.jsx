@@ -55,6 +55,7 @@ export default function RoutineFormPage({ gym = "jj-poblado", rutinaId = null, c
             </div>
             <section aria-label="Ejercicios seleccionados" className="routine-stack">
               <h2>Orden y configuración</h2>
+              {entrenamiento && <button type="button" onClick={form.quitarCargasImportadas}>Descartar pesos importados</button>}
               {!seleccionados.length && <p className="routine-muted">Agrega ejercicios del catálogo para configurar el plan.</p>}
               <ol className="routine-stack">{seleccionados.map((item, index) => <RoutineExerciseEditor
                 key={item.key} item={item} index={index} count={seleccionados.length}

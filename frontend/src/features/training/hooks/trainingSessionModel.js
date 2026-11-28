@@ -65,7 +65,7 @@ export function sessionStats(contenido) {
   const exercises = contenido.ejercicios;
   const sets = exercises.flatMap((item) => item.series);
   const done = sets.filter((set) => set.completada).length;
-  const volume = exercises.filter((item) => item.tipo === "fuerza")
+  const volume = exercises.filter((item) => ["fuerza", "carga_adicional"].includes(item.tipo))
     .flatMap((item) => item.series)
     .reduce((sum, set) => sum + (set.completada ? (set.peso_kg ?? 0) * (set.repeticiones ?? 0) : 0), 0);
   return { exercises: exercises.length, total: sets.length, done, volume };
