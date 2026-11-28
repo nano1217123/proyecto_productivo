@@ -1,3 +1,4 @@
+import { requireRole } from "../middleware/requireRole.middleware.js";
 import { Router, type ErrorRequestHandler } from "express";
 import { AppError } from "../errors/AppError.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
@@ -17,7 +18,7 @@ router.use(requireAuth, (req, res, next) => {
   }
   next();
 });
-router.get("/resumen-inicio", asyncHandler(async (req, res) => res.json(await service.summaryForHome(req.userId!))));
+router.get("/resumen-inicio", requireRole("cliente", "usuario_particular"), asyncHandler(async (req, res) => res.json(await service.summaryForHome(req.userId!))));
 router.get("/perfil", asyncHandler(async (req, res) => res.json(await service.profile(req.userId!))));
 router.patch("/perfil", asyncHandler(async (req, res) =>
   res.json(await service.saveProfile(req.userId!, input.validate(input.profileInput, req.body)))));

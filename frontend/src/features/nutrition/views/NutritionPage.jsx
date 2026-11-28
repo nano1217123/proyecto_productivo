@@ -15,8 +15,8 @@ import "./nutrition.css";
 
 const sections = { overview: "Resumen", catalog: "Alimentos", history: "Historial", meals: "Ideas de comidas" };
 
-export default function NutritionPage({ gym }) {
-  const [view, setView] = useState("overview");
+export default function NutritionPage({ gym, initialView = "overview" }) {
+  const [view, setView] = useState(initialView);
   const [catalogMeal, setCatalogMeal] = useState(null);
   const [configure, setConfigure] = useState(false);
   const [dialog, setDialog] = useState(null);
