@@ -4,12 +4,13 @@ const base = "/api/rutinas";
 const route = (id) => `${base}/${encodeURIComponent(id)}`;
 
 export const routinesApi = {
+  schedule: (signal) => http.get(`${base}/planificacion`, { signal, cache: "no-store" }),
   async getRoutines(archived = false) {
     const { rutinas } = await http.get(archived ? `${base}?estado=archivadas` : base);
     return rutinas;
   },
-  async getRoutineDetail(id) {
-    const { rutina } = await http.get(route(id));
+  async getRoutineDetail(id, signal) {
+    const { rutina } = await http.get(route(id), { signal });
     return rutina;
   },
   createRoutine: (input) => http.post(base, input),

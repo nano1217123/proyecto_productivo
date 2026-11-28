@@ -223,3 +223,17 @@ export async function mealsForUser(usuarioId: string) {
   const settings = await db.profiles.findUnique({ where: { usuarioId } });
   return mealIdeas(settings);
 }
+
+export async function summaryForHome(usuarioId: string) {
+  const { settings, today, reference } = await profile(usuarioId);
+  if (!settings) return { configured: false } as const;
+  const protein = settings.tracking ? (await db.entries.aggregate({
+    where: { usuarioId, day: dayDate(today) },
+    _sum: { protein: true },
+  }))._sum.protein : null;
+  return {
+    configured: true, goal: settings.goal, tracking: settings.tracking,
+    reference: reference?.currentEstimate ?? null,
+    protein: protein === null ? null : twoDecimals(protein),
+  } as const;
+}

@@ -4,7 +4,7 @@ import { sesionesEntrenamiento } from "../repositories/sesionEntrenamiento.repos
 import { contenidoSesion } from "../validator/sesionEntrenamiento.validator.js";
 import { z } from "zod";
 import { asyncHandler } from "../middleware/error.middleware.js";
-import { actividadHistorial, consultarHistorial, detalleHistorial } from "../repositories/historial.repository.js";
+import { actividadHistorial, consultarHistorial, detalleHistorial, resumenInicio } from "../repositories/historial.repository.js";
 import { idSesion, leerSesion } from "../validator/sesionEntrenamiento.validator.js";
 
 const fecha = z.iso.date().refine((value) => !value.startsWith("0000"), "El año debe ser mayor a cero.");
@@ -58,4 +58,14 @@ export const compararHistorial = asyncHandler(async (req, res) => {
     .refine((value) => value.anterior !== value.reciente, "Selecciona dos entrenamientos distintos."), req.query);
   const [a, b] = await Promise.all([detalleHistorial(req.userId!, anterior), detalleHistorial(req.userId!, reciente)]);
   res.json({ ...prepararComparacion(a, b), anterior: a.nombre, reciente: b.nombre });
+});
+
+const rangoInicio = z.object({ desde: fecha, hasta: fecha }).strict().refine(({ desde, hasta }) =>
+  desde <= hasta && Date.parse(hasta) - Date.parse(desde) <= 27 * 86400000,
+  "Selecciona un máximo de 28 días.");
+
+export const verResumenInicio = asyncHandler(async (req, res) => {
+  const { desde, hasta } = leerSesion(rangoInicio, req.query);
+  res.set("Cache-Control", "private, no-store");
+  res.json(await resumenInicio(req.userId!, desde, hasta));
 });

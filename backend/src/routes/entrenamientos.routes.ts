@@ -1,4 +1,5 @@
-import { compararHistorial, listarHistorial, repetirHistorial, verActividad, verDetalle } from "../controller/historial.controller.js";
+import { requireRole } from "../middleware/requireRole.middleware.js";
+import { compararHistorial, listarHistorial, repetirHistorial, verActividad, verDetalle, verResumenInicio } from "../controller/historial.controller.js";
 import { Router } from "express";
 
 import {
@@ -27,6 +28,7 @@ router.post("/", validateCreateEntrenamiento, createEntrenamiento);
 router.get("/ejercicio/:ejercicioId/progreso", getProgreso);
 router.get("/historial", listarHistorial);
 router.get("/actividad", verActividad);
+router.get("/resumen-inicio", requireRole("cliente", "usuario_particular"), verResumenInicio);
 router.get("/comparar", compararHistorial);
 router.get("/:id", verDetalle);
 router.post("/:id/repetir", repetirHistorial);

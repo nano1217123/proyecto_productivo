@@ -63,7 +63,7 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
   const startRequest = useRef(null);
   const startingRef = useRef(false);
   const autoStart = useRef(null);
-  const [continueDraft, setContinueDraft] = useState(() => params.get("continuar") === "1");
+  const [continueDraft, setContinueDraft] = useState(() => params.get("continuar") === "1" || params.get("libre") === "1");
   const [routineId, setRoutineId] = useState(params.get("rutina") || "");
   const repeatId = params.get("repetir");
   const query = `gym=${encodeURIComponent(gym)}`;
@@ -117,6 +117,14 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
   }
 
   useEffect(() => {
+    if (params.get("libre") === "1" && !params.get("rutina") && active.ready && !active.error && !autoStart.current) {
+      autoStart.current = "libre";
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete("libre");
+      window.history.replaceState(null, "", currentUrl);
+      if (!active.draft) start({ nombre: "Entrenamiento libre", notas: "", ejercicios: [] });
+      return;
+    }
     const requested = params.get("rutina");
     if (!requested || !active.ready || autoStart.current === requested) return;
     if (routineId !== requested) {
@@ -125,7 +133,7 @@ function TrainingDashboard({ gym, userId, refreshProfile }) {
     }
     autoStart.current = requested;
     if (!active.draft) void startRoutine();
-  }, [params, active.ready, active.draft, routineId, startRoutine]);
+  }, [params, active.ready, active.error, active.draft, routineId, startRoutine, start]);
 
   const bogotaDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const weekStart = new Date(`${bogotaDate}T00:00:00Z`);
