@@ -26,6 +26,10 @@ mode = "new"
 routine_ids = ["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"]
 last_id = "00000000-0000-4000-8000-000000000003"
 active = None
+weight_rows = {}
+height_cm = None
+weight_post_count = 0
+
 def workout(name, identifier):
     return {"id": identifier, "estado": "en_curso", "revision": 0,
             "sesion": {"nombre": name, "notas": "", "ejercicios": []}}
@@ -36,7 +40,8 @@ class API(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(json.dumps(body).encode())
+        if status != 204:
+            self.wfile.write(json.dumps(body).encode())
     def do_GET(self):
         path, _, query = self.path.partition("?")
         profile = {"idusuario": "browser-test", "nombres": "Emiliano", "apellidos": "Prueba",
@@ -50,6 +55,25 @@ class API(BaseHTTPRequestHandler):
         days = [{"fecha": latest_date, "sesiones": 2, "series": 3, "tiempo": 1200}]
         if path == "/api/perfil":
             self.reply({"profile": profile})
+        elif path == "/api/perfil/altura":
+            self.reply({"alturaCm": height_cm})
+        elif path == "/api/progreso/peso":
+            rows = list(reversed(weight_rows.values()))
+            self.reply({"ultimo": rows[0] if rows else None, "registros": rows, "puntos": rows[::-1],
+                        "total": len(rows), "promedio": (sum(row["pesoActualKg"] for row in rows) / len(rows)) if rows else None})
+        elif path == "/api/progreso/deporte":
+            populated = mode in ("progress", "progress-error")
+            count = 1 if populated else 0
+            self.reply({"actividad": {"sesiones": count, "tiempo": 1200 if populated else None, "promedio": 1200 if populated else None,
+                                     "semana": count, "mes": count, "primero": today if populated else None},
+                        "frecuencia": [{"fecha": (date.fromisoformat(today) - timedelta(days=date.fromisoformat(today).weekday())).isoformat(), "sesiones": count}] if populated else [],
+                        "meses": [{"fecha": today[:7] + "-01", "sesiones": count}] if populated else [],
+                        "grupos": [{"grupo": "Pecho", "series": 2, "volumen": 560, "adicional": None}] if populated else [],
+                        "ejercicios": [{"id": "3", "nombre": "Press de banca", "grupo": "Pecho", "imagen": None}] if populated else [],
+                        "marcas": [{"id": last_id, "fecha": today, "ejercicio": "Press de banca", "tipo": "fuerza", "reps": 8, "valor": 70, "anterior": 68}] if populated else [],
+                        "records": count})
+        elif path == "/api/progreso/ejercicios/3":
+            self.reply([{"fecha": today, "sesion": last_id, "tipo": "fuerza", "reps": 8, "peso": 70, "distancia": None, "duracion": None, "asistencia": None}])
         elif path.endswith("/activa"):
             self.reply({"sesion": active})
         elif path.endswith("/rutinas/planificacion"):
@@ -61,11 +85,11 @@ class API(BaseHTTPRequestHandler):
         elif path.endswith("/entrenamientos/resumen-inicio"):
             self.reply({"total": 2, "ultimo": last, "dias": days} if mode in ("completed", "client") else {"total": 0, "ultimo": None, "dias": []})
         elif path.endswith("/nutricion/resumen-inicio"):
-            if mode == "error":
+            if mode in ("error", "progress-error"):
                 self.reply({"message": "Servidor de prueba"}, 500)
             else:
                 self.reply({"configured": True, "goal": "mantener", "tracking": True, "protein": 85,
-                            "reference": {"minimum": 120, "maximum": 150}} if mode == "client" else {"configured": False})
+                            "reference": {"minimum": 120, "maximum": 150}} if mode in ("client", "progress") else {"configured": False})
         elif path.endswith("/sedes"):
             self.reply({"sedes": [{"slug": "jj-poblado", "nombre": "JJ GYM El Poblado", "ubicacion": "Medellín"}]})
         elif path.endswith("/entrenamientos"):
@@ -81,12 +105,32 @@ class API(BaseHTTPRequestHandler):
         else:
             self.reply({}, 404)
     def do_POST(self):
-        global active
+        global active, weight_post_count
         path = self.path.split("?")[0]
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if path == "/api/progreso/peso":
+            weight_post_count += 1
+            weight_rows.setdefault(body["id"], {"id": body["id"], "fecha": today + "T14:32:00Z",
+                                                "pesoActualKg": body["pesoActualKg"], "pesoActualizadoEn": None})
+            self.reply(None, 204)
+            return
         name = "Sesión reciente" if path.endswith("/repetir") else "Piernas" if path.endswith("/iniciar") else body["contenido"]["nombre"]
         active = workout(name, body["id"])
         self.reply({"sesion": active})
+    def do_PATCH(self):
+        global height_cm
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path == "/api/perfil/altura":
+            height_cm = body["alturaCm"]
+            self.reply({"alturaCm": height_cm})
+        else:
+            row = weight_rows[self.path.rsplit("/", 1)[-1]]
+            row.update(pesoActualKg=body["pesoActualKg"], pesoActualizadoEn=today + "T15:10:00Z")
+            self.reply(None, 204)
+    def do_DELETE(self):
+        del weight_rows[self.path.rsplit("/", 1)[-1]]
+        self.reply(None, 204)
+
 def request(url, method="GET", data=None):
     message = None if data is None else json.dumps(data).encode()
     req = urllib.request.Request(url, data=message, method=method, headers={"Content-Type": "application/json"})
@@ -215,3 +259,99 @@ with ExitStack() as resources:
     navigate()
     wait_for(lambda: js("return !!document.querySelector('main') && !document.querySelector('.home-dashboard')"), "Panel administrativo")
     print("Inicio en Firefox: 360, 768 y 1150 px, estados, navegación, inicio libre, rutina, reanudación, repetición, nutrición y panel administrativo.")
+
+    mode = "new"
+    for width in [360, 768, 1150]:
+        navigate("/login")
+        frame = js("""
+            document.querySelector('iframe')?.remove();
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed;top:0;left:0;z-index:9999;height:750px;border:0;width:' + arguments[0] + 'px';
+            iframe.src='/dashboard/particular'; document.body.append(iframe); return iframe;
+        """, width)
+        wd("/frame", "POST", {"id": frame})
+        has("Mi progreso")
+        has("Registra tu peso para empezar")
+        has("Completar altura del perfil")
+        assert js("return document.documentElement.scrollWidth <= window.innerWidth")
+        assert js("""
+            return getComputedStyle(document.querySelector(arguments[0])).display !== 'none';
+        """, ".dashboard-sidebar-desktop" if width >= 1024 else ".dashboard-sidebar-mobile")
+        if width < 1024:
+            js("document.querySelector('.dashboard-sidebar-mobile summary').click()")
+        assert js("""
+            return [...document.querySelectorAll('.dashboard-sidebar nav a')].filter(a => a.getClientRects().length)
+              .map(a => a.textContent.trim()).join('|');
+        """) == "Inicio|Ejercicios en casa|Registrar entrenamiento|Mis rutinas|Historial|Nutrición|Mi progreso|Suscripción|Reportes"
+        wd("/frame/parent", "POST", {})
+    mode = "progress"
+    navigate("/dashboard/particular")
+    has("85 g")
+    has("Press de banca")
+    has("Récord · +2 kg")
+
+    def input_dialog(value):
+        wait_for(lambda: js("""
+            const input = document.querySelector('dialog[open] input');
+            if (!input) return false;
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, arguments[0]);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            return true;
+        """, value), value)
+    click("Completar altura del perfil")
+    input_dialog("175")
+    click("Guardar registro")
+    has("175 cm")
+    click("+ Registrar peso")
+    input_dialog("12,5")
+    click("Guardar registro")
+    has("Ingresa un peso válido")
+    assert weight_post_count == 0
+    input_dialog("75,5")
+    js("""
+        const button = document.querySelector('dialog[open] button[type=submit]');
+        button.click(); button.click();
+    """)
+    has("Registro guardado")
+    has("75,5 kg")
+    assert weight_post_count == 1 and len(weight_rows) == 1
+    wait_for(lambda: js("return !!document.querySelector('.recharts-line-dot')"), "Punto de peso")
+    click("Seguimiento corporal")
+    has("Historial de peso")
+    wait_for(lambda: js("""
+        const button = document.querySelector('.progress-list button');
+        if (!button) return false; button.click(); return true;
+    """), "Editar peso")
+    input_dialog("76,25")
+    click("Guardar registro")
+    has("Registro actualizado")
+    has("76,25 kg")
+    wait_for(lambda: js("""
+        const button = document.querySelector('.progress-list button:last-child');
+        if (!button) return false; button.click(); return true;
+    """), "Abrir confirmación")
+    has("¿Quieres eliminar")
+    click("Eliminar registro")
+    has("Registro eliminado")
+    has("No hay registros de peso en este periodo")
+    assert not weight_rows
+    click("Rendimiento deportivo")
+    has("Evolución por ejercicio")
+    has("Hay un solo registro")
+    has("Máximo registrado")
+    js("""
+        const select = [...document.querySelectorAll('select')].find(node => node.value === 'semana');
+        select.value = 'mes'; select.dispatchEvent(new Event('change', { bubbles: true }));
+    """)
+    wait_for(lambda: js("return [...document.querySelectorAll('select')].some(node => node.value === 'mes')"), "Frecuencia mensual")
+    js("""
+        const select = [...document.querySelectorAll('select')].find(node => node.value === '30');
+        select.value = '7'; select.dispatchEvent(new Event('change', { bubbles: true }));
+    """)
+    wait_for(lambda: js("return [...document.querySelectorAll('select')].some(node => node.value === '7')"), "Periodo de siete días")
+    mode = "progress-error"
+    navigate("/dashboard/particular")
+    has("Servidor de prueba")
+    has("Press de banca")
+    has("175 cm")
+    print("Mi progreso en Firefox: estados vacíos, barra lateral, altura, peso decimal y validación, gráfica, historial, edición, eliminación, periodos, récords, ejercicio y nutrición con fallo parcial.")
