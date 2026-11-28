@@ -73,6 +73,8 @@ test("flujo nutricional con autenticación, PostgreSQL, historial y snapshots", 
   })) });
   await prisma.metricaDiaria.create({ data: { usuarioId: owner, pesoActualKg: 70 } });
   await api("GET", "/perfil", 401, undefined, null);
+  await api("GET", "/resumen-inicio", 401, undefined, null);
+  assert.deepEqual(await api("GET", "/resumen-inicio", 200), { configured: false });
   const initial = await api("GET", "/perfil", 200);
   assert.equal(initial.settings, null);
   assert.equal(initial.weight, 70);
@@ -116,6 +118,8 @@ test("flujo nutricional con autenticación, PostgreSQL, historial y snapshots", 
   await api("POST", "/aporte/" + recorded.id, 404, food, stranger);
   assert.equal((await api("GET", "/registros?day=" + today, 200, undefined, stranger)).total, 0);
   assert.equal((await api("GET", "/registros?day=" + today, 200)).days[0].protein, 21.51);
+  assert.equal((await api("GET", "/resumen-inicio", 200)).protein, 21.51);
+  assert.deepEqual(await api("GET", "/resumen-inicio", 200, undefined, stranger), { configured: false });
   const previousDate = new Date(today + "T00:00:00Z");
   previousDate.setUTCDate(previousDate.getUTCDate() - 1);
   const previousDay = previousDate.toISOString().slice(0, 10);
@@ -154,6 +158,9 @@ test("flujo nutricional con autenticación, PostgreSQL, historial y snapshots", 
   assert.equal((await api("GET", "/registros?day=" + today, 200)).days[0].protein, null);
   const disabled = await api("PATCH", "/perfil", 200, { ...data, tracking: false, needsProfessional: true });
   assert.equal(disabled.reference.minimum, null);
+  const homeDisabled = await api("GET", "/resumen-inicio", 200);
+  assert.equal(homeDisabled.tracking, false);
+  assert.equal(homeDisabled.protein, null);
   assert.deepEqual(await api("GET", "/recomendaciones", 200), []);
   await api("POST", "/registros", 409, entry);
 });

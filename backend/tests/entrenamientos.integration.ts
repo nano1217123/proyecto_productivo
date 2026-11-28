@@ -94,9 +94,13 @@ test("sesiones autenticadas, recuperación, rutinas y cierre transaccional sobre
   assert.equal((await api("GET", active, 200, undefined, stranger)).sesion, null);
 
   const routine = await api("POST", "/rutinas", 201, {
-    nombre: "Plantilla original", ejercicioIds: [ejercicio_id], planes: [{ tipo: "fuerza", series: 2, repeticiones: 8, descanso: 90 }],
+    nombre: "Plantilla original", dias: [1, 3], ejercicioIds: [ejercicio_id], planes: [{ tipo: "fuerza", series: 2, repeticiones: 8, descanso: 90 }],
   });
   await api("GET", `/rutinas/${routine.id}`, 404, undefined, stranger);
+  assert.deepEqual(await api("GET", "/rutinas/planificacion", 200), [
+    { id: routine.id, nombre: "Plantilla original", dias: [1, 3] },
+  ]);
+  assert.deepEqual(await api("GET", "/rutinas/planificacion", 200, undefined, stranger), []);
   const { rutina } = await api("GET", `/rutinas/${routine.id}`, 200);
   assert.equal(rutina.ejercicios[0].plan.descanso, 90);
 
@@ -148,6 +152,21 @@ test("sesiones autenticadas, recuperación, rutinas y cierre transaccional sobre
   assert.equal(historialDetallado.sesion.ejercicios.length, 8);
   assert.equal(historialDetallado.primerasMarcas.length, 2);
   assert.equal(historialDetallado.mejoras.length, 0);
+  const home = `${root}/resumen-inicio?desde=${historialDetallado.fecha}&hasta=${historialDetallado.fecha}`;
+  await api("GET", home, 401, undefined, null);
+  await api("GET", `${home}&usuarioId=${stranger}`, 400);
+  await api("GET", `${root}/resumen-inicio?desde=2025-01-01&hasta=2025-02-01`, 400);
+  const dashboard = await api("GET", home, 200);
+  assert.equal(dashboard.total, 1);
+  assert.equal(dashboard.ultimo.id, id);
+  assert.equal(dashboard.dias[0].sesiones, 1);
+  assert.equal(dashboard.dias[0].series, 8);
+  assert.deepEqual(await api("GET", home, 200, undefined, stranger), { total: 0, ultimo: null, dias: [] });
+  await prisma.usuario.update({ where: { idusuario: stranger }, data: { tipoUsuario: "admin" } });
+  await api("GET", home, 403, undefined, stranger);
+  await api("GET", "/rutinas/planificacion", 403, undefined, stranger);
+  await prisma.usuario.update({ where: { idusuario: stranger }, data: { tipoUsuario: "cliente" } });
+
   assert.equal(entrenamientos[0].series.find((set: { tipo: string }) => set.tipo === "cardio").distancia_km, 2.25);
   assert.ok(entrenamientos[0].sesion.ejercicios.every((item: { descanso: number }) => item.descanso === 90));
   assert.deepEqual((await api("GET", root, 200, undefined, stranger)).entrenamientos, []);
